@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator</title>
+  <title>AI Modular Data Center Configurator (V7)</title>
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -41,89 +41,103 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v6_enterprise";
+    const STORAGE_KEY = "ai_mdc_studio_v7_enterprise";
 
+    // IT RACK MASTER CATALOG — Engineering Specs Only (Zero Cost Fields; IT Hardware Priced Separately)
     const INITIAL_SKUS = [
       {
         id: "sku-dlc-265",
-        name: "265 kW 100% DLC Compute Rack",
-        category: "DLC",
-        standard: "Custom / OCP-Compatible",
+        name: "High-Density 265 kW DLC Compute Rack",
+        coolingType: "DLC",
+        standard: "OCP / Custom 21-inch",
         heightMm: 2500, widthMm: 900, depthMm: 1200,
-        dryWeightKg: 1580, coolantWeightKg: 270,
+        weightKg: 1850,
         peakKw: 265, continuousFactor: 0.943, operatingUtilFactor: 0.85,
-        liquidSplitPct: 98, cduMode: "Integrated",
+        liquidSplitPct: 95,
+        cduIntegrated: true,
+        cduTowerHeightMm: 2200, cduTowerWidthMm: 600, cduTowerDepthMm: 1200,
         flowLpmPerKw: 1.45, reqDeltaPBar: 1.8, mawpBar: 4.0,
-        powerEntry: "Top", liquidEntry: "Bottom", dataEntry: "Top",
-        unitCostInr: 4200000, vendorMake: "OEM Integrated DLC", vendorModel: "DLC-265-GEN4",
+        powerEntry: "Top", plumbingEntry: "Bottom",
         color: "#002870"
       },
       {
-        id: "sku-helios",
-        name: "AMD Helios Double-Wide ORW",
-        category: "DLC",
-        standard: "OCP Open Rack Wide (Double-Wide)",
+        id: "sku-dlc-300-ext",
+        name: "Double-Wide 300 kW DLC GPU Rack (External CDU)",
+        coolingType: "DLC",
+        standard: "OCP Open Rack Wide",
         heightMm: 2500, widthMm: 1200, depthMm: 1200,
-        dryWeightKg: 1950, coolantWeightKg: 320,
+        weightKg: 2270,
         peakKw: 300, continuousFactor: 0.95, operatingUtilFactor: 0.88,
-        liquidSplitPct: 92, cduMode: "External",
+        liquidSplitPct: 90,
+        cduIntegrated: false,
+        cduTowerHeightMm: 2400, cduTowerWidthMm: 800, cduTowerDepthMm: 1200,
         flowLpmPerKw: 1.5, reqDeltaPBar: 2.1, mawpBar: 4.5,
-        powerEntry: "Top", liquidEntry: "Bottom", dataEntry: "Top",
-        unitCostInr: 5600000, vendorMake: "AMD / ODM", vendorModel: "Helios-MI455X-ORW",
+        powerEntry: "Top", plumbingEntry: "Bottom",
         color: "#FF5539"
       },
       {
-        id: "sku-nvl72",
-        name: "NVIDIA MGX GB200 NVL72",
-        category: "DLC",
-        standard: "NVIDIA MGX / ORv3",
+        id: "sku-dlc-140-ext",
+        name: "140 kW Liquid-Cooled NVL Compute Rack",
+        coolingType: "DLC",
+        standard: "MGX / ORv3",
         heightMm: 2450, widthMm: 800, depthMm: 1200,
-        dryWeightKg: 1380, coolantWeightKg: 180,
+        weightKg: 1560,
         peakKw: 140, continuousFactor: 0.94, operatingUtilFactor: 0.85,
-        liquidSplitPct: 88, cduMode: "External",
+        liquidSplitPct: 85,
+        cduIntegrated: false,
+        cduTowerHeightMm: 2200, cduTowerWidthMm: 600, cduTowerDepthMm: 1200,
         flowLpmPerKw: 1.4, reqDeltaPBar: 1.9, mawpBar: 4.0,
-        powerEntry: "Top", liquidEntry: "Bottom", dataEntry: "Top",
-        unitCostInr: 3400000, vendorMake: "NVIDIA MGX ODM", vendorModel: "GB200-NVL72-140K",
+        powerEntry: "Top", plumbingEntry: "Bottom",
         color: "#00B290"
       },
       {
-        id: "sku-rubin144",
-        name: "NVIDIA Rubin NVL144 (800 VDC)",
-        category: "DLC",
-        standard: "NVIDIA MGX 800VDC",
+        id: "sku-dlc-240-800v",
+        name: "240 kW 800VDC Liquid Compute Rack",
+        coolingType: "DLC",
+        standard: "MGX 800VDC",
         heightMm: 2500, widthMm: 800, depthMm: 1250,
-        dryWeightKg: 1620, coolantWeightKg: 240,
+        weightKg: 1860,
         peakKw: 240, continuousFactor: 0.95, operatingUtilFactor: 0.88,
-        liquidSplitPct: 94, cduMode: "External",
+        liquidSplitPct: 92,
+        cduIntegrated: false,
+        cduTowerHeightMm: 2200, cduTowerWidthMm: 600, cduTowerDepthMm: 1200,
         flowLpmPerKw: 1.48, reqDeltaPBar: 2.0, mawpBar: 4.2,
-        powerEntry: "Bottom", liquidEntry: "Bottom", dataEntry: "Top",
-        unitCostInr: 4950000, vendorMake: "NVIDIA MGX ODM", vendorModel: "Rubin-NVL144-800V",
+        powerEntry: "Bottom", plumbingEntry: "Bottom",
         color: "#1C38F5"
       },
       {
         id: "sku-air-core",
-        name: "Air-Cooled Storage, Spine & Mgmt Rack",
-        category: "AC",
-        standard: "EIA-310 / OCP ORv3 19-inch",
+        name: "25 kW Air-Cooled Storage, Spine & Mgmt Rack",
+        coolingType: "AC",
+        standard: "EIA-310 19-inch",
         heightMm: 2200, widthMm: 800, depthMm: 1200,
-        dryWeightKg: 820, coolantWeightKg: 0,
+        weightKg: 820,
         peakKw: 25, continuousFactor: 0.90, operatingUtilFactor: 0.75,
-        liquidSplitPct: 0, cduMode: "None",
+        liquidSplitPct: 0,
+        cduIntegrated: false,
+        cduTowerHeightMm: 0, cduTowerWidthMm: 0, cduTowerDepthMm: 0,
         flowLpmPerKw: 0, reqDeltaPBar: 0, mawpBar: 0,
-        powerEntry: "Top", liquidEntry: "None", dataEntry: "Top",
-        unitCostInr: 1450000, vendorMake: "Rittal / Panduit", vendorModel: "TS-IT-800-25K",
+        powerEntry: "Top", plumbingEntry: "None",
         color: "#FFB600"
       }
     ];
 
     const INITIAL_CONTAINER_CATALOG = [
       {
+        id: "cnt-std-20iso",
+        name: "20 ft ISO Tactical Edge AI Pod (6.06m)",
+        lengthMm: 6058, widthMm: 4200, heightMm: 3900,
+        metallurgy: "Corten-A SPA-H", wallMm: 2.0, roofMm: 3.0, floorMm: 4.5,
+        plenumMm: 700, topClearanceMm: 950,
+        baseCostInr: 4100000
+      },
+      {
         id: "cnt-std-40iso",
         name: "40 ft ISO High-Cube AI Pod (12.19m)",
         lengthMm: 12192, widthMm: 4200, heightMm: 3900,
         metallurgy: "Corten-A SPA-H", wallMm: 2.0, roofMm: 3.0, floorMm: 4.5,
         plenumMm: 700, topClearanceMm: 950,
-        baseCostInr: 6800000, isBespoke: false
+        baseCostInr: 6800000
       },
       {
         id: "cnt-std-custom135",
@@ -131,36 +145,56 @@
         lengthMm: 13500, widthMm: 4200, heightMm: 3900,
         metallurgy: "Corten-A SPA-H", wallMm: 2.5, roofMm: 3.0, floorMm: 5.0,
         plenumMm: 750, topClearanceMm: 1000,
-        baseCostInr: 7950000, isBespoke: false
+        baseCostInr: 7950000
       }
     ];
 
-    const DEFAULT_RATE_CARD = {
-      shellPerSqm: { label: "Modular Container Shell Fabrication", cost: 48000, unit: "per m²", make: "Bespoke Fab", model: "SPA-H Corten Heavy" },
-      seismicBracingPod: { label: "IS 1893 Seismic Zone IV/V Gussets & Flexible Loops", cost: 650000, unit: "per pod", make: "Seismic Shield", model: "IS1893-Z45-Kit" },
-      extCdu1500Kw: { label: "External Row/Side-Car Liquid CDU (FWS-to-TCS)", cost: 6800000, unit: "per unit", make: "Vertiv / CoolIT", model: "Liebert XDU-1350" },
-      primaryPumpSkid: { label: "N+1 VFD Primary/Secondary Circulating Pump Skid", cost: 2450000, unit: "per skid", make: "Grundfos / Wilo", model: "Hydro-MPC-E-VFD" },
-      waterTank10Kl: { label: "SS316L / FRP Make-Up & Pressurized Expansion Tank", cost: 890000, unit: "per 10 kL module", make: "Sintex / Jindal", model: "HM-Water-10KL" },
-      adiabaticCooler1Mw: { label: "Yard Adiabatic / Dry Fluid Cooler", cost: 5200000, unit: "per 1MW unit", make: "Guntner / Kelvion", model: "GFD-Adiabatic-1000" },
-      trimChiller500Kw: { label: "Peak Monsoon Trim Chiller", cost: 4400000, unit: "per 500kW unit", make: "Trane / Climaveneta", model: "RTAF-500-VFD" },
-      roomDehumPac40Kw: { label: "Room Dehumidification & PAC Unit", cost: 850000, unit: "per 40kW unit", make: "Stulz / Vertiv", model: "MiniSpace-EC-40" },
-      transformer2000Kva: { label: "MV/LV Cast-Resin Dry Transformer (11/33kV)", cost: 4200000, unit: "per 2000kVA", make: "ABB / Voltamp", model: "Resibloc-2000kVA" },
-      lvSwitchgearPanel: { label: "Main LV ACB Switchgear & Auto-Changeover", cost: 2800000, unit: "per 3200A lineup", make: "L&T / Schneider", model: "U-Power-3200A" },
-      buswayPerMeter: { label: "Overhead Dual A/B Power Busway", cost: 62000, unit: "per meter", make: "Schneider / Zucchini", model: "Canalis-KT-1600A" },
-      ss316HeaderPerMeter: { label: "Underfloor SS316L Coolant Header", cost: 38000, unit: "per meter", make: "Jindal / Victaulic", model: "SS316L-DN150-Grooved" },
-      upsContainer1Mw: { label: "Containerized Modular UPS Pod", cost: 9200000, unit: "per 1000kVA pod", make: "Eaton / Vertiv", model: "93PM-1000kVA-Pod" },
-      batteryContainer15Min: { label: "Containerized Battery Pod (BESS)", cost: 7800000, unit: "per 1.2MWh pod", make: "Exide / Amara Raja", model: "LFP-Rack-BESS" },
-      dgSet1500Kva: { label: "CPCB IV+ Acoustic DG Set + PESO Tank", cost: 11500000, unit: "per 1500kVA", make: "Cummins / KOEL", model: "C1500D5P-CPCB4+" },
-      integratedBmsPod: { label: "Integrated BMS, DCIM, EPMS & Floor Leak-Detection", cost: 1850000, unit: "per pod/zone", make: "Schneider / Siemens", model: "EcoStruxure-DCIM" },
-      vesdaFirePod: { label: "VESDA Aspirating Smoke + Novec 1230 Clean Agent", cost: 2150000, unit: "per pod", make: "Honeywell / Kidde", model: "VESDA-VLP-Novec" },
-      cctvSecuritySite: { label: "IP CCTV Surveillance, NVR (90d) & Biometric Access", cost: 1450000, unit: "per campus/pod set", make: "Axis / Hikvision", model: "AI-Surveil-Pro" },
-      acousticBarrierMeter: { label: "CPCB Boundary Acoustic Louver & Barrier Wall", cost: 32000, unit: "per linear m", make: "IAC Acoustics", model: "Noishield-65dBA" },
-      adminSparesModule: { label: "Admin, NOC & ESD Spares Workshop Container", cost: 4600000, unit: "per module", make: "Modular Prefab", model: "NOC-Workshop-40ft" },
-      stagingDockModule: { label: "Staging, Unloading & Nitrogen Leak-Test Bay", cost: 3900000, unit: "per module", make: "Modular Prefab", model: "Unpack-BurnIn-Dock" },
-      civilPlinthPerSqm: { label: "Elevated RCC Monsoon Plinths, Trenches & Canopy", cost: 14500, unit: "per m²", make: "RCC M35 Grade", model: "IS456-Monsoon-Plinth" },
-      installCommissionPod: { label: "Site Rigging, Ganging, Hydro-Flush & IST (L1–L5)", cost: 1650000, unit: "per pod", make: "Turnkey Field Eng", model: "IST-L1-L5-Service" },
-      annualAmcOpsPerMw: { label: "Annual 24x7 Resident O&M, AMC & Consumables", cost: 4800000, unit: "per MW / year", make: "Managed DC Ops", model: "SLA-99.99-AMC" }
-    };
+    // COMPREHENSIVE NON-IT EQUIPMENT MASTER CATALOG (Starting Baseline Costs)
+    const INITIAL_NON_IT_CATALOG = [
+      // 1. Liquid Cooling & Heat Rejection
+      { id: "adiabaticCooler1Mw", category: "Liquid Cooling & Heat Rejection", label: "Yard Adiabatic / Dry Fluid Cooler (1000 kW)", unit: "per 1MW unit", cost: 5200000, make: "Guntner / Kelvion", model: "GFD-Adiabatic-1000" },
+      { id: "trimChiller500Kw", category: "Liquid Cooling & Heat Rejection", label: "Peak Monsoon Air-Cooled Trim Chiller (500 kW)", unit: "per 500kW unit", cost: 4400000, make: "Trane / Climaveneta", model: "RTAF-500-VFD" },
+      { id: "extCdu1500Kw", category: "Liquid Cooling & Heat Rejection", label: "External Row/Side-Car Liquid CDU (1350 kW)", unit: "per CDU tower", cost: 6800000, make: "Vertiv / CoolIT", model: "Liebert XDU-1350" },
+      { id: "rdhxUnit45Kw", category: "Liquid Cooling & Heat Rejection", label: "Active Rear-Door Heat Exchanger (RDHX 45 kW)", unit: "per rack door", cost: 420000, make: "Motivair / CoolIT", model: "ChilledDoor-45kW" },
+      { id: "inRowCooler40Kw", category: "Liquid Cooling & Heat Rejection", label: "In-Row Precision Chilled-Water / DX Cooler (40 kW)", unit: "per 300mm unit", cost: 920000, make: "Vertiv / Schneider", model: "Liebert CRV-40kW" },
+      { id: "roomDehumPac40Kw", category: "Liquid Cooling & Heat Rejection", label: "Perimeter PAC & Room Dehumidification Unit (40 kW)", unit: "per 40kW unit", cost: 850000, make: "Stulz / Vertiv", model: "MiniSpace-EC-40" },
+
+      // 2. Hydraulics, Piping & Water Storage
+      { id: "primaryPumpSkid", category: "Hydraulics, Piping & Water Storage", label: "N+1 VFD Primary/Secondary Circulating Pump Skid", unit: "per skid", cost: 2450000, make: "Grundfos / Wilo", model: "Hydro-MPC-E-VFD" },
+      { id: "ss316HeaderPerMeter", category: "Hydraulics, Piping & Water Storage", label: "SS316L Supply/Return Coolant Header & Isolation Valves", unit: "per meter", cost: 38000, make: "Jindal / Victaulic", model: "SS316L-DN150-Grooved" },
+      { id: "waterTank10Kl", category: "Hydraulics, Piping & Water Storage", label: "SS316L / FRP Make-Up & Pressurized Expansion Tank (10 kL)", unit: "per 10 kL module", cost: 890000, make: "Sintex / Jindal", model: "HM-Water-10KL" },
+      { id: "glycolDosingSkid", category: "Hydraulics, Piping & Water Storage", label: "Automated PG25 Glycol Dosing, Filtration & Water Treatment", unit: "per plant", cost: 1150000, make: "Grundfos / Alfa Laval", model: "PG25-Treat-Pro" },
+
+      // 3. Power Distribution & Transformation
+      { id: "transformer2000Kva", category: "Power Distribution & Transformation", label: "MV/LV Cast-Resin / ONAN Transformer (2000 kVA)", unit: "per 2000kVA", cost: 4200000, make: "ABB / Voltamp", model: "Resibloc-2000kVA" },
+      { id: "htVcbPanel", category: "Power Distribution & Transformation", label: "11kV / 33kV Indoor HT VCB Ring Main & Metering Panel", unit: "per panel", cost: 1650000, make: "ABB / Siemens", model: "UniGear-ZS1" },
+      { id: "lvSwitchgearPanel", category: "Power Distribution & Transformation", label: "Main LV ACB Switchgear & Auto-Changeover Lineup (3200A)", unit: "per lineup", cost: 2800000, make: "L&T / Schneider", model: "U-Power-3200A" },
+      { id: "buswayPerMeter", category: "Power Distribution & Transformation", label: "Overhead Dual A/B Track Power Busway (1600A)", unit: "per meter", cost: 62000, make: "Schneider / Zucchini", model: "Canalis-KT-1600A" },
+      { id: "intelligentRpdu", category: "Power Distribution & Transformation", label: "Intelligent 0U Metered/Switched Rack PDU (Dual A/B Set)", unit: "per rack pair", cost: 185000, make: "Raritan / ServerTech", model: "PX4-63A-3P-Dual" },
+
+      // 4. Backup Power & Energy Storage
+      { id: "upsContainer1Mw", category: "Backup Power & Energy Storage", label: "Containerized Modular Online UPS Pod (1000 kVA)", unit: "per 1000kVA pod", cost: 9200000, make: "Eaton / Vertiv", model: "93PM-1000kVA-Pod" },
+      { id: "batteryContainer15Min", category: "Backup Power & Energy Storage", label: "Containerized LFP / VRLA Battery Pod (1.2 MWh)", unit: "per 1.2MWh pod", cost: 7800000, make: "Exide / Amara Raja", model: "LFP-Rack-BESS" },
+      { id: "dgSet1500Kva", category: "Backup Power & Energy Storage", label: "CPCB IV+ Acoustic Diesel Generator + PESO Bulk Fuel Tank", unit: "per 1500kVA", cost: 11500000, make: "Cummins / KOEL", model: "C1500D5P-CPCB4+" },
+
+      // 5. BMS, Fire Suppression & Security
+      { id: "integratedBmsPod", category: "BMS, Fire Suppression & Security", label: "Integrated BMS, DCIM, EPMS & PLC Telemetry Suite", unit: "per pod/zone", cost: 1850000, make: "Schneider / Siemens", model: "EcoStruxure-DCIM" },
+      { id: "leakDetectionRope", category: "BMS, Fire Suppression & Security", label: "Addressable Conductive Liquid Leak Detection Rope & Panel", unit: "per meter", cost: 8500, make: "Raychem / TTK", model: "FG-ECX-Zone" },
+      { id: "vesdaFirePod", category: "BMS, Fire Suppression & Security", label: "VESDA Laser Aspirating Smoke + Novec 1230 Clean Agent", unit: "per pod", cost: 2150000, make: "Honeywell / Kidde", model: "VESDA-VLP-Novec" },
+      { id: "cctvSecuritySite", category: "BMS, Fire Suppression & Security", label: "IP CCTV Surveillance, 90-Day NVR & Biometric Access Control", unit: "per campus/pod set", cost: 1450000, make: "Axis / Hikvision", model: "AI-Surveil-Pro" },
+
+      // 6. Modular Enclosures, Civil & Support Modules
+      { id: "shellPerSqm", category: "Modular Enclosures & Civil", label: "Custom Modular Container Shell Fabrication (Parametric)", unit: "per m²", cost: 48000, make: "Bespoke Fab", model: "SPA-H Corten Heavy" },
+      { id: "seismicBracingPod", category: "Modular Enclosures & Civil", label: "IS 1893 Seismic Zone IV/V Gussets & Flexible Coolant Loops", unit: "per pod", cost: 650000, make: "Seismic Shield", model: "IS1893-Z45-Kit" },
+      { id: "civilPlinthPerSqm", category: "Modular Enclosures & Civil", label: "Elevated RCC Monsoon Plinths, Trenches & Roof Canopy", unit: "per m²", cost: 14500, make: "RCC M35 Grade", model: "IS456-Monsoon-Plinth" },
+      { id: "acousticBarrierMeter", category: "Modular Enclosures & Civil", label: "CPCB Neighbor-Boundary Acoustic Louver & Barrier Wall", unit: "per linear m", cost: 32000, make: "IAC Acoustics", model: "Noishield-65dBA" },
+      { id: "adminSparesModule", category: "Modular Enclosures & Civil", label: "Operations NOC, Admin & ESD Spares Workshop Container", unit: "per module", cost: 4600000, make: "Modular Prefab", model: "NOC-Workshop-40ft" },
+      { id: "stagingDockModule", category: "Modular Enclosures & Civil", label: "Staging, Unloading Dock & Nitrogen Leak-Test Bay", unit: "per module", cost: 3900000, make: "Modular Prefab", model: "Unpack-BurnIn-Dock" },
+
+      // 7. Services, Commissioning & Multi-Year AMC
+      { id: "installCommissionPod", category: "Services & AMC", label: "Site Rigging, Ganging, Hydro-Flush & IST Commissioning (L1–L5)", unit: "per pod", cost: 1650000, make: "Turnkey Field Eng", model: "IST-L1-L5-Service" },
+      { id: "annualAmcOpsPerMw", category: "Services & AMC", label: "Annual 24x7 Resident O&M, Comprehensive AMC & Consumables", unit: "per MW / year", cost: 4800000, make: "Managed DC Ops", model: "SLA-99.99-AMC" }
+    ];
 
     const INITIAL_STANDARDS = {
       iso20LengthMm: 6058,
@@ -184,7 +218,6 @@
       buswayAmperageA: 1600,
       lfpDoDPct: 85,
       vrlaDoDPct: 65,
-      dgFuelLitresPerKwh: 0.26,
       gridTariffInrKwh: 8.5,
       waterTariffInrKl: 65,
       defaultMarginPct: 18,
@@ -194,7 +227,6 @@
       eurRate: 91
     };
 
-    // IS 1893 Seismic Zone Classifier
     function classifySeismicZone(cityName = "", lat = 19.0, lon = 73.0) {
       const c = cityName.toLowerCase();
       if (c.includes("guwahati") || c.includes("shillong") || c.includes("imphal") || c.includes("itanagar") || c.includes("kohima") || c.includes("agartala") || c.includes("aizawl") || c.includes("gangtok") || c.includes("bhuj") || c.includes("srinagar") || c.includes("leh") || c.includes("dehradun") || c.includes("shimla") || c.includes("port blair") || (lon > 89 && lat > 22) || lat > 30) {
@@ -216,14 +248,13 @@
       status: "Draft",
       updatedAt: new Date().toISOString().slice(0, 10),
       archetype: "Sovereign AI Training Factory",
-      deploymentMode: "OneShot", // "OneShot" | "Phased"
+      deploymentMode: "OneShot",
       day1SharePct: 50,
       targetItMw: 0,
       currency: "INR",
       marginPct: std.defaultMarginPct,
       contingencyPct: std.defaultContingencyPct,
       gstPct: std.defaultGstPct,
-      // Dynamic City Weather & Seismic
       cityQuery: "Navi Mumbai",
       lat: 19.03,
       lon: 73.02,
@@ -231,15 +262,12 @@
       peakDryBulb: 38.0,
       peakWetBulb: 29.2,
       relHumidityPct: 78,
-      annualRainMm: 2200,
       seismicZone: "Zone III",
       seismicZFactor: 0.16,
       seismicLabel: "IS 1893 Zone III (Moderate Seismicity — 0.16g)",
-      // Rack Quantities & Dual-Mode Actual Loading
       rackQuantities: {},
-      loadingMode: "Standard", // "Standard" | "ActualPerRack"
-      actualRackLoads: {}, // { [rackInstanceKey]: actualKw }
-      // Container & Hall
+      loadingMode: "Standard",
+      actualRackLoads: {},
       containerCatalogId: "custom",
       containerLengthMode: "CustomOptimum",
       maxCustomLengthMm: std.defaultCustomMaxLenMm,
@@ -254,10 +282,12 @@
       bespokeContainerPriceInr: "",
       hallTopology: "GangedLinear",
       packingStrategy: "MinCapex",
-      // Non-IT Equipment
+      // Non-IT Equipment Flags
       includeTransformer: false,
       transformerType: "Cast-Resin Dry Type",
+      includeHtVcb: false,
       includeLvSwitchgear: false,
+      includeIntelligentRpdu: false,
       includeUpsContainer: false,
       upsFrameKva: 1000,
       includeBatteryContainer: false,
@@ -266,21 +296,23 @@
       includeDgYard: false,
       dgAutonomyHours: 24,
       includeIntegratedBms: false,
+      includeLeakRope: false,
       includeVesdaFire: false,
       includeCctvSecurity: false,
       includeAcousticBarrier: false,
       includeAdminModule: false,
       includeStagingModule: false,
-      // Cooling & Water
+      // Cooling & Residual Air Strategy
       coolingOverrideMode: "Auto",
       includeLiquidLoop: false,
       includeExtCdu: false,
       includePumpSkids: false,
       includeWaterTanks: false,
+      includeGlycolDosing: false,
       waterAutonomyDays: 3,
       includeRoomDehum: false,
       waterAvailability: "Constrained",
-      airCoolingType: "In-Row",
+      airCoolingType: "RDHX", // "RDHX" | "In-Row" | "Perimeter PAC"
       // Redundancy & Compliance
       uptimeTier: "Tier III",
       regulatoryCode: "India BIS / CEA / CPCB IV+ / PESO / NBC / IS 1893",
@@ -291,11 +323,9 @@
       amcYears: 5,
       includeAmcContract: false,
       amcSupportModel: "24x7 Resident Engineers + Spares",
-      nonStandardWorks: [], // [{ id, desc, unit, qty, unitCostInr }]
-      // OpEx Assumptions
+      nonStandardWorks: [],
       gridTariffInrKwh: std.gridTariffInrKwh,
       waterTariffInrKl: std.waterTariffInrKl,
-      // Land Parcel
       parcelShape: "IrregularTrapezoid",
       parcelVertices: [
         { x: 0, y: 0 },
@@ -305,8 +335,20 @@
       ],
       setbackMeters: 6.0,
       hallRotationDeg: 0,
-      rateOverrides: {}
+      // Deal-Specific Vendor Quote Overrides: { [itemKey]: { mode: "price"|"discount", specialPrice: number, discountPct: number, validUntil: string, comments: string } }
+      dealOverrides: {}
     });
+
+    function sanitizeProject(raw, std = INITIAL_STANDARDS) {
+      const base = makeBlankProject(raw?.id || ("proj-" + Date.now()), 1, std);
+      const merged = { ...base, ...(raw || {}) };
+      if (!Array.isArray(merged.parcelVertices) || merged.parcelVertices.length < 3) merged.parcelVertices = base.parcelVertices;
+      if (!Array.isArray(merged.nonStandardWorks)) merged.nonStandardWorks = [];
+      if (!merged.rackQuantities || typeof merged.rackQuantities !== "object") merged.rackQuantities = {};
+      if (!merged.actualRackLoads || typeof merged.actualRackLoads !== "object") merged.actualRackLoads = {};
+      if (!merged.dealOverrides || typeof merged.dealOverrides !== "object") merged.dealOverrides = {};
+      return merged;
+    }
 
     const makeSampleProject = (std = INITIAL_STANDARDS) => {
       const p = makeBlankProject("proj-15mw-sample", 1, std);
@@ -318,17 +360,21 @@
         targetItMw: 15.0,
         rackQuantities: {
           "sku-dlc-265": 32,
-          "sku-helios": 12,
-          "sku-nvl72": 16,
-          "sku-rubin144": 0,
+          "sku-dlc-300-ext": 12,
+          "sku-dlc-140-ext": 16,
+          "sku-dlc-240-800v": 0,
           "sku-air-core": 12
         },
+        airCoolingType: "RDHX",
         includeTransformer: true,
+        includeHtVcb: true,
         includeLvSwitchgear: true,
+        includeIntelligentRpdu: true,
         includeUpsContainer: true,
         includeBatteryContainer: true,
         includeDgYard: true,
         includeIntegratedBms: true,
+        includeLeakRope: true,
         includeVesdaFire: true,
         includeCctvSecurity: true,
         includeAdminModule: true,
@@ -337,6 +383,7 @@
         includeExtCdu: true,
         includePumpSkids: true,
         includeWaterTanks: true,
+        includeGlycolDosing: true,
         includeRoomDehum: true,
         includeInstallation: true,
         includeAmcContract: true,
@@ -347,8 +394,38 @@
       };
     };
 
-    function computeEngineering(project, skus, rateCard, standards) {
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, errMsg: "" };
+      }
+      static getDerivedStateFromError(error) {
+        return { hasError: true, errMsg: String(error?.message || error) };
+      }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div className="h-screen flex items-center justify-center bg-slate-100 p-6">
+              <div className="max-w-lg bg-white rounded-2xl p-6 shadow-xl border border-red-300 space-y-3">
+                <h2 className="text-lg font-black text-red-700">MDC Configurator Recovery Mode</h2>
+                <p className="text-xs text-slate-600">An unexpected state error occurred: <code className="bg-red-50 px-1 py-0.5 rounded">{this.state.errMsg}</code></p>
+                <button
+                  onClick={() => { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }}
+                  className="px-4 py-2 rounded-lg coral-bg text-white text-xs font-bold"
+                >
+                  Reset Local Cache & Reload Clean V7
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    function computeEngineering(project, skus, nonItCatalog, standards) {
       const skuMap = Object.fromEntries(skus.map(s => [s.id, s]));
+      const catMap = Object.fromEntries(nonItCatalog.map(item => [item.id, item]));
       const activeRacks = [];
       let totalNameplatePeakKw = 0;
       let totalDesignContKw = 0;
@@ -360,22 +437,29 @@
       let extCduRequiredKw = 0;
       let hasDlcRacks = false;
       let hasExtCduRacks = false;
+      let maxExtCduWidthMm = 600;
 
       Object.entries(project.rackQuantities || {}).forEach(([skuId, qty]) => {
         const q = Number(qty) || 0;
         const sku = skuMap[skuId];
         if (!sku || q <= 0) return;
 
+        const isDlc = sku.coolingType === "DLC" || (Number(sku.liquidSplitPct) || 0) > 0;
+        const liqPct = isDlc ? (Number(sku.liquidSplitPct) || 90) : 0;
+        const isExtCdu = isDlc && !sku.cduIntegrated;
+
         for (let i = 0; i < q; i++) {
           const instKey = `${sku.id}__${i}`;
-          const designContKw = sku.peakKw * sku.continuousFactor;
-          const stdActualKw = designContKw * sku.operatingUtilFactor;
+          const contF = sku.continuousFactor || 0.94;
+          const utilF = sku.operatingUtilFactor || 0.85;
+          const designContKw = sku.peakKw * contF;
+          const stdActualKw = designContKw * utilF;
           const actualKw = (project.loadingMode === "ActualPerRack" && project.actualRackLoads?.[instKey] !== undefined && project.actualRackLoads?.[instKey] !== "")
             ? Number(project.actualRackLoads[instKey])
             : stdActualKw;
 
           const effectiveThermalKw = project.loadingMode === "ActualPerRack" ? actualKw : designContKw;
-          const liqKw = effectiveThermalKw * (sku.liquidSplitPct / 100);
+          const liqKw = effectiveThermalKw * (liqPct / 100);
           const airKw = effectiveThermalKw - liqKw;
 
           totalNameplatePeakKw += sku.peakKw;
@@ -383,30 +467,34 @@
           totalActualKw += actualKw;
           totalLiquidKw += liqKw;
           totalAirKw += airKw;
-          totalFlowLpm += liqKw * sku.flowLpmPerKw;
-          if (sku.reqDeltaPBar > maxReqDeltaPBar) maxReqDeltaPBar = sku.reqDeltaPBar;
+          totalFlowLpm += liqKw * (sku.flowLpmPerKw || 0);
+          if ((sku.reqDeltaPBar || 0) > maxReqDeltaPBar) maxReqDeltaPBar = sku.reqDeltaPBar;
 
-          if (sku.category === "DLC" || sku.liquidSplitPct > 0) hasDlcRacks = true;
-          if (sku.cduMode === "External") {
+          if (isDlc) hasDlcRacks = true;
+          if (isExtCdu) {
             extCduRequiredKw += liqKw;
             hasExtCduRacks = true;
+            if ((sku.cduTowerWidthMm || 600) > maxExtCduWidthMm) maxExtCduWidthMm = sku.cduTowerWidthMm;
           }
 
           activeRacks.push({
             ...sku,
+            isDlc,
+            isExtCdu,
+            liquidSplitPct: liqPct,
             instanceKey: instKey,
             instanceIndex: i + 1,
             designContKw,
             actualKw,
             liqKw,
             airKw,
-            wetWeightKg: sku.dryWeightKg + sku.coolantWeightKg
+            totalWeightKg: Number(sku.weightKg) || 1500
           });
         }
       });
 
-      const dlcRacks = activeRacks.filter(r => r.category === "DLC");
-      const acRacks = activeRacks.filter(r => r.category === "AC");
+      const dlcRacks = activeRacks.filter(r => r.isDlc);
+      const acRacks = activeRacks.filter(r => !r.isDlc);
 
       const airlockReserveMm = project.airlockVestibule ? 1400 : 400;
       const wallInsulReserveMm = 400;
@@ -429,14 +517,17 @@
           let placed = false;
           for (let p of localPods) {
             if (project.packingStrategy === "Segregated" && p.racks.length > 0 && p.racks[0].id !== rack.id) continue;
-            const cduWidthReserve = p.needsExtCdu || rack.cduMode === "External" ? 900 : 0;
+            const cduWidthReserve = (p.needsExtCdu || rack.isExtCdu) ? (maxExtCduWidthMm + 150) : 0;
+            const inRowReserve = (project.airCoolingType === "In-Row" && (p.airKw + rack.airKw) > 25)
+              ? Math.ceil((p.airKw + rack.airKw) / 40) * 320
+              : 0;
             const rowALen = p.rowA.reduce((s, r) => s + r.widthMm + 50, 0);
             const rowBLen = p.rowB.reduce((s, r) => s + r.widthMm + 50, 0);
             const targetRow = rowALen <= rowBLen ? "A" : "B";
             const currentRowLen = targetRow === "A" ? rowALen : rowBLen;
             const nextKw = p.designContKw + rack.designContKw;
-            const nextWt = p.wetWeightKg + rack.wetWeightKg;
-            if (currentRowLen + rack.widthMm + cduWidthReserve <= maxUsableRowMm && nextKw <= maxKwCap && nextWt <= maxPayloadKgPerPod) {
+            const nextWt = p.wetWeightKg + rack.totalWeightKg;
+            if (currentRowLen + rack.widthMm + cduWidthReserve + inRowReserve <= maxUsableRowMm && nextKw <= maxKwCap && nextWt <= maxPayloadKgPerPod) {
               p.racks.push(rack);
               if (targetRow === "A") p.rowA.push(rack);
               else p.rowB.push(rack);
@@ -446,7 +537,7 @@
               p.liqKw += rack.liqKw;
               p.airKw += rack.airKw;
               p.wetWeightKg = nextWt;
-              if (rack.cduMode === "External") p.needsExtCdu = true;
+              if (rack.isExtCdu) p.needsExtCdu = true;
               placed = true;
               break;
             }
@@ -463,8 +554,8 @@
               peakKw: rack.peakKw,
               liqKw: rack.liqKw,
               airKw: rack.airKw,
-              wetWeightKg: rack.wetWeightKg,
-              needsExtCdu: rack.cduMode === "External"
+              wetWeightKg: rack.totalWeightKg,
+              needsExtCdu: rack.isExtCdu
             });
           }
         });
@@ -472,8 +563,9 @@
         localPods.forEach((p, idx) => {
           const rowALen = p.rowA.reduce((s, r) => s + r.widthMm + 50, 0);
           const rowBLen = p.rowB.reduce((s, r) => s + r.widthMm + 50, 0);
-          const cduBay = p.needsExtCdu ? 950 : 0;
-          const usedBayMm = Math.max(rowALen, rowBLen) + cduBay;
+          const cduBay = p.needsExtCdu ? (maxExtCduWidthMm + 150) : 0;
+          const inRowBay = (project.airCoolingType === "In-Row" && p.airKw > 10) ? Math.ceil(p.airKw / 40) * 320 : 0;
+          const usedBayMm = Math.max(rowALen, rowBLen) + cduBay + inRowBay;
           let extLenMm = targetExtLengthMm;
           if (project.containerLengthMode === "CustomOptimum") {
             const rawLen = usedBayMm + airlockReserveMm + wallInsulReserveMm;
@@ -496,7 +588,7 @@
           p.emptyTareKg = emptyTareKg;
           p.grossRiggingKg = emptyTareKg + p.wetWeightKg;
           p.shellAreaSqm = shellAreaSqm;
-          p.bayUtilPct = Math.min(100, Math.round((usedBayMm / (extLenMm - airlockReserveMm - wallInsulReserveMm)) * 100));
+          p.bayUtilPct = Math.min(100, Math.round((usedBayMm / Math.max(1000, extLenMm - airlockReserveMm - wallInsulReserveMm)) * 100));
           p.rowAKw = rowAKw;
           p.rowBKw = rowBKw;
           p.phaseBalancePct = phaseBalancePct;
@@ -513,7 +605,7 @@
         : 0;
 
       // Dynamic Psychrometric & Cooling Engine
-      let recommendedCoolingMode = "Air-Side Precision Cooling (PAC / In-Row)";
+      let recommendedCoolingMode = `Air-Side Precision Cooling (${project.airCoolingType})`;
       let annualWueLPerKwh = 0.0;
       let trimChillerKw = 0;
 
@@ -531,7 +623,7 @@
           annualWueLPerKwh = 0.38;
         }
       } else if (totalDesignContKw > 0) {
-        recommendedCoolingMode = `100% Air-Cooled (${project.airCoolingType} Precision DX / Chilled Water)`;
+        recommendedCoolingMode = `100% Air-Cooled (${project.airCoolingType} Precision Cooling)`;
       }
 
       const coolingMode = project.coolingOverrideMode === "Auto" || !project.coolingOverrideMode
@@ -542,9 +634,12 @@
       const extCduUnits = (hasExtCduRacks && project.includeExtCdu) ? Math.max(1, Math.ceil((extCduRequiredKw / 1350) * tierMult)) : 0;
       const adiabaticUnits = (hasDlcRacks && project.includeLiquidLoop) ? Math.max(1, Math.ceil((totalLiquidKw / 1000) * tierMult)) : 0;
       const trimChillerUnits = (hasDlcRacks && project.includeLiquidLoop && trimChillerKw > 0) ? Math.max(1, Math.ceil((trimChillerKw / 500) * tierMult)) : 0;
-      const roomDehumUnits = (totalDesignContKw > 0 && project.includeRoomDehum) ? Math.max(pods.length, Math.ceil((totalAirKw / 40) * tierMult)) : 0;
 
-      // Primary/Secondary Pump Skids & Water Storage Tank Sizing
+      // Air-Side / Residual Heat Rejection Units (RDHX vs In-Row vs Perimeter PAC)
+      const airSideUnits = (totalAirKw > 0 && project.includeRoomDehum)
+        ? Math.max(pods.length, Math.ceil((totalAirKw / 40) * tierMult))
+        : 0;
+
       const pumpSkidsCount = (hasDlcRacks && project.includePumpSkids)
         ? Math.max(1, Math.ceil((totalFlowLpm / 2500) * (project.uptimeTier === "Tier IV" ? 2 : 1)))
         : 0;
@@ -583,98 +678,108 @@
 
       const isHighSeismic = project.seismicZone === "Zone IV" || project.seismicZone === "Zone V";
 
-      // BOM Builder
-      const getItemPrice = (key, qty, label, category, specs, customUnitCost = null) => {
-        const base = rateCard[key] || { cost: 500000, make: "Standard OEM", model: "GEN-1" };
-        const override = project.rateOverrides?.[key];
-        const unitCost = override !== undefined && override !== ""
-          ? Number(override)
-          : (customUnitCost !== null ? Number(customUnitCost) : base.cost);
-        const rawCostTotal = unitCost * qty;
+      // Two-Tier Pricing Resolver: Master Baseline vs. Deal Special Quote Override (NO IT Rack Costs in MDC BOQ!)
+      const getItemPrice = (key, qty, label, category, specs, customMasterUnitCost = null) => {
+        const base = catMap[key] || { cost: 500000, make: "Standard OEM", model: "GEN-1", unit: "per unit" };
+        const masterUnitCost = customMasterUnitCost !== null ? Number(customMasterUnitCost) : Number(base.cost || 0);
+        const ov = project.dealOverrides?.[key];
+
+        let dealUnitCost = masterUnitCost;
+        let isOverridden = false;
+        let discountPct = 0;
+
+        if (ov) {
+          if (ov.mode === "discount" && ov.discountPct !== undefined && ov.discountPct !== "") {
+            discountPct = Number(ov.discountPct) || 0;
+            dealUnitCost = Math.round(masterUnitCost * (1 - discountPct / 100));
+            isOverridden = true;
+          } else if (ov.mode === "price" && ov.specialPrice !== undefined && ov.specialPrice !== "") {
+            dealUnitCost = Number(ov.specialPrice);
+            discountPct = masterUnitCost > 0 ? Number((((masterUnitCost - dealUnitCost) / masterUnitCost) * 100).toFixed(1)) : 0;
+            isOverridden = true;
+          }
+        }
+
+        const rawCostTotal = dealUnitCost * qty;
         const withContingency = rawCostTotal * (1 + project.contingencyPct / 100);
         const sellingPreTax = withContingency / Math.max(0.05, 1 - project.marginPct / 100);
         const gstAmt = sellingPreTax * (project.gstPct / 100);
         return {
           key, category, label, specs,
-          make: base.make, model: base.model,
-          qty, stdUnitCost: base.cost, unitCost,
-          isOverridden: override !== undefined && override !== "",
+          make: base.make, model: base.model, unit: base.unit || "unit",
+          qty, masterUnitCost, unitCost: dealUnitCost,
+          isOverridden, discountPct,
+          validUntil: ov?.validUntil || "",
+          comments: ov?.comments || "",
           rawCostTotal, withContingency, sellingPreTax, gstAmt,
           grandTotalInclGst: sellingPreTax + gstAmt
         };
       };
 
       const bomItems = [];
-      skus.forEach(sku => {
-        const q = Number(project.rackQuantities?.[sku.id]) || 0;
-        if (q > 0) {
-          const k = `rack_${sku.id}`;
-          const ov = project.rateOverrides?.[k];
-          const unitCost = ov !== undefined && ov !== "" ? Number(ov) : sku.unitCostInr;
-          const rawCostTotal = unitCost * q;
-          const withContingency = rawCostTotal * (1 + project.contingencyPct / 100);
-          const sellingPreTax = withContingency / Math.max(0.05, 1 - project.marginPct / 100);
-          const gstAmt = sellingPreTax * (project.gstPct / 100);
-          bomItems.push({
-            key: k, category: "IT Compute & Racks", label: sku.name,
-            specs: `${sku.peakKw}kW Peak | ${sku.liquidSplitPct}% Liq | ΔP ${sku.reqDeltaPBar} bar`,
-            make: sku.vendorMake, model: sku.vendorModel,
-            qty: q, stdUnitCost: sku.unitCostInr, unitCost,
-            isOverridden: ov !== undefined && ov !== "",
-            rawCostTotal, withContingency, sellingPreTax, gstAmt,
-            grandTotalInclGst: sellingPreTax + gstAmt
-          });
-        }
-      });
 
+      // Containers & Structural Shell (IT Racks excluded from MDC BOQ by design!)
       if (pods.length > 0) {
         const netShellSqm = Math.max(40, Math.round(pods.reduce((s, p) => s + p.shellAreaSqm, 0) - sharedWallSavingsSqm));
         if (project.bespokeContainerPriceInr !== "" && Number(project.bespokeContainerPriceInr) > 0) {
-          bomItems.push(getItemPrice("shellPerSqm", pods.length, `Bespoke Modular Containers (${pods.length} Pods, ${project.metallurgy})`, "Structural & Shell", `Custom per-pod fabrication (${(pods[0].extLengthMm/1000).toFixed(2)}m L)`, Number(project.bespokeContainerPriceInr)));
+          bomItems.push(getItemPrice("containerPodShell", pods.length, `Modular AI Container Enclosures (${pods.length} Pods, ${project.metallurgy})`, "Modular Enclosures & Civil", `${(pods[0].extLengthMm/1000).toFixed(2)}m L × ${(pods[0].extWidthMm/1000).toFixed(2)}m W | Catalog/Bespoke Shell`, Number(project.bespokeContainerPriceInr)));
         } else {
-          bomItems.push(getItemPrice("shellPerSqm", netShellSqm, `Custom Modular Enclosures (${pods.length} Pods, ${project.metallurgy})`, "Structural & Shell", `${project.hallTopology} | Wall ${project.wallThicknessMm}mm / Floor ${project.floorThicknessMm}mm`));
+          bomItems.push(getItemPrice("shellPerSqm", netShellSqm, `Custom Modular Enclosures (${pods.length} Pods, ${project.metallurgy})`, "Modular Enclosures & Civil", `${project.hallTopology} | Wall ${project.wallThicknessMm}mm / Floor ${project.floorThicknessMm}mm`));
         }
 
         if (isHighSeismic) {
-          bomItems.push(getItemPrice("seismicBracingPod", pods.length, `Seismic Reinforcement & Flexible Loops (${project.seismicZone})`, "Structural & Shell", `${project.seismicLabel}`));
+          bomItems.push(getItemPrice("seismicBracingPod", pods.length, `Seismic Reinforcement & Flexible Loops (${project.seismicZone})`, "Modular Enclosures & Civil", `${project.seismicLabel}`));
         }
 
         const totalMeters = pods.reduce((s, p) => s + (p.extLengthMm / 1000) * 2, 0);
-        bomItems.push(getItemPrice("buswayPerMeter", Math.round(totalMeters * (project.uptimeTier === "Tier IV" ? 2 : 1.5)), `Overhead Dual A/B Power Busways (${standards.buswayAmperageA}A)`, "Electrical Distribution", `${project.uptimeTier} Redundant Overhead Busways`));
+        bomItems.push(getItemPrice("buswayPerMeter", Math.round(totalMeters * (project.uptimeTier === "Tier IV" ? 2 : 1.5)), `Overhead Dual A/B Power Busways (${standards.buswayAmperageA}A)`, "Power Distribution & Transformation", `${project.uptimeTier} Redundant Overhead Busways`));
+        if (project.includeIntelligentRpdu) {
+          bomItems.push(getItemPrice("intelligentRpdu", activeRacks.length, "Intelligent 0U Metered/Switched Rack PDUs (Dual A/B Set)", "Power Distribution & Transformation", `${activeRacks.length} Dual-Feed Rack PDU Pairs`));
+        }
         if (hasDlcRacks) {
-          bomItems.push(getItemPrice("ss316HeaderPerMeter", Math.round(totalMeters * 2.2), "Underfloor SS316L Supply/Return Coolant Headers", "Liquid Cooling & Hydraulics", `${standards.coolantType} (${Math.round(totalFlowLpm)} LPM)`));
+          bomItems.push(getItemPrice("ss316HeaderPerMeter", Math.round(totalMeters * 2.2), "SS316L Supply/Return Coolant Headers & Isolation Valves", "Hydraulics, Piping & Water Storage", `${standards.coolantType} (${Math.round(totalFlowLpm)} LPM)`));
         }
       }
 
-      if (extCduUnits > 0) bomItems.push(getItemPrice("extCdu1500Kw", extCduUnits, "External Row/Side-Car Liquid CDUs (FWS-to-TCS)", "Liquid Cooling & Hydraulics", `Supports ${Math.round(extCduRequiredKw)} kW external-CDU racks`));
-      if (pumpSkidsCount > 0) bomItems.push(getItemPrice("primaryPumpSkid", pumpSkidsCount, "N+1 VFD Circulating Pump Skids (Yard-to-Rack Loop)", "Liquid Cooling & Hydraulics", `${Math.round(totalFlowLpm)} LPM @ ${pumpDesignHeadBar} bar TDH`));
-      if (waterTankUnits > 0) bomItems.push(getItemPrice("waterTank10Kl", waterTankUnits, `Make-Up & Pressurized Expansion Water Tanks (${(totalWaterStorageLitres/1000)} kL)`, "Liquid Cooling & Hydraulics", `${project.waterAutonomyDays}-day evap buffer + loop fill`));
-      if (adiabaticUnits > 0) bomItems.push(getItemPrice("adiabaticCooler1Mw", adiabaticUnits, "Yard Adiabatic / Dry Fluid Coolers", "Heat Rejection", `${coolingMode}`));
-      if (trimChillerUnits > 0) bomItems.push(getItemPrice("trimChiller500Kw", trimChillerUnits, "Peak Monsoon Mechanical Trim Chillers", "Heat Rejection", `500 kW VFD Air-Cooled Chiller Modules`));
-      if (roomDehumUnits > 0) bomItems.push(getItemPrice("roomDehumPac40Kw", roomDehumUnits, `Room Dehumidification & ${project.airCoolingType} Units`, "Air & Room Control", `Handles ${Math.round(totalAirKw)} kW residual radiant & AC load`));
+      if (extCduUnits > 0) bomItems.push(getItemPrice("extCdu1500Kw", extCduUnits, "External Row/Side-Car Liquid CDUs (FWS-to-TCS)", "Liquid Cooling & Heat Rejection", `Supports ${Math.round(extCduRequiredKw)} kW external-CDU racks`));
+      if (adiabaticUnits > 0) bomItems.push(getItemPrice("adiabaticCooler1Mw", adiabaticUnits, "Yard Adiabatic / Dry Fluid Coolers", "Liquid Cooling & Heat Rejection", `${coolingMode}`));
+      if (trimChillerUnits > 0) bomItems.push(getItemPrice("trimChiller500Kw", trimChillerUnits, "Peak Monsoon Mechanical Trim Chillers", "Liquid Cooling & Heat Rejection", `500 kW VFD Air-Cooled Chiller Modules`));
+      if (airSideUnits > 0) {
+        const airKey = project.airCoolingType === "RDHX" ? "rdhxUnit45Kw" : project.airCoolingType === "In-Row" ? "inRowCooler40Kw" : "roomDehumPac40Kw";
+        bomItems.push(getItemPrice(airKey, airSideUnits, `Residual & Air-Side Cooling (${project.airCoolingType})`, "Liquid Cooling & Heat Rejection", `Handles ${Math.round(totalAirKw)} kW residual radiant & AC rack load`));
+      }
 
-      if (transformerUnits > 0) bomItems.push(getItemPrice("transformer2000Kva", transformerUnits, `MV/LV Step-Down Transformers (${project.transformerType})`, "Substation & Switchgear", `${transformerUnits} x 2000 kVA (${totalFacilityPeakKva} kVA facility peak)`));
-      if (lvSwitchgearUnits > 0) bomItems.push(getItemPrice("lvSwitchgearPanel", lvSwitchgearUnits, "Main LV ACB Switchgear & Auto-Transfer Lineup", "Substation & Switchgear", `3200A Form-4B Drawout Switchboard`));
-      if (upsContainersCount > 0) bomItems.push(getItemPrice("upsContainer1Mw", upsContainersCount, `Containerized Modular UPS Pods (${upsFrameKva} kVA each)`, "UPS & BESS Power", `${project.uptimeTier} Modular Online Double-Conversion`));
-      if (batteryContainersCount > 0) bomItems.push(getItemPrice("batteryContainer15Min", batteryContainersCount, `Containerized ${project.batteryChemistry} Battery Pods (${project.batteryRuntimeMin} min)`, "UPS & BESS Power", `${Math.round(batteryKwhReq)} kWh + Gas Venting & Suppression`));
-      if (dgUnitsCount > 0) bomItems.push(getItemPrice("dgSet1500Kva", dgUnitsCount, "CPCB IV+ Acoustic Diesel Generator Sets + PESO Tank", "Prime/Backup Power", `${dgUnitsCount} x 1500 kVA (${project.dgAutonomyHours}h fuel)`));
+      if (pumpSkidsCount > 0) bomItems.push(getItemPrice("primaryPumpSkid", pumpSkidsCount, "N+1 VFD Circulating Pump Skids (Yard-to-Rack Loop)", "Hydraulics, Piping & Water Storage", `${Math.round(totalFlowLpm)} LPM @ ${pumpDesignHeadBar} bar TDH`));
+      if (waterTankUnits > 0) bomItems.push(getItemPrice("waterTank10Kl", waterTankUnits, `Make-Up & Pressurized Expansion Water Tanks (${(totalWaterStorageLitres/1000)} kL)`, "Hydraulics, Piping & Water Storage", `${project.waterAutonomyDays}-day evap buffer + loop fill`));
+      if (hasDlcRacks && project.includeGlycolDosing && pods.length > 0) bomItems.push(getItemPrice("glycolDosingSkid", 1, "Automated PG25 Glycol Dosing, Filtration & Water Treatment", "Hydraulics, Piping & Water Storage", `${standards.coolantType}`));
 
-      if (project.includeIntegratedBms && pods.length > 0) bomItems.push(getItemPrice("integratedBmsPod", pods.length, "Integrated BMS, DCIM, EPMS & Underfloor Leak Detection", "BMS, Safety & Security", "PLC/SCADA, leak ropes, branch power & thermal telemetry"));
-      if (project.includeVesdaFire && pods.length > 0) bomItems.push(getItemPrice("vesdaFirePod", pods.length, "VESDA Aspirating Smoke Detection + Novec 1230 Suppression", "BMS, Safety & Security", "Early warning laser detection + clean-agent flooding"));
-      if (project.includeCctvSecurity && pods.length > 0) bomItems.push(getItemPrice("cctvSecuritySite", Math.max(1, Math.ceil(pods.length / 2)), "IP CCTV Surveillance, 90-Day NVR & Biometric Access", "BMS, Safety & Security", "Internal aisle domes + perimeter PTZ & turnstiles"));
-      if (project.includeAcousticBarrier) bomItems.push(getItemPrice("acousticBarrierMeter", 85, "CPCB Neighbor-Boundary Acoustic Louver & Barrier Wall", "Civil & Site", "Attenuates yard noise to <= 65 dBA at boundary"));
+      if (transformerUnits > 0) bomItems.push(getItemPrice("transformer2000Kva", transformerUnits, `MV/LV Step-Down Transformers (${project.transformerType})`, "Power Distribution & Transformation", `${transformerUnits} × 2000 kVA (${totalFacilityPeakKva} kVA facility peak)`));
+      if (project.includeHtVcb && transformerUnits > 0) bomItems.push(getItemPrice("htVcbPanel", Math.max(1, Math.ceil(transformerUnits / 2)), "11kV/33kV Indoor HT VCB Ring Main & Metering Panel", "Power Distribution & Transformation", "SF6/Vacuum Circuit Breaker Switchboard"));
+      if (lvSwitchgearUnits > 0) bomItems.push(getItemPrice("lvSwitchgearPanel", lvSwitchgearUnits, "Main LV ACB Switchgear & Auto-Transfer Lineup", "Power Distribution & Transformation", `3200A Form-4B Drawout Switchboard`));
 
-      if (project.includeAdminModule) bomItems.push(getItemPrice("adminSparesModule", 1, "Operations NOC, Admin & ESD Spares Workshop Container", "Support Modules", "Operator consoles, diagnostic bench & spare manifolds"));
-      if (project.includeStagingModule) bomItems.push(getItemPrice("stagingDockModule", 1, "Staging, Unloading Dock & Nitrogen Leak-Test Bay", "Support Modules", "Hydraulic lift + heavy rack de-crating zone"));
+      if (upsContainersCount > 0) bomItems.push(getItemPrice("upsContainer1Mw", upsContainersCount, `Containerized Modular UPS Pods (${upsFrameKva} kVA each)`, "Backup Power & Energy Storage", `${project.uptimeTier} Modular Online Double-Conversion`));
+      if (batteryContainersCount > 0) bomItems.push(getItemPrice("batteryContainer15Min", batteryContainersCount, `Containerized ${project.batteryChemistry} Battery Pods (${project.batteryRuntimeMin} min)`, "Backup Power & Energy Storage", `${Math.round(batteryKwhReq)} kWh + Gas Venting & Suppression`));
+      if (dgUnitsCount > 0) bomItems.push(getItemPrice("dgSet1500Kva", dgUnitsCount, "CPCB IV+ Acoustic Diesel Generator Sets + PESO Tank", "Backup Power & Energy Storage", `${dgUnitsCount} × 1500 kVA (${project.dgAutonomyHours}h fuel)`));
+
+      if (project.includeIntegratedBms && pods.length > 0) bomItems.push(getItemPrice("integratedBmsPod", pods.length, "Integrated BMS, DCIM, EPMS & PLC Telemetry Suite", "BMS, Fire Suppression & Security", "SCADA, branch power, CDU & thermal telemetry"));
+      if (project.includeLeakRope && pods.length > 0) {
+        const ropeMeters = Math.round(pods.reduce((s, p) => s + (p.extLengthMm / 1000) * 3, 0));
+        bomItems.push(getItemPrice("leakDetectionRope", ropeMeters, "Addressable Conductive Liquid Leak Detection Rope & Panel", "BMS, Fire Suppression & Security", `${ropeMeters}m perimeter & manifold zone sensing`));
+      }
+      if (project.includeVesdaFire && pods.length > 0) bomItems.push(getItemPrice("vesdaFirePod", pods.length, "VESDA Aspirating Smoke Detection + Novec 1230 Suppression", "BMS, Fire Suppression & Security", "Early warning laser detection + clean-agent flooding"));
+      if (project.includeCctvSecurity && pods.length > 0) bomItems.push(getItemPrice("cctvSecuritySite", Math.max(1, Math.ceil(pods.length / 2)), "IP CCTV Surveillance, 90-Day NVR & Biometric Access", "BMS, Fire Suppression & Security", "Internal aisle domes + perimeter PTZ & turnstiles"));
+
+      if (project.includeAcousticBarrier) bomItems.push(getItemPrice("acousticBarrierMeter", 85, "CPCB Neighbor-Boundary Acoustic Louver & Barrier Wall", "Modular Enclosures & Civil", "Attenuates yard noise to <= 65 dBA at boundary"));
+      if (project.includeAdminModule) bomItems.push(getItemPrice("adminSparesModule", 1, "Operations NOC, Admin & ESD Spares Workshop Container", "Modular Enclosures & Civil", "Operator consoles, diagnostic bench & spare manifolds"));
+      if (project.includeStagingModule) bomItems.push(getItemPrice("stagingDockModule", 1, "Staging, Unloading Dock & Nitrogen Leak-Test Bay", "Modular Enclosures & Civil", "Hydraulic lift + heavy rack de-crating zone"));
 
       const plinthSqm = pods.length > 0
         ? Math.round(pods.length * 65 + (upsContainersCount + batteryContainersCount) * 35 + (project.includeAdminModule ? 45 : 0))
         : 0;
       if (plinthSqm > 0) {
-        bomItems.push(getItemPrice("civilPlinthPerSqm", plinthSqm, "Elevated RCC Monsoon Plinths, Trenches & Canopy", "Civil & Site", `${project.regulatoryCode}`));
+        bomItems.push(getItemPrice("civilPlinthPerSqm", plinthSqm, "Elevated RCC Monsoon Plinths, Trenches & Canopy", "Modular Enclosures & Civil", `${project.regulatoryCode}`));
       }
 
-      // Installation Services & Multi-Year AMC
       if (project.includeInstallation && pods.length > 0) {
         bomItems.push(getItemPrice("installCommissionPod", pods.length, "Turnkey Site Rigging, Ganging, Hydro-Flush & IST (L1–L5)", "Services & AMC", "Crane lifting, inter-bay sealing & commissioning"));
       }
@@ -684,7 +789,6 @@
         bomItems.push(getItemPrice("annualAmcOpsPerMw", Number((mwQty * years).toFixed(2)), `${years}-Year Managed O&M, Annual AMC & Consumables`, "Services & AMC", `${project.amcSupportModel} (${years} yrs × ${mwQty} MW)`));
       }
 
-      // Non-Standard Works
       (project.nonStandardWorks || []).forEach(nsw => {
         if ((Number(nsw.qty) || 0) > 0 && (Number(nsw.unitCostInr) || 0) > 0) {
           bomItems.push(getItemPrice(`nsw_${nsw.id}`, Number(nsw.qty), nsw.desc || "Non-Standard Site Work", "Non-Standard Works", `Custom BOQ (${nsw.unit})`, Number(nsw.unitCostInr)));
@@ -704,12 +808,10 @@
       const capexSellingPreTax = capexItems.reduce((s, i) => s + i.sellingPreTax, 0);
       const servicesAmcPreTax = servicesAmcItems.reduce((s, i) => s + i.sellingPreTax, 0);
 
-      // Day-1 vs Day-N Split
       const d1Factor = project.deploymentMode === "Phased" ? (project.day1SharePct || 50) / 100 : 1.0;
       const day1CapexPreTax = Math.round(capexSellingPreTax * (0.35 + 0.65 * d1Factor));
       const dayNCapexPreTax = Math.max(0, Math.round(capexSellingPreTax - day1CapexPreTax));
 
-      // Annualized OpEx & 5-Year TCO (Driven by Actual Rack Load)
       const annualItKwh = totalActualKw * 8760;
       const annualFacilityKwh = annualItKwh * pueDesign;
       const annualPowerCostInr = annualFacilityKwh * (project.gridTariffInrKwh || 8.5);
@@ -719,7 +821,6 @@
       const annualTotalOpexInr = annualPowerCostInr + annualWaterCostInr + annualAmcCostInr;
       const fiveYearTcoInr = capexSellingPreTax + (annualTotalOpexInr * 5);
 
-      // Parcel Fit
       const verts = project.parcelVertices || [];
       let area = 0;
       for (let i = 0; i < verts.length; i++) {
@@ -731,24 +832,21 @@
       const requiredFootprintSqm = plinthSqm * 1.45;
       const plotUtilizationPct = Math.min(100, Math.round((requiredFootprintSqm / Math.max(1, netBuildableSqm)) * 100));
 
-      // Acoustic Boundary Estimate
       const sourceDba = dgUnitsCount > 0 ? 82 : 76;
       const attenuationDb = 20 * Math.log10(Math.max(2, project.setbackMeters)) + (project.includeAcousticBarrier ? 12 : 0);
       const boundaryNoiseDba = Math.round(sourceDba - attenuationDb);
 
-      // Implementation Gantt Schedule (Weeks)
+      // Macro-Level 6-Workstream Execution Roadmap (Fits Cleanly on 1 Executive Slide)
       const scaleWks = Math.max(1, Math.ceil(totalDesignContKw / 5000));
       const ganttTasks = [
-        { task: "1. Detailed Engineering, Statutory Approvals & Civil Plinths", startWk: 1, durWk: 4 + scaleWks },
-        { task: "2. Custom Container Fabrication & Seismic Reinforcement", startWk: 2, durWk: 6 + scaleWks },
-        { task: "3. Rack, CDU & Overhead Busway Factory Integration", startWk: 6, durWk: 4 + scaleWks },
-        { task: "4. MV/LV Substation, Modular UPS, BESS & DG Yard", startWk: 5, durWk: 6 + scaleWks },
-        { task: "5. Site Crane Rigging, Inter-Bay Ganging & Hydro-Flush", startWk: 10 + scaleWks, durWk: 3 },
-        { task: "6. Integrated BMS, VESDA Fire & CCTV Security Hookup", startWk: 12 + scaleWks, durWk: 2 },
-        { task: "7. Integrated Systems Testing (IST L1–L5) & Handover", startWk: 13 + scaleWks, durWk: 2 }
+        { task: "1. Detailed Engineering, Statutory Approvals & Submittals", startWk: 1, durWk: 3 + scaleWks },
+        { task: "2. Container Fabrication, Seismic Bracing & Factory Integration", startWk: 2, durWk: 6 + scaleWks },
+        { task: "3. Site Civil Plinths, Trenches & Utility Grid Readiness", startWk: 3, durWk: 5 + scaleWks },
+        { task: "4. Substation, Modular UPS, BESS, DGs & Cooling Yard", startWk: 5, durWk: 6 + scaleWks },
+        { task: "5. Delivery, Crane Rigging, Inter-Bay Ganging & Hydro-Flush", startWk: 9 + scaleWks, durWk: 3 },
+        { task: "6. Cold/Hot Commissioning, IST (L1–L5) & Handover", startWk: 12 + scaleWks, durWk: 2 }
       ];
 
-      // 8-Rule Engineering & Compliance Design Validator
       const validations = [];
       if (activeRacks.length === 0) {
         validations.push({ status: "FAIL", code: "VAL-00", title: "No IT Racks Configured", msg: "Add IT racks in Step 2 (or click Auto-Populate) to size containers, cooling, pumps, and power." });
@@ -759,15 +857,15 @@
       if (hasDlcRacks && (!project.includeLiquidLoop || !project.includePumpSkids || !project.includeWaterTanks)) {
         validations.push({ status: "FAIL", code: "VAL-01", title: "Incomplete DLC Hydraulic Loop", msg: "DLC racks require Liquid Heat Rejection, N+1 VFD Pump Skids, and Make-Up/Expansion Water Tanks enabled in Step 4." });
       } else if (hasExtCduRacks && !project.includeExtCdu) {
-        validations.push({ status: "FAIL", code: "VAL-02", title: "Missing External Row/Side CDUs", msg: "External-CDU racks (AMD Helios / NVIDIA MGX) require External CDUs enabled in Step 4." });
+        validations.push({ status: "FAIL", code: "VAL-02", title: "Missing External Row/Side CDUs", msg: "External-CDU racks require External CDUs enabled in Step 4." });
       } else if (activeRacks.length > 0) {
         validations.push({ status: "PASS", code: "VAL-01", title: "DLC Hydraulic & Thermal Loop Verified", msg: `${Math.round(totalFlowLpm)} LPM @ ${pumpDesignHeadBar} bar TDH + ${(totalWaterStorageLitres/1000)} kL tank storage matched.` });
       }
 
       if (activeRacks.length > 0 && (!project.includeIntegratedBms || !project.includeVesdaFire)) {
-        validations.push({ status: "WARNING", code: "VAL-03", title: "Integrated BMS or VESDA Fire Suppression Unchecked", msg: "Mission-critical AI clusters require Integrated BMS (leak detection) and VESDA + Clean Agent suppression." });
+        validations.push({ status: "WARNING", code: "VAL-03", title: "Integrated BMS or VESDA Fire Suppression Unchecked", msg: "Mission-critical AI clusters require Integrated BMS and VESDA + Clean Agent suppression." });
       } else if (activeRacks.length > 0) {
-        validations.push({ status: "PASS", code: "VAL-03", title: "BMS, VESDA & Life-Safety Verified", msg: "Integrated BMS leak ropes, VESDA laser smoke detection, and Novec 1230 suppression active." });
+        validations.push({ status: "PASS", code: "VAL-03", title: "BMS, VESDA & Life-Safety Verified", msg: "Integrated BMS, leak detection, VESDA laser smoke detection, and Novec 1230 suppression active." });
       }
 
       if (activeRacks.length > 0 && !project.includeUpsContainer) {
@@ -781,8 +879,9 @@
         }
       }
 
-      if (isHighSeismic && pods.length > 0) {
-        validations.push({ status: "PASS", code: "VAL-05", title: `${project.seismicZone} Seismic Engineering Applied`, msg: `IS 1893 Z=${project.seismicZFactor} heavy gussets & flexible braided coolant loops included.` });
+      const overweightPods = pods.filter(p => p.grossRiggingKg > (standards.maxPodPayloadKg || 36000) + 12000);
+      if (overweightPods.length > 0) {
+        validations.push({ status: "WARNING", code: "VAL-05", title: "Heavy Crane Rigging Alert (>48T Gross)", msg: `${overweightPods.length} pod(s) exceed standard 48T gross lift; deploy 250T+ hydraulic tandem crane.` });
       }
 
       if (boundaryNoiseDba > 65 && !project.includeAcousticBarrier) {
@@ -807,7 +906,7 @@
         recommendedCoolingMode, coolingMode, annualWueLPerKwh, trimChillerKw,
         pueDesign, totalFacilityPeakKw, totalFacilityPeakKva,
         transformerUnits, lvSwitchgearUnits, upsContainersCount, batteryContainersCount, dgUnitsCount,
-        extCduUnits, adiabaticUnits, trimChillerUnits, roomDehumUnits,
+        extCduUnits, adiabaticUnits, trimChillerUnits, airSideUnits,
         sharedWallSavingsSqm, bomItems, totals, capexSellingPreTax, servicesAmcPreTax,
         day1CapexPreTax, dayNCapexPreTax,
         annualPowerCostInr, annualWaterCostInr, annualAmcCostInr, annualTotalOpexInr, fiveYearTcoInr,
@@ -830,7 +929,9 @@
       return "₹" + Math.round(valInr).toLocaleString("en-IN");
     }
 
-    // Native PowerPoint (.PPTX) Generator strictly obeying Sample slide.pptx & House Brand Rules
+    // PURE CONSULTING-ORIENTED PPTX DECK GENERATOR
+    // Strict Palette: Brand Orange (#FF5539), Pure White (#FFFFFF), Pure Black/Charcoal Text, Occasional Light Grey (#F5F6F8)
+    // Strict Rules: Zero Navy, Zero Card/Box Grids, 0.1" text padding on all 4 sides, Tosh A Black 24pt & Roshna Black 22pt unbolded headers, 3.1" blank footer
     function exportNativePptxDeck(project, eng, standards, logoDataUrl) {
       if (!window.PptxGenJS) {
         alert("PptxGenJS library is still loading. Please try again in 2 seconds.");
@@ -841,120 +942,174 @@
       pptx.author = "AI Modular Data Center Configurator";
       pptx.title = project.name;
 
-      // 5-Color Corporate Brand Palette
-      const C_ORANGE = "FF5539";
-      const C_NAVY   = "002870";
-      const C_BLUE   = "1C38F5";
-      const C_TEAL   = "00B290";
-      const C_AMBER  = "FFB600";
-      const C_WHITE  = "FFFFFF";
-      const C_LIGHT  = "F4F7FC";
-      const C_TINT_O = "FFF5F3";
-      const C_TEXT   = "1E293B";
+      const C_ORANGE    = "FF5539";
+      const C_WHITE     = "FFFFFF";
+      const C_BLACK     = "000000";
+      const C_CHARCOAL  = "333333";
+      const C_MUTED     = "666666";
+      const C_LIGHTGREY = "F5F6F8";
+      const C_RULE      = "E2E4E8";
 
-      // Helper: Adds standard header (Tosh A Black 24pt unbolded, Roshna Black 22pt unbolded, top-right logo)
-      // Strict bottom clearance: all elements stay above y = 4.40" (leaving 3.1" blank footer!)
-      const addStandardHeader = (slide, titleText, subHeaderText) => {
+      // All content stays strictly above y = 4.40" (enforcing 3.1" blank footer clearance)
+      const addConsultingHeader = (slide, actionTitle, subHeader, sectionNum) => {
         slide.background = { color: C_WHITE };
-        slide.addText(titleText, {
-          x: 0.55, y: 0.35, w: 9.8, h: 0.48,
-          fontFace: "Tosh A Black", fontSize: 24, bold: false, color: C_NAVY, margin: 0
+        slide.addText(`${sectionNum}  |  ${actionTitle}`, {
+          x: 0.55, y: 0.28, w: 10.6, h: 0.48,
+          fontFace: "Tosh A Black", fontSize: 24, bold: false, color: C_BLACK,
+          margin: [0.1, 0.1, 0.1, 0.1], valign: "middle"
         });
-        slide.addText(subHeaderText, {
-          x: 0.55, y: 0.85, w: 9.8, h: 0.42,
-          fontFace: "Roshna Black", fontSize: 22, bold: false, color: C_ORANGE, margin: 0
+        slide.addText(subHeader, {
+          x: 0.55, y: 0.78, w: 10.6, h: 0.40,
+          fontFace: "Roshna Black", fontSize: 22, bold: false, color: C_ORANGE,
+          margin: [0.1, 0.1, 0.1, 0.1], valign: "middle"
+        });
+        slide.addShape(pptx.ShapeType.line, {
+          x: 0.65, y: 1.24, w: 12.0, h: 0,
+          line: { color: C_ORANGE, width: 1.5 }
         });
         if (logoDataUrl) {
-          try { slide.addImage({ data: logoDataUrl, x: 11.4, y: 0.35, w: 1.4, h: 0.65 }); } catch (e) {}
+          try { slide.addImage({ data: logoDataUrl, x: 11.35, y: 0.32, w: 1.35, h: 0.65 }); } catch (e) {}
         }
       };
 
-      // Helper: Single-layer native rounded shape with text directly inside (NO nested text boxes, 3px radius ~ 0.04", 0.1" padding, Roboto <= 12pt)
-      const addNativeShapeCard = (slide, { x, y, w, h, fill, lineColor, textRuns }) => {
-        slide.addShape(pptx.ShapeType.roundRect, {
-          x, y, w, h,
-          rectRadius: 0.04,
-          fill: { color: fill },
-          line: { color: lineColor, width: 1 },
-          margin: 0.1,
-          valign: "middle"
-        });
-        // Add text directly inside the shape via addText with shape property (single-layer native shape!)
-      };
-
-      const addSingleLayerBox = (slide, { x, y, w, h, fill, lineColor, paragraphs }) => {
-        slide.addText(paragraphs, {
-          shape: pptx.ShapeType.roundRect,
-          x, y, w, h,
-          rectRadius: 0.04,
-          fill: { color: fill },
-          line: { color: lineColor, width: 1 },
-          margin: 0.1,
-          valign: "middle"
-        });
-      };
-
-      // SLIDE 1: Dark Navy Title Cover Slide
+      // SLIDE 1: Clean White & Brand Orange Consulting Cover Slide
       const s1 = pptx.addSlide();
-      s1.background = { color: C_NAVY };
-      s1.addShape(pptx.ShapeType.rect, { x: 0.65, y: 1.35, w: 1.2, h: 0.08, fill: { color: C_ORANGE } });
+      s1.background = { color: C_WHITE };
+      s1.addShape(pptx.ShapeType.rect, { x: 0.65, y: 1.15, w: 1.4, h: 0.08, fill: { color: C_ORANGE } });
       s1.addText(project.name, {
-        x: 0.65, y: 1.6, w: 11.8, h: 1.1,
-        fontFace: "Tosh A Black", fontSize: 24, bold: false, color: C_WHITE
+        x: 0.55, y: 1.35, w: 11.8, h: 0.95,
+        fontFace: "Tosh A Black", fontSize: 24, bold: false, color: C_BLACK,
+        margin: [0.1, 0.1, 0.1, 0.1]
       });
-      s1.addText(`Turnkey Engineering & Commercial Proposal • ${project.client || "Enterprise Client"}`, {
-        x: 0.65, y: 2.75, w: 11.8, h: 0.6,
-        fontFace: "Roshna Black", fontSize: 22, bold: false, color: C_ORANGE
+      s1.addText(`Modular AI Data Center Engineering & Commercial Proposal  •  ${project.client || "Enterprise Client"}`, {
+        x: 0.55, y: 2.30, w: 11.8, h: 0.55,
+        fontFace: "Roshna Black", fontSize: 22, bold: false, color: C_ORANGE,
+        margin: [0.1, 0.1, 0.1, 0.1]
       });
       s1.addText(
-        `Site: ${project.cityQuery} (${project.peakDryBulb}°C DB / ${project.peakWetBulb}°C WB | ${project.seismicZone})   |   IT Load: ${(eng.totalDesignContKw/1000).toFixed(2)} MW   |   Uptime: ${project.uptimeTier}`,
-        { x: 0.65, y: 3.65, w: 11.8, h: 0.5, fontFace: "Roboto", fontSize: 12, color: C_WHITE }
+        `Location: ${project.cityQuery} (${project.seismicZone})   |   IT Capacity: ${(eng.totalDesignContKw/1000).toFixed(2)} MW Design TDP   |   Availability: ${project.uptimeTier}   |   Scope: Non-IT Modular Infrastructure`,
+        {
+          x: 0.55, y: 3.05, w: 11.8, h: 0.65,
+          fontFace: "Roboto", fontSize: 11, color: C_CHARCOAL,
+          fill: { color: C_LIGHTGREY }, margin: [0.1, 0.1, 0.1, 0.1], valign: "middle"
+        }
       );
       if (logoDataUrl) {
-        try { s1.addImage({ data: logoDataUrl, x: 11.2, y: 0.5, w: 1.5, h: 0.7 }); } catch (e) {}
+        try { s1.addImage({ data: logoDataUrl, x: 11.35, y: 0.45, w: 1.35, h: 0.65 }); } catch (e) {}
       }
 
-      // SLIDE 2: Executive Requirements & Site Envelope (y <= 4.35", 3.15" blank footer!)
+      // SLIDE 2: Executive Narrative — Project, Customer & Sizing Mandate (Pure Editorial Columns, Zero Boxes)
       const s2 = pptx.addSlide();
-      addStandardHeader(s2, "Executive Requirements & Site Envelope", "Target Workload, Climatic & Seismic Design Basis");
-      const cardsS2 = [
-        {
-          x: 0.55, w: 3.9, fill: C_LIGHT, line: C_NAVY,
-          paras: [
-            { text: "1. Compute & Workload Profile\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_NAVY } },
-            { text: `• Design TDP: ${(eng.totalDesignContKw/1000).toFixed(2)} MW (${eng.activeRacks.length} Racks)\n• Actual Workload: ${(eng.totalActualKw/1000).toFixed(2)} MW (${project.loadingMode})\n• Deployment: ${project.deploymentMode} (${project.archetype})`, options: { fontFace: "Roboto", fontSize: 11, color: C_TEXT } }
-          ]
-        },
-        {
-          x: 4.70, w: 3.9, fill: C_TINT_O, line: C_ORANGE,
-          paras: [
-            { text: "2. Location, Climate & Seismicity\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_ORANGE } },
-            { text: `• City: ${project.cityQuery} (${project.lat}°, ${project.lon}°)\n• Design Weather: ${project.peakDryBulb}°C DB / ${project.peakWetBulb}°C WB\n• Seismic Rating: ${project.seismicLabel}`, options: { fontFace: "Roboto", fontSize: 11, color: C_TEXT } }
-          ]
-        },
-        {
-          x: 8.85, w: 3.9, fill: C_LIGHT, line: C_TEAL,
-          paras: [
-            { text: "3. Availability & Compliance\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_TEAL } },
-            { text: `• Uptime Topology: ${project.uptimeTier} (Design PUE ${eng.pueDesign})\n• Statutory Code: ${project.regulatoryCode}\n• Validator Audit: ${eng.failCount} Fail, ${eng.warnCount} Warnings`, options: { fontFace: "Roboto", fontSize: 11, color: C_TEXT } }
-          ]
-        }
-      ];
-      cardsS2.forEach(c => addSingleLayerBox(s2, { x: c.x, y: 1.55, w: c.w, h: 2.75, fill: c.fill, lineColor: c.line, paragraphs: c.paras }));
+      addConsultingHeader(s2, "Executive Mandate & Sizing Basis", `${project.client || "Customer"} • ${(eng.totalDesignContKw/1000).toFixed(2)} MW ${project.archetype}`, "01");
 
-      // SLIDE 3: Compute & 2-Row Container / Hall Architecture (Native Table, y <= 4.35")
+      s2.addText([
+        { text: "1. Project & Customer Context\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_ORANGE } },
+        { text: `Prepared for ${project.client || "the customer"}, this turnkey modular facility delivers ${(eng.totalDesignContKw/1000).toFixed(2)} MW of continuous IT design capacity (${(eng.totalActualKw/1000).toFixed(2)} MW operating workload) under a ${project.deploymentMode === "Phased" ? `Phased rollout (${project.day1SharePct}% Day-1)` : "One-Shot turnkey delivery"} model. Engineered to ${project.uptimeTier} availability at a design PUE of ${eng.pueDesign}.\n\n`, options: { fontFace: "Roboto", fontSize: 11, color: C_CHARCOAL } },
+        { text: "2. Commercial Scope Boundary\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_ORANGE } },
+        { text: "IT compute racks and GPU servers are accounted for separately in the HPC hardware schedule. This proposal covers the complete containerized physical envelope, DLC hydraulics, power conditioning, BMS, life-safety, site civil works, and multi-year O&M.", options: { fontFace: "Roboto", fontSize: 11, color: C_CHARCOAL } }
+      ], {
+        x: 0.55, y: 1.38, w: 6.1, h: 2.95,
+        margin: [0.1, 0.1, 0.1, 0.1], valign: "top"
+      });
+
+      s2.addShape(pptx.ShapeType.line, { x: 6.80, y: 1.48, w: 0, h: 2.75, line: { color: C_RULE, width: 1 } });
+
+      const execMetrics = [
+        ["Design IT TDP / Actual Load", `${(eng.totalDesignContKw/1000).toFixed(2)} MW  /  ${(eng.totalActualKw/1000).toFixed(2)} MW`],
+        ["Peak Facility Electrical Demand", `${eng.totalFacilityPeakKw.toLocaleString()} kW  (${eng.totalFacilityPeakKva.toLocaleString()} kVA)`],
+        ["Modular Architecture", `${eng.pods.length} Pods  •  ${project.hallTopology}`],
+        ["Design PUE & Water Strategy", `PUE ${eng.pueDesign}  •  ${project.waterAvailability} Water`],
+        ["Statutory & Seismic Basis", `${project.seismicZone} (Z=${project.seismicZFactor})  •  ${project.uptimeTier}`]
+      ];
+      s2.addTable(execMetrics, {
+        x: 6.95, y: 1.45, w: 5.7,
+        fontFace: "Roboto", fontSize: 10.5, color: C_CHARCOAL,
+        border: { type: "solid", color: C_RULE, pt: 0.5 },
+        fill: { color: C_LIGHTGREY },
+        margin: [0.1, 0.1, 0.1, 0.1],
+        colW: [2.7, 3.0], rowH: 0.52
+      });
+
+      // SLIDE 3: IT Technical Solution for Which the MDC Is Built
       const s3 = pptx.addSlide();
-      addStandardHeader(s3, "Compute & 2-Row Container Architecture", `${eng.pods.length} Modular Pods • ${project.hallTopology} Assembly`);
+      addConsultingHeader(s3, "IT Technical Solution & Compute Workload", `${eng.activeRacks.length} High-Density Racks • ${Math.round(eng.totalLiquidKw)} kW Liquid / ${Math.round(eng.totalAirKw)} kW Air Split`, "02");
+
+      const skuMap = Object.fromEntries(skus.map(s => [s.id, s]));
+      const activeSkuRows = Object.entries(project.rackQuantities || {})
+        .filter(([id, q]) => (Number(q) || 0) > 0 && skuMap[id])
+        .map(([id, q]) => {
+          const s = skuMap[id];
+          return [
+            s.name,
+            `${s.coolingType} (${s.liquidSplitPct}% Liq)`,
+            `${s.heightMm}×${s.widthMm}×${s.depthMm} / ${s.weightKg}kg`,
+            s.cduIntegrated ? "Integrated" : `External (${s.cduTowerWidthMm}mm)`,
+            `Pwr: ${s.powerEntry} | Plumb: ${s.plumbingEntry}`,
+            String(q)
+          ];
+        });
+
+      const itTable = [
+        [
+          { text: "Compute / Rack Profile", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Thermal Split", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "L×W×D (mm) / Wt", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "CDU Topology", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Service Entry", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Qty", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } }
+        ],
+        ...activeSkuRows.slice(0, 5)
+      ];
+      s3.addTable(itTable, {
+        x: 0.55, y: 1.42, w: 12.15,
+        fontFace: "Roboto", fontSize: 10, color: C_CHARCOAL,
+        border: { type: "solid", color: C_RULE, pt: 0.5 },
+        margin: [0.1, 0.1, 0.1, 0.1],
+        rowH: 0.45
+      });
+
+      // SLIDE 4: Location Geography, Microclimate & Site Envelope
+      const s4 = pptx.addSlide();
+      addConsultingHeader(s4, "Location Geography, Climate & Site Envelope", `${project.cityQuery} (${project.lat}°, ${project.lon}°) • ${project.seismicLabel}`, "03");
+
+      s4.addText([
+        { text: "Geographic & Microclimate Profile\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_ORANGE } },
+        { text: `• Site Coordinates & Elevation: ${project.cityQuery} at ${project.lat}°N, ${project.lon}°E, elevation ${project.elevationM} m ASL.\n• Ambient Design Envelope: Peak dry-bulb ${project.peakDryBulb}°C and peak wet-bulb ${project.peakWetBulb}°C (${project.relHumidityPct}% RH), governing ${eng.coolingMode}.\n• Seismic Engineering: Classified under ${project.seismicLabel}, requiring heavy structural gussets and flexible braided coolant headers.\n\n`, options: { fontFace: "Roboto", fontSize: 11, color: C_CHARCOAL } },
+        { text: "Land Parcel & Statutory Setbacks\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_ORANGE } },
+        { text: `• Gross Survey Parcel: ${Math.round(eng.grossPlotSqm).toLocaleString()} m² (${Math.round(eng.netBuildableSqm).toLocaleString()} m² net buildable; ${eng.plotUtilizationPct}% utilized).\n• Fire & Acoustic Compliance: ${project.setbackMeters}m clear perimeter fire-tender driveway (NBC Part 4) and ${eng.boundaryNoiseDba} dBA perimeter noise profile.`, options: { fontFace: "Roboto", fontSize: 11, color: C_CHARCOAL } }
+      ], {
+        x: 0.55, y: 1.40, w: 12.15, h: 2.95,
+        margin: [0.1, 0.1, 0.1, 0.1], valign: "top"
+      });
+
+      // SLIDE 5: Containerized Design Approach
+      const s5 = pptx.addSlide();
+      addConsultingHeader(s5, "Containerized Architectural & Structural Approach", `${project.hallTopology} Topology • ${project.metallurgy} Heavy-Duty Enclosures`, "04");
+
+      s5.addText([
+        { text: "1. Modular Enclosure Strategy\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_ORANGE } },
+        { text: `• Shell Specification: ${project.metallurgy} structural steel (${project.wallThicknessMm}mm walls, ${project.roofThicknessMm}mm roof, ${project.floorThicknessMm}mm reinforced floor plate) with ${project.plenumHeightMm}mm raised floor plenum and ${project.topClearanceMm}mm overhead busway/header zone.\n• Topology Rationale: ${project.hallTopology === "Isolated" ? "Isolated standalone pods maximize phased deployment flexibility and fire compartmentalization." : `Ganged ${project.hallTopology} assembly eliminates ${Math.round(eng.sharedWallSavingsSqm)} m² of interior partition steel, creates a unified hot/cold hall, and minimizes InfiniBand/NVLink fabric lengths.`}\n\n`, options: { fontFace: "Roboto", fontSize: 11, color: C_CHARCOAL } },
+        { text: "2. Residual Air & Thermal Isolation\n", options: { fontFace: "Roboto", fontSize: 12, bold: true, color: C_ORANGE } },
+        { text: `• While ${Math.round(eng.totalLiquidKw)} kW is captured directly at the cold-plate loop, the remaining ${Math.round(eng.totalAirKw)} kW of radiant/switch heat is neutralized via ${project.airCoolingType} units with pressurized airlock vestibules.`, options: { fontFace: "Roboto", fontSize: 11, color: C_CHARCOAL } }
+      ], {
+        x: 0.55, y: 1.40, w: 12.15, h: 2.95,
+        margin: [0.1, 0.1, 0.1, 0.1], valign: "top"
+      });
+
+      // SLIDE 6: Container Layout & Individual Pod Design
+      const s6 = pptx.addSlide();
+      addConsultingHeader(s6, "Container Layout & Individual Pod Engineering", `2-Row Facing Rack Configuration Across ${eng.pods.length} Modular Bay(s)`, "05");
+
       const podRows = [
         [
-          { text: "Pod ID", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Dimensions (L×W×H)", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "2-Row Racks", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Design / Actual kW", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Busway Balance", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Gross Rigging Wt", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } }
+          { text: "Pod ID", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "External L × W × H", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Facing 2-Row Split", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Design / Actual kW", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "A/B Busway Balance", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Gross Rigging Wt", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } }
         ],
-        ...eng.pods.slice(0, 6).map(p => [
+        ...eng.pods.slice(0, 5).map(p => [
           p.label,
           `${(p.extLengthMm/1000).toFixed(2)}m × ${(p.extWidthMm/1000).toFixed(2)}m × ${(p.extHeightMm/1000).toFixed(2)}m`,
           `Row A: ${p.rowA.length} | Row B: ${p.rowB.length}`,
@@ -963,122 +1118,110 @@
           `${(p.grossRiggingKg/1000).toFixed(1)} Tonnes`
         ])
       ];
-      s3.addTable(podRows, {
-        x: 0.55, y: 1.50, w: 12.2,
-        fontFace: "Roboto", fontSize: 10, color: C_TEXT,
-        border: { type: "solid", color: "CBD5E1", pt: 0.75 },
-        rowH: 0.38
+      s6.addTable(podRows, {
+        x: 0.55, y: 1.42, w: 12.15,
+        fontFace: "Roboto", fontSize: 10, color: C_CHARCOAL,
+        border: { type: "solid", color: C_RULE, pt: 0.5 },
+        margin: [0.1, 0.1, 0.1, 0.1],
+        rowH: 0.45
       });
 
-      // SLIDE 4: Thermal, Hydraulic, Electrical & BMS/Safety MEP Architecture (4 Native Single-Layer Boxes, y <= 4.35")
-      const s4 = pptx.addSlide();
-      addStandardHeader(s4, "Turnkey Non-IT MEP & Safety Architecture", "Coupled DLC Hydraulics, Power Conditioning & Life-Safety");
-      const mepBoxes = [
-        {
-          x: 0.55, line: C_BLUE, fill: C_LIGHT,
-          paras: [
-            { text: "DLC Hydraulics & Cooling\n", options: { fontFace: "Roboto", fontSize: 11, bold: true, color: C_BLUE } },
-            { text: `• ${eng.coolingMode}\n• Flow: ${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar\n• Pumps: ${eng.pumpSkidsCount} N+1 VFD Skids\n• Tanks: ${(eng.totalWaterStorageLitres/1000)} kL Storage`, options: { fontFace: "Roboto", fontSize: 10, color: C_TEXT } }
-          ]
-        },
-        {
-          x: 3.65, line: C_NAVY, fill: C_LIGHT,
-          paras: [
-            { text: "Substation, UPS & BESS\n", options: { fontFace: "Roboto", fontSize: 11, bold: true, color: C_NAVY } },
-            { text: `• Trafos: ${eng.transformerUnits} × 2000 kVA\n• UPS: ${eng.upsContainersCount} × ${project.upsFrameKva} kVA\n• BESS: ${eng.batteryContainersCount} Pods (${project.batteryRuntimeMin}m ${project.batteryChemistry})\n• DGs: ${eng.dgUnitsCount} × 1500 kVA CPCB IV+`, options: { fontFace: "Roboto", fontSize: 10, color: C_TEXT } }
-          ]
-        },
-        {
-          x: 6.75, line: C_TEAL, fill: C_LIGHT,
-          paras: [
-            { text: "BMS, VESDA & CCTV Security\n", options: { fontFace: "Roboto", fontSize: 11, bold: true, color: C_TEAL } },
-            { text: `• BMS/DCIM: ${project.includeIntegratedBms ? "Included (Leak Ropes)" : "Optional"}\n• Fire: ${project.includeVesdaFire ? "VESDA + Novec 1230" : "Standard"}\n• Security: ${project.includeCctvSecurity ? "IP CCTV + Biometric" : "Optional"}\n• Acoustic: ${eng.boundaryNoiseDba} dBA @ Perimeter`, options: { fontFace: "Roboto", fontSize: 10, color: C_TEXT } }
-          ]
-        },
-        {
-          x: 9.85, line: C_AMBER, fill: C_TINT_O,
-          paras: [
-            { text: "Site & Support Facilities\n", options: { fontFace: "Roboto", fontSize: 11, bold: true, color: C_ORANGE } },
-            { text: `• Plot Fit: ${eng.plotUtilizationPct}% of ${Math.round(eng.grossPlotSqm)} m²\n• Fire Setback: ${project.setbackMeters}m (NBC)\n• Admin/NOC: ${project.includeAdminModule ? "Included" : "Excluded"}\n• Staging Bay: ${project.includeStagingModule ? "Included" : "Excluded"}`, options: { fontFace: "Roboto", fontSize: 10, color: C_TEXT } }
-          ]
-        }
-      ];
-      mepBoxes.forEach(b => addSingleLayerBox(s4, { x: b.x, y: 1.55, w: 2.95, h: 2.75, fill: b.fill, lineColor: b.line, paragraphs: b.paras }));
-
-      // SLIDE 5: Consolidated Bill of Materials (Native Table, y <= 4.35")
-      const s5 = pptx.addSlide();
-      addStandardHeader(s5, "Consolidated Bill of Materials (BOM)", "Turnkey Hardware, BMS, Safety & Site Works Summary");
-      const bomRows = [
-        [
-          { text: "Category", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Subsystem / Description", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Make & Model", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Qty", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Pre-Tax Quote", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } }
-        ],
-        ...eng.bomItems.slice(0, 7).map(it => [
-          it.category,
-          it.label.slice(0, 48),
-          `${it.make} (${it.model})`.slice(0, 28),
-          String(it.qty),
-          formatMoney(it.sellingPreTax, project.currency, standards)
-        ])
-      ];
-      s5.addTable(bomRows, {
-        x: 0.55, y: 1.48, w: 12.2,
-        fontFace: "Roboto", fontSize: 9.5, color: C_TEXT,
-        border: { type: "solid", color: "CBD5E1", pt: 0.75 },
-        rowH: 0.34
-      });
-
-      // SLIDE 6: Turnkey Commercial Summary & 5-Year TCO (Native Table, y <= 4.35")
-      const s6 = pptx.addSlide();
-      addStandardHeader(s6, "Commercial Proposal & 5-Year TCO", `${project.deploymentMode} Execution • ${project.amcYears}-Year Managed Operations`);
-      const commRows = [
-        [
-          { text: "Commercial & Lifecycle Component", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Basis / Scope", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: `Amount (${project.currency})`, options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } }
-        ],
-        ["1. Turnkey CapEx (IT, Pods, MEP, BMS, Safety & Civil)", `${project.deploymentMode} (Day-1: ${formatMoney(eng.day1CapexPreTax, project.currency, standards)})`, formatMoney(eng.capexSellingPreTax, project.currency, standards)],
-        ["2. Installation, Commissioning & Multi-Year AMC", `${project.amcYears} Yrs O&M + IST L1–L5`, formatMoney(eng.servicesAmcPreTax, project.currency, standards)],
-        ["3. Total Turnkey Proposal (Pre-Tax)", `Includes ${project.contingencyPct}% Contingency & Margin`, formatMoney(eng.totals.sellingPreTax, project.currency, standards)],
-        ["4. Grand Total Inclusive of GST", `GST @ ${project.gstPct}%`, formatMoney(eng.totals.grandTotal, project.currency, standards)],
-        ["5. Annualized OpEx (Power + Water + AMC)", `At ${(eng.totalActualKw/1000).toFixed(2)} MW Actual Load & PUE ${eng.pueDesign}`, `${formatMoney(eng.annualTotalOpexInr, project.currency, standards)} / yr`],
-        ["6. Total 5-Year Cost of Ownership (CapEx + 5-Yr OpEx)", "Full Lifecycle TCO Benchmark", formatMoney(eng.fiveYearTcoInr, project.currency, standards)]
-      ];
-      s6.addTable(commRows, {
-        x: 0.55, y: 1.50, w: 12.2,
-        fontFace: "Roboto", fontSize: 10, color: C_TEXT,
-        border: { type: "solid", color: "CBD5E1", pt: 0.75 },
-        rowH: 0.36
-      });
-
-      // SLIDE 7: Implementation Gantt Schedule (Native Table, y <= 4.35")
+      // SLIDE 7: Non-IT MEP, Hydraulics & Life-Safety Design
       const s7 = pptx.addSlide();
-      addStandardHeader(s7, "Project Implementation Schedule", `End-to-End Turnkey Delivery (${eng.ganttTasks[eng.ganttTasks.length - 1].startWk + eng.ganttTasks[eng.ganttTasks.length - 1].durWk - 1} Weeks)`);
-      const ganttRows = [
+      addConsultingHeader(s7, "Non-IT MEP, Hydraulics & Life-Safety Design", `Coupled ${Math.round(eng.totalFlowLpm)} LPM DLC Loop, ${project.uptimeTier} Power Train & BMS`, "06");
+
+      const mepSummaryRows = [
         [
-          { text: "Workstream", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Start", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Duration", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } },
-          { text: "Completion", options: { bold: true, color: C_WHITE, fill: { color: C_NAVY } } }
+          { text: "Infrastructure Domain", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Engineered Architecture & Equipment Sizing", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } }
+        ],
+        ["Liquid Cooling & Hydraulics", `${eng.coolingMode}; ${eng.extCduUnits} External CDUs; ${eng.pumpSkidsCount} N+1 VFD Pump Skids (${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar); ${(eng.totalWaterStorageLitres/1000)} kL Water Storage; ${eng.airSideUnits} ${project.airCoolingType} Units.`],
+        ["Substation & Power Distribution", `${eng.transformerUnits} × 2000 kVA (${project.transformerType}) Transformers; ${eng.lvSwitchgearUnits} × 3200A LV ACB Switchboards; Overhead Dual A/B ${standards.buswayAmperageA}A Track Busways.`],
+        ["Uninterruptible & Prime Power", `${eng.upsContainersCount} × ${project.upsFrameKva} kVA Modular UPS Pods; ${eng.batteryContainersCount} ${project.batteryChemistry} Battery Pods (${project.batteryRuntimeMin} min); ${eng.dgUnitsCount} × 1500 kVA CPCB IV+ DGs (${project.dgAutonomyHours}h PESO fuel).`],
+        ["BMS, Fire & Physical Security", `${project.includeIntegratedBms ? "Integrated BMS/DCIM/EPMS + Addressable Leak Ropes" : "Standard Telemetry"}; ${project.includeVesdaFire ? "VESDA Aspirating Smoke + Novec 1230 Clean Agent" : "Fire Alarm"}; ${project.includeCctvSecurity ? "IP CCTV + Biometric Access" : "Site Security"}.`]
+      ];
+      s7.addTable(mepSummaryRows, {
+        x: 0.55, y: 1.42, w: 12.15,
+        fontFace: "Roboto", fontSize: 10, color: C_CHARCOAL,
+        border: { type: "solid", color: C_RULE, pt: 0.5 },
+        margin: [0.1, 0.1, 0.1, 0.1],
+        colW: [3.2, 8.95], rowH: 0.56
+      });
+
+      // SLIDE 8+: Consolidated Commercial BOQ & 5-Year TCO (Auto-Paginated Across Slides)
+      const rowsPerPage = 4;
+      const totalBoqPages = Math.max(1, Math.ceil(eng.bomItems.length / rowsPerPage));
+      for (let page = 0; page < totalBoqPages; page++) {
+        const sBoq = pptx.addSlide();
+        addConsultingHeader(
+          sBoq,
+          `Commercial Bill of Materials (${page + 1} of ${totalBoqPages})`,
+          "Non-IT Modular Infrastructure Pricing (IT Compute Racks Excluded)",
+          "07"
+        );
+        const slice = eng.bomItems.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+        const boqTable = [
+          [
+            { text: "Category", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+            { text: "Subsystem / Scope Description", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+            { text: "Make & Model", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+            { text: "Qty", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+            { text: `Pre-Tax (${project.currency})`, options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } }
+          ],
+          ...slice.map(it => [
+            it.category,
+            it.label.slice(0, 46) + (it.isOverridden ? " [Special Quote]" : ""),
+            `${it.make} (${it.model})`.slice(0, 28),
+            String(it.qty),
+            formatMoney(it.sellingPreTax, project.currency, standards)
+          ])
+        ];
+        if (page === totalBoqPages - 1) {
+          boqTable.push([
+            { text: "TOTAL", options: { bold: true, color: C_ORANGE, fill: { color: C_LIGHTGREY } } },
+            { text: `Turnkey Pre-Tax: ${formatMoney(eng.totals.sellingPreTax, project.currency, standards)}  |  Incl. ${project.gstPct}% GST: ${formatMoney(eng.totals.grandTotal, project.currency, standards)}`, options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+            { text: `5-Yr TCO: ${formatMoney(eng.fiveYearTcoInr, project.currency, standards)}`, options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+            { text: "—", options: { bold: true, fill: { color: C_LIGHTGREY } } },
+            { text: formatMoney(eng.totals.sellingPreTax, project.currency, standards), options: { bold: true, color: C_ORANGE, fill: { color: C_LIGHTGREY } } }
+          ]);
+        }
+        sBoq.addTable(boqTable, {
+          x: 0.55, y: 1.40, w: 12.15,
+          fontFace: "Roboto", fontSize: 9.5, color: C_CHARCOAL,
+          border: { type: "solid", color: C_RULE, pt: 0.5 },
+          margin: [0.1, 0.1, 0.1, 0.1],
+          colW: [2.5, 4.4, 2.65, 0.8, 1.8], rowH: 0.44
+        });
+      }
+
+      // FINAL SLIDE: Macro-Level Implementation Gantt Roadmap (Single Slide)
+      const sPlan = pptx.addSlide();
+      const totalWks = eng.ganttTasks[eng.ganttTasks.length - 1].startWk + eng.ganttTasks[eng.ganttTasks.length - 1].durWk - 1;
+      addConsultingHeader(sPlan, "Turnkey Implementation & Commissioning Roadmap", `Macro Execution Schedule • ${totalWks} Weeks to Day-1 Ready-for-Service`, "08");
+
+      const planRows = [
+        [
+          { text: "Macro Execution Workstream", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Start", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Duration", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } },
+          { text: "Milestone Window", options: { bold: true, color: C_BLACK, fill: { color: C_LIGHTGREY } } }
         ],
         ...eng.ganttTasks.map(g => [
           g.task,
           `Week ${g.startWk}`,
           `${g.durWk} Weeks`,
-          `Week ${g.startWk + g.durWk - 1}`
+          `Week ${g.startWk} – Week ${g.startWk + g.durWk - 1}`
         ])
       ];
-      s7.addTable(ganttRows, {
-        x: 0.55, y: 1.48, w: 12.2,
-        fontFace: "Roboto", fontSize: 9.5, color: C_TEXT,
-        border: { type: "solid", color: "CBD5E1", pt: 0.75 },
-        rowH: 0.34
+      sPlan.addTable(planRows, {
+        x: 0.55, y: 1.40, w: 12.15,
+        fontFace: "Roboto", fontSize: 10, color: C_CHARCOAL,
+        border: { type: "solid", color: C_RULE, pt: 0.5 },
+        margin: [0.1, 0.1, 0.1, 0.1],
+        colW: [6.4, 1.6, 1.8, 2.35], rowH: 0.40
       });
 
-      pptx.writeFile({ fileName: `${project.name.replace(/\s+/g, "_")}_Executive_Deck.pptx` });
+      pptx.writeFile({ fileName: `${project.name.replace(/\s+/g, "_")}_Consulting_Proposal.pptx` });
     }
 
     function ValidatorCard({ eng, compact = false }) {
@@ -1090,7 +1233,7 @@
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm sm:text-base font-bold navy-text">Automated Engineering & Compliance Design Validator</h3>
-              <p className="text-xs text-slate-500">Audits DLC hydraulics/pumps/tanks, Transformer/UPS N+1 capacity, BMS/VESDA, IS 1893 Seismicity, Acoustic CPCB & NBC rules</p>
+              <p className="text-xs text-slate-500">Audits DLC hydraulics/pumps/tanks, Transformer/UPS N+1 capacity, BMS/VESDA, Rigging weights, Acoustic CPCB & NBC rules</p>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-black tracking-wide ${badgeColor}`}>{badgeLabel}</span>
           </div>
@@ -1311,9 +1454,11 @@
                 cabinet.position.set(rx, plinthH + plenumH + 0.08 + rH / 2, rz);
                 podGroup.add(cabinet);
 
-                if (rk.category === "DLC") {
-                  const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, plenumH + 0.25, 10), matSupplyPipe);
-                  drop.position.set(rx, plinthH + plenumH * 0.55, rz);
+                if (rk.isDlc) {
+                  const pipeY = rk.plumbingEntry === "Top" ? (plinthH + H - 0.5) : (plinthH + plenumH * 0.55);
+                  const pipeH = rk.plumbingEntry === "Top" ? 0.6 : (plenumH + 0.25);
+                  const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, pipeH, 10), matSupplyPipe);
+                  drop.position.set(rx, pipeY, rz);
                   podGroup.add(drop);
                 }
                 zCursor += rW + 0.08;
@@ -1378,7 +1523,7 @@
           <div className="navy-bg text-white p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold">Interactive 360° 3D Container & Hall Studio</h2>
-              <p className="text-xs text-slate-300">Orbit 360° • Inspect Empty Shell vs. Loaded 2-Row MEP, Underfloor SS316 Headers, Water Tanks & Support Pods</p>
+              <p className="text-xs text-slate-300">Orbit 360° • Inspect Empty Shell vs. Loaded 2-Row MEP, SS316 Headers, Water Tanks & Support Pods</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <div className="bg-slate-900/60 p-1 rounded-lg flex">
@@ -1423,7 +1568,7 @@
                 ["floorTransparent", "Glass Floor"],
                 ["plumbing", "SS316 Headers"],
                 ["buswaysData", "Busways & Fiber"],
-                ["roomCooling", "Room AC"],
+                ["roomCooling", "Room Cooling"],
                 ["racks", "Racks"],
                 ["supportPods", "Tanks/UPS/BESS"]
               ].map(([k, lbl]) => (
@@ -1658,12 +1803,12 @@
     }
 
     function App() {
-      const [screen, setScreen] = useState("home"); // "home" | "projects" | "wizard" | "workspace" | "studio3d" | "outputs" | "supply_intel" | "parameters"
+      const [screen, setScreen] = useState("home");
       const [projects, setProjects] = useState(() => [makeSampleProject(INITIAL_STANDARDS)]);
       const [editingId, setEditingId] = useState("proj-15mw-sample");
       const [skus, setSkus] = useState(INITIAL_SKUS);
       const [containerCatalog, setContainerCatalog] = useState(INITIAL_CONTAINER_CATALOG);
-      const [rateCard, setRateCard] = useState(DEFAULT_RATE_CARD);
+      const [nonItCatalog, setNonItCatalog] = useState(INITIAL_NON_IT_CATALOG);
       const [standards, setStandards] = useState(INITIAL_STANDARDS);
       const [logoDataUrl, setLogoDataUrl] = useState("");
       const [clientId, setClientId] = useState(DEFAULT_CLIENT_ID);
@@ -1673,21 +1818,25 @@
       const [wizardTab, setWizardTab] = useState(0);
       const [wizardMode, setWizardMode] = useState("create");
       const [paramTab, setParamTab] = useState("skus");
-      const [editingSkuId, setEditingSkuId] = useState(null);
+      const [nonItCatFilter, setNonItCatFilter] = useState("ALL");
       const [weatherLoading, setWeatherLoading] = useState(false);
       const [weatherMsg, setWeatherMsg] = useState("");
       const [bulkLoadValue, setBulkLoadValue] = useState(220);
+
+      // Deal-Specific Special Vendor Pricing Modal State
+      const [quoteModalItem, setQuoteModalItem] = useState(null);
+      const [quoteForm, setQuoteForm] = useState({ mode: "discount", discountPct: 0, specialPrice: 0, validUntil: "", comments: "" });
 
       useEffect(() => {
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
           if (raw) {
             const parsed = JSON.parse(raw);
-            if (parsed.projects?.length) setProjects(parsed.projects);
+            if (parsed.projects?.length) setProjects(parsed.projects.map(p => sanitizeProject(p, parsed.standards || INITIAL_STANDARDS)));
             if (parsed.editingId) setEditingId(parsed.editingId);
             if (parsed.skus?.length) setSkus(parsed.skus);
             if (parsed.containerCatalog?.length) setContainerCatalog(parsed.containerCatalog);
-            if (parsed.rateCard) setRateCard(parsed.rateCard);
+            if (parsed.nonItCatalog?.length) setNonItCatalog(parsed.nonItCatalog);
             if (parsed.standards) setStandards({ ...INITIAL_STANDARDS, ...parsed.standards });
             if (parsed.logoDataUrl) setLogoDataUrl(parsed.logoDataUrl);
             if (parsed.clientId) setClientId(parsed.clientId);
@@ -1697,25 +1846,60 @@
 
       useEffect(() => {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, editingId, skus, containerCatalog, rateCard, standards, logoDataUrl, clientId }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, editingId, skus, containerCatalog, nonItCatalog, standards, logoDataUrl, clientId }));
         } catch (e) {}
-      }, [projects, editingId, skus, containerCatalog, rateCard, standards, logoDataUrl, clientId]);
+      }, [projects, editingId, skus, containerCatalog, nonItCatalog, standards, logoDataUrl, clientId]);
 
       const currentProject = useMemo(
-        () => projects.find(p => p.id === editingId) || projects[0],
-        [projects, editingId]
+        () => sanitizeProject(projects.find(p => p.id === editingId) || projects[0], standards),
+        [projects, editingId, standards]
       );
 
       const eng = useMemo(
-        () => computeEngineering(currentProject, skus, rateCard, standards),
-        [currentProject, skus, rateCard, standards]
+        () => computeEngineering(currentProject, skus, nonItCatalog, standards),
+        [currentProject, skus, nonItCatalog, standards]
       );
 
       const updateCurrentProject = (patch) => {
         setProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, ...patch, updatedAt: new Date().toISOString().slice(0, 10) } : p));
       };
 
-      // Open-Meteo Weather & Indian IS 1893 Seismic Zone Lookup
+      const openSpecialQuoteDialog = (bomItem) => {
+        const existing = currentProject.dealOverrides?.[bomItem.key];
+        setQuoteModalItem(bomItem);
+        setQuoteForm({
+          mode: existing?.mode || "discount",
+          discountPct: existing?.discountPct ?? 0,
+          specialPrice: existing?.specialPrice ?? bomItem.unitCost,
+          validUntil: existing?.validUntil || "",
+          comments: existing?.comments || ""
+        });
+      };
+
+      const saveSpecialQuote = () => {
+        if (!quoteModalItem) return;
+        const nextOverrides = {
+          ...(currentProject.dealOverrides || {}),
+          [quoteModalItem.key]: {
+            mode: quoteForm.mode,
+            discountPct: Number(quoteForm.discountPct) || 0,
+            specialPrice: Number(quoteForm.specialPrice) || 0,
+            validUntil: quoteForm.validUntil,
+            comments: quoteForm.comments
+          }
+        };
+        updateCurrentProject({ dealOverrides: nextOverrides });
+        setQuoteModalItem(null);
+      };
+
+      const clearSpecialQuote = () => {
+        if (!quoteModalItem) return;
+        const nextOverrides = { ...(currentProject.dealOverrides || {}) };
+        delete nextOverrides[quoteModalItem.key];
+        updateCurrentProject({ dealOverrides: nextOverrides });
+        setQuoteModalItem(null);
+      };
+
       const fetchCityWeatherAndSeismic = async () => {
         const q = (currentProject.cityQuery || "").trim();
         if (!q) return;
@@ -1728,7 +1912,7 @@
           if (!place) {
             const seis = classifySeismicZone(q, 20, 78);
             updateCurrentProject({ seismicZone: seis.zone, seismicZFactor: seis.zFactor, seismicLabel: seis.label });
-            setWeatherMsg(`City coordinates not found in Open-Meteo; applied ${seis.label}. You can adjust Dry/Wet Bulb manually.`);
+            setWeatherMsg(`City coordinates not found; applied ${seis.label}. You can adjust Dry/Wet Bulb manually.`);
             setWeatherLoading(false);
             return;
           }
@@ -1738,7 +1922,6 @@
           const maxForecast = Math.max(...(wData.daily?.temperature_2m_max || [38]));
           const peakDryBulb = Number(Math.max(maxForecast, 34).toFixed(1));
           const rh = wData.current?.relative_humidity_2m || 65;
-          // Stull wet-bulb approximation
           const T = peakDryBulb;
           const tw = T * Math.atan(0.151977 * Math.pow(rh + 8.313659, 0.5)) + Math.atan(T + rh) - Math.atan(rh - 1.676331) + 0.00391838 * Math.pow(rh, 1.5) * Math.atan(0.023101 * rh) - 4.686035;
           const peakWetBulb = Number(Math.max(18, Math.min(peakDryBulb - 2, tw)).toFixed(1));
@@ -1775,8 +1958,9 @@
           const s = skuMap[id];
           if (s && qty > 0) {
             anyRacks = true;
-            if (s.category === "DLC" || s.liquidSplitPct > 0) anyDlc = true;
-            if (s.cduMode === "External") anyExtCdu = true;
+            const isDlc = s.coolingType === "DLC" || (Number(s.liquidSplitPct) || 0) > 0;
+            if (isDlc) anyDlc = true;
+            if (isDlc && !s.cduIntegrated) anyExtCdu = true;
           }
         });
         updateCurrentProject({
@@ -1784,6 +1968,7 @@
           includeLiquidLoop: anyDlc,
           includePumpSkids: anyDlc,
           includeWaterTanks: anyDlc,
+          includeGlycolDosing: anyDlc,
           includeExtCdu: anyExtCdu,
           includeRoomDehum: anyRacks
         });
@@ -1807,18 +1992,19 @@
 
       const autoBalanceRacksFromTargetMw = () => {
         const targetKw = (Number(currentProject.targetItMw) || 1.5) * 1000;
-        const primaryDlc = skus.find(s => s.id === "sku-dlc-265") || skus.find(s => s.category === "DLC");
-        const secondaryDlc = skus.find(s => s.id === "sku-helios");
-        const acSku = skus.find(s => s.category === "AC");
+        const dlcList = skus.filter(s => s.coolingType === "DLC");
+        const primaryDlc = dlcList[0];
+        const secondaryDlc = dlcList[1];
+        const acSku = skus.find(s => s.coolingType === "AC");
         const nextQty = {};
         skus.forEach(s => nextQty[s.id] = 0);
 
         if (primaryDlc) {
-          const dlcShareKw = targetKw * 0.94;
-          const pKw = primaryDlc.peakKw * primaryDlc.continuousFactor;
+          const dlcShareKw = acSku ? targetKw * 0.94 : targetKw;
+          const pKw = primaryDlc.peakKw * (primaryDlc.continuousFactor || 0.94);
           if (secondaryDlc && targetKw >= 6000) {
             nextQty[primaryDlc.id] = Math.max(1, Math.round((dlcShareKw * 0.68) / pKw));
-            const sKw = secondaryDlc.peakKw * secondaryDlc.continuousFactor;
+            const sKw = secondaryDlc.peakKw * (secondaryDlc.continuousFactor || 0.94);
             nextQty[secondaryDlc.id] = Math.max(1, Math.round((dlcShareKw * 0.32) / sKw));
           } else {
             nextQty[primaryDlc.id] = Math.max(1, Math.round(dlcShareKw / pKw));
@@ -1826,7 +2012,7 @@
         }
         if (acSku) {
           const acShareKw = Math.max(50, targetKw * 0.06);
-          const aKw = acSku.peakKw * acSku.continuousFactor;
+          const aKw = acSku.peakKw * (acSku.continuousFactor || 0.90);
           nextQty[acSku.id] = Math.max(2, Math.round(acShareKw / aKw));
         }
         updateRackQuantitiesWithAutoCooling(nextQty);
@@ -1850,11 +2036,46 @@
           floorMm: currentProject.floorThicknessMm,
           plenumMm: currentProject.plenumHeightMm,
           topClearanceMm: currentProject.topClearanceMm,
-          baseCostInr: unitCost,
-          isBespoke: false
+          baseCostInr: unitCost
         };
         setContainerCatalog(prev => [newEntry, ...prev]);
         alert(`Saved "${newEntry.name}" to your Standard Container Catalog (₹${unitCost.toLocaleString("en-IN")} per pod)!`);
+      };
+
+      const exportMasterCatalogJson = () => {
+        const payload = JSON.stringify({
+          schemaVersion: "MDC_MASTER_CATALOG_V7",
+          exportedAt: new Date().toISOString(),
+          skus,
+          containerCatalog,
+          nonItCatalog,
+          standards
+        }, null, 2);
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `mdc_master_catalog_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+      };
+
+      const importMasterCatalogJson = (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            if (Array.isArray(parsed.skus)) setSkus(parsed.skus);
+            if (Array.isArray(parsed.containerCatalog)) setContainerCatalog(parsed.containerCatalog);
+            if (Array.isArray(parsed.nonItCatalog)) setNonItCatalog(parsed.nonItCatalog);
+            if (parsed.standards) setStandards(prev => ({ ...prev, ...parsed.standards }));
+            alert("Master Catalog JSON imported successfully! Existing deal overrides remain safely isolated.");
+          } catch (err) {
+            alert("Invalid Master Catalog JSON file.");
+          }
+        };
+        r.readAsText(f);
       };
 
       const handleGoogleSignIn = () => {
@@ -1876,14 +2097,19 @@
         if (!driveToken) { handleGoogleSignIn(); return; }
         setDriveStatus("Syncing...");
         try {
-          const payload = JSON.stringify({ projects, skus, containerCatalog, rateCard, standards, exportedAt: new Date().toISOString() }, null, 2);
-          const form = new FormData();
-          form.append("metadata", new Blob([JSON.stringify({ name: "AI_MDC_Projects_Backup.json", mimeType: "application/json" })], { type: "application/json" }));
-          form.append("file", new Blob([payload], { type: "application/json" }));
-          const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
-            method: "POST", headers: { Authorization: `Bearer ${driveToken}` }, body: form
-          });
-          if (res.ok) setDriveStatus("Saved to Drive ✓");
+          const uploadFile = async (fileName, obj) => {
+            const form = new FormData();
+            form.append("metadata", new Blob([JSON.stringify({ name: fileName, mimeType: "application/json" })], { type: "application/json" }));
+            form.append("file", new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" }));
+            return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+              method: "POST", headers: { Authorization: `Bearer ${driveToken}` }, body: form
+            });
+          };
+          const [r1, r2] = await Promise.all([
+            uploadFile("AI_MDC_Deals_Backup.json", { projects, exportedAt: new Date().toISOString() }),
+            uploadFile("mdc_master_catalog.json", { skus, containerCatalog, nonItCatalog, standards, exportedAt: new Date().toISOString() })
+          ]);
+          if (r1.ok && r2.ok) setDriveStatus("Deals & Master Synced ✓");
           else setDriveStatus("Reconnect Drive");
         } catch (e) { setDriveStatus("Sync Error"); }
       };
@@ -1902,10 +2128,10 @@
       };
 
       const exportCommercialPriceCsv = () => {
-        const header = ["Category", "Item Description", "Make", "Model", "Qty", "Unit Cost", "Contingency (%)", "Margin (%)", "Pre-Tax Total", `GST (${currentProject.gstPct}%)`, "Grand Total Incl. GST"];
+        const header = ["Category", "Item Description", "Make", "Model", "Qty", "Master Base Cost", "Deal Unit Cost", "Special Quote Notes", "Pre-Tax Total", `GST (${currentProject.gstPct}%)`, "Grand Total Incl. GST"];
         const rows = eng.bomItems.map(it => [
           it.category, it.label, it.make, it.model, it.qty,
-          Math.round(it.unitCost), currentProject.contingencyPct, currentProject.marginPct,
+          Math.round(it.masterUnitCost), Math.round(it.unitCost), it.comments,
           Math.round(it.sellingPreTax), Math.round(it.gstAmt), Math.round(it.grandTotalInclGst)
         ]);
         downloadCsv(`${currentProject.name.replace(/\s+/g, "_")}_Commercial_Price_Sheet.csv`, [header, ...rows]);
@@ -1918,6 +2144,8 @@
         r.onload = (ev) => setLogoDataUrl(ev.target.result);
         r.readAsDataURL(f);
       };
+
+      const nonItCategories = useMemo(() => ["ALL", ...Array.from(new Set(nonItCatalog.map(i => i.category)))], [nonItCatalog]);
 
       return (
         <div className="h-screen flex flex-col overflow-hidden">
@@ -1932,7 +2160,7 @@
                 )}
                 <div>
                   <h1 className="text-sm sm:text-base font-bold tracking-tight leading-tight">AI Modular Data Center Configurator</h1>
-                  <p className="text-[11px] text-slate-300 hidden sm:block">Enterprise Facility Planner, 3D Studio & Executive Deck Generator</p>
+                  <p className="text-[11px] text-slate-300 hidden sm:block">Enterprise Facility Planner, 3D Studio & Consulting Deck Generator</p>
                 </div>
               </div>
 
@@ -1988,7 +2216,6 @@
               {/* 1. UNIFIED HUB-AND-SPOKE HOME DASHBOARD */}
               {screen === "home" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {/* CARD 01: Unified Projects: New / Open Hub */}
                   <div className="bg-white rounded-2xl p-6 card-shadow border-2 border-[#FF5539] flex flex-col justify-between min-h-[230px]">
                     <div>
                       <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold coral-bg text-white mb-2">01 • PROJECTS: NEW / OPEN</span>
@@ -2017,20 +2244,18 @@
                     </div>
                   </div>
 
-                  {/* CARD 02: Optimizer, Validator & TCO */}
                   <div onClick={() => setScreen("workspace")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[230px]">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900">02 • OPTIMIZER & VALIDATOR</span>
+                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900">02 • OPTIMIZER & DEAL BOQ</span>
                         <span className="text-[10px] font-bold text-slate-400 truncate max-w-[140px]">Target: {currentProject.name}</span>
                       </div>
-                      <h2 className="text-xl font-bold navy-text">Cluster Optimizer, Validator & TCO</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Inspect the 8-rule Design Validator, Standard vs. Actual per-rack workload map, bespoke container pricing, 5-year TCO, and Gantt timeline.</p>
+                      <h2 className="text-xl font-bold navy-text">Cluster Optimizer, Deal Quotes & TCO</h2>
+                      <p className="text-sm text-slate-600 mt-1.5">Inspect the Design Validator, 2-row container layout, deal-specific special vendor quotes (with validity & notes), 5-year TCO, and Gantt timeline.</p>
                     </div>
                     <div className="text-xs font-bold text-emerald-700 mt-4">Open Engineering & Commercial Workspace →</div>
                   </div>
 
-                  {/* CARD 03: 360° 3D Studio */}
                   <div onClick={() => setScreen("studio3d")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[230px]">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
@@ -2043,20 +2268,18 @@
                     <div className="text-xs font-bold text-indigo-700 mt-4">Launch Interactive 3D Viewport →</div>
                   </div>
 
-                  {/* CARD 04: Outputs, CAD & Branded Slide Deck */}
                   <div onClick={() => setScreen("outputs")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[230px]">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900">04 • SLIDE DECK & CAD HUB</span>
+                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900">04 • CONSULTING DECK & CAD</span>
                         <span className="text-[10px] font-bold text-slate-400 truncate max-w-[140px]">Target: {currentProject.name}</span>
                       </div>
-                      <h2 className="text-xl font-bold navy-text">Executive Slide Deck (.PPTX), CAD & BOM</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Generate branded 16:9 PowerPoint decks (Tosh A Black / Roshna Black, native shapes & native tables, 3.1" blank footer), CAD blueprints & CSVs.</p>
+                      <h2 className="text-xl font-bold navy-text">Consulting Slide Deck (.PPTX), CAD & BOM</h2>
+                      <p className="text-sm text-slate-600 mt-1.5">Generate pure consulting-oriented 16:9 PowerPoint decks (Brand Orange + White + Light Grey, zero grid boxes, 0.1" text padding, 3.1" blank footer).</p>
                     </div>
-                    <div className="text-xs font-bold text-amber-800 mt-4">Generate Slide Deck & Deliverables →</div>
+                    <div className="text-xs font-bold text-amber-800 mt-4">Generate Consulting Deck & Deliverables →</div>
                   </div>
 
-                  {/* CARD 05: India Supply Chain Intelligence (Phase B) */}
                   <div onClick={() => setScreen("supply_intel")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-dashed border-blue-400 hover:border-blue-700 transition flex flex-col justify-between min-h-[230px]">
                     <div>
                       <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-sky-100 text-sky-900 mb-2">05 • PHASE B ROADMAP</span>
@@ -2066,14 +2289,13 @@
                     <div className="text-xs font-bold text-sky-700 mt-4">View Phase B Architecture & Placeholder →</div>
                   </div>
 
-                  {/* CARD 06: Global Parameters & Standard Catalogs */}
                   <div onClick={() => setScreen("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-2xl p-6 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between min-h-[230px]">
                     <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-amber-300 mb-2">06 • MASTER CATALOGS</span>
-                      <h2 className="text-xl font-bold">Global Parameters & Standards</h2>
-                      <p className="text-sm text-slate-300 mt-1.5">Rack SKUs (with LPM & ΔP), Standard & Saved Bespoke Containers, Cooling/Climate, Electrical/BESS, OEM Rate Card & Company Logo.</p>
+                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-amber-300 mb-2">06 • MASTER CATALOGS (CRUD)</span>
+                      <h2 className="text-xl font-bold">Global Parameters & Master JSON</h2>
+                      <p className="text-sm text-slate-300 mt-1.5">Add/edit/delete IT Rack engineering specs (L×W×D mm, kg, DLC %, CDU tower, entry), Container shells, full Non-IT equipment catalog & Master JSON.</p>
                     </div>
-                    <div className="text-xs font-bold text-amber-300 mt-4">Configure Master Parameters →</div>
+                    <div className="text-xs font-bold text-amber-300 mt-4">Configure Master Catalogs →</div>
                   </div>
                 </div>
               )}
@@ -2094,7 +2316,7 @@
                             try {
                               const obj = JSON.parse(ev.target.result);
                               const imported = obj.projects ? obj.projects : [obj];
-                              setProjects(prev => [...imported.map(p => ({ ...p, id: "proj-" + Math.random().toString(36).slice(2, 8) })), ...prev]);
+                              setProjects(prev => [...imported.map(p => sanitizeProject({ ...p, id: "proj-" + Math.random().toString(36).slice(2, 8) }, standards)), ...prev]);
                             } catch (err) { alert("Invalid JSON file"); }
                           };
                           r.readAsText(f);
@@ -2108,7 +2330,7 @@
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {projects.map(p => {
-                      const pEng = computeEngineering(p, skus, rateCard, standards);
+                      const pEng = computeEngineering(p, skus, nonItCatalog, standards);
                       return (
                         <div key={p.id} className="bg-white rounded-xl p-5 card-shadow border border-slate-200 space-y-3">
                           <div className="flex justify-between items-start">
@@ -2121,7 +2343,7 @@
                           <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 p-3 rounded-lg">
                             <div><span className="text-slate-400 block">Design / Actual IT</span><span className="font-bold">{(pEng.totalDesignContKw/1000).toFixed(2)} / {(pEng.totalActualKw/1000).toFixed(2)} MW</span></div>
                             <div><span className="text-slate-400 block">Pods / Mode</span><span className="font-bold">{pEng.pods.length} ({p.deploymentMode})</span></div>
-                            <div><span className="text-slate-400 block">Pre-Tax Total</span><span className="font-bold navy-text">{formatMoney(pEng.totals.sellingPreTax, p.currency, standards)}</span></div>
+                            <div><span className="text-slate-400 block">Non-IT Pre-Tax</span><span className="font-bold navy-text">{formatMoney(pEng.totals.sellingPreTax, p.currency, standards)}</span></div>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <button onClick={() => { setEditingId(p.id); setScreen("workspace"); }} className="px-3 py-1.5 rounded-lg navy-bg text-white text-xs font-bold">Open Workspace</button>
@@ -2147,8 +2369,8 @@
                         <h2 className="text-xl font-bold mt-0.5">Step {wizardTab + 1} of 7: {[
                           "Macro IT Load, Dynamic City Weather/Seismic & Rollout Mode",
                           "IT Rack Mix & Standard vs. Actual Per-Rack Workload",
-                          "Container Sizing, Bespoke/Standard Shell & Hall Topology",
-                          "Non-IT: DLC Pumps/Tanks, Power, BMS, VESDA & CCTV",
+                          "Container Sizing, Standard/Bespoke Shell & Hall Topology",
+                          "Non-IT: DLC/Air Cooling (RDHX/In-Row), Pumps, Power & BMS",
                           "Redundancy Tier, Statutory Compliance & Acoustics",
                           "Land Parcel & Site Orientation",
                           "Installation, Multi-Year AMC, Non-Standard Works & Audit"
@@ -2164,7 +2386,7 @@
                         "1. IT, City & Seismic",
                         "2. Racks & Actual Load",
                         "3. Container & Hall",
-                        "4. Non-IT, Pumps & BMS",
+                        "4. Non-IT & Cooling",
                         "5. Tier & Acoustics",
                         "6. Land Parcel",
                         "7. AMC, Extras & Audit"
@@ -2181,7 +2403,6 @@
                   </div>
 
                   <div className="p-6 space-y-5">
-                    {/* STEP 1: Macro Scope + Dynamic Open-Meteo Weather & Seismic */}
                     {wizardTab === 0 && (
                       <div className="space-y-5 text-sm">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2202,7 +2423,6 @@
                           </div>
                         </div>
 
-                        {/* Dynamic City Weather & IS 1893 Seismic Zone Lookup */}
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                           <div className="flex flex-wrap items-end gap-3">
                             <div className="flex-1 min-w-[220px]">
@@ -2267,7 +2487,6 @@
                       </div>
                     )}
 
-                    {/* STEP 2: IT Rack Mix & Dual-Mode Standard vs. Actual Per-Rack Loading */}
                     {wizardTab === 1 && (
                       <div className="space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3 bg-blue-50 p-3.5 rounded-xl border border-blue-200 text-xs">
@@ -2291,9 +2510,15 @@
                           {skus.map(s => (
                             <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-3.5 border border-slate-200 rounded-xl hover:bg-slate-50">
                               <div>
-                                <div className="font-bold text-sm navy-text">{s.name} <span className="text-xs font-normal text-slate-500">({s.standard})</span></div>
+                                <div className="font-bold text-sm navy-text">
+                                  {s.name}{" "}
+                                  <span className={`ml-1.5 px-2 py-0.5 rounded text-[10px] font-black ${s.coolingType === "DLC" ? "bg-sky-100 text-sky-900" : "bg-amber-100 text-amber-900"}`}>
+                                    {s.coolingType}
+                                  </span>
+                                </div>
                                 <div className="text-xs text-slate-600 mt-0.5">
-                                  {s.peakKw} kW Peak • {s.liquidSplitPct}% Liquid ({s.cduMode} CDU) • Flow: {s.flowLpmPerKw} LPM/kW • Req ΔP: {s.reqDeltaPBar} bar
+                                  {s.peakKw} kW • {s.coolingType === "DLC" ? `${s.liquidSplitPct}% Liquid (${s.cduIntegrated ? "Integrated CDU" : `External CDU ${s.cduTowerHeightMm}×${s.cduTowerWidthMm}×${s.cduTowerDepthMm}mm`}) • ` : "100% Air-Cooled • "}
+                                  {s.heightMm}×{s.widthMm}×{s.depthMm}mm • {s.weightKg}kg • Pwr: {s.powerEntry} / Plumb: {s.plumbingEntry}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -2309,7 +2534,6 @@
                           ))}
                         </div>
 
-                        {/* Dual-Mode Loading Toggle + Bulk Duplication */}
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div>
@@ -2333,7 +2557,7 @@
                                 <input type="number" value={bulkLoadValue} onChange={e => setBulkLoadValue(Number(e.target.value))} className="w-24 border rounded px-2 py-1 font-bold" />
                                 <button onClick={() => {
                                   const next = { ...currentProject.actualRackLoads };
-                                  eng.activeRacks.filter(r => r.category === "DLC").forEach(r => next[r.instanceKey] = bulkLoadValue);
+                                  eng.activeRacks.filter(r => r.isDlc).forEach(r => next[r.instanceKey] = bulkLoadValue);
                                   updateCurrentProject({ actualRackLoads: next });
                                 }} className="px-3 py-1 rounded navy-bg text-white font-bold">
                                   Apply to All DLC Racks
@@ -2369,7 +2593,6 @@
                       </div>
                     )}
 
-                    {/* STEP 3: Container Sizing, Bespoke Pricing & Save to Standard Catalog */}
                     {wizardTab === 2 && (
                       <div className="space-y-4 text-sm">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -2406,17 +2629,16 @@
                           ))}
                         </div>
 
-                        {/* Bespoke vs Standard Container Pricing & Save to Catalog */}
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="font-bold navy-text text-sm">Container Pricing: Parametric / Standard Reference vs. Bespoke Special Quote</div>
+                            <div className="font-bold navy-text text-sm">Container Pricing: Standard Catalog Preset vs. Bespoke Fabricator Quote</div>
                             <button onClick={saveCurrentContainerToStandardCatalog} className="px-3.5 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-black">
                               ★ Save Current Container Design to Standard Catalog
                             </button>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                              <label className="block font-bold text-slate-600 mb-1">Apply Saved Standard Container Preset (Optional)</label>
+                              <label className="block font-bold text-slate-600 mb-1">Apply Standard Container Preset (Optional)</label>
                               <select
                                 value={currentProject.containerCatalogId}
                                 onChange={e => {
@@ -2444,7 +2666,7 @@
                               </select>
                             </div>
                             <div>
-                              <label className="block font-bold text-slate-600 mb-1">Bespoke First-Time Container Unit Cost (₹ per pod, leave blank for auto m²)</label>
+                              <label className="block font-bold text-slate-600 mb-1">Per-Pod Container Price Override (₹ per pod, leave blank for auto m²)</label>
                               <input
                                 type="number"
                                 placeholder="e.g., 7500000"
@@ -2458,11 +2680,10 @@
                       </div>
                     )}
 
-                    {/* STEP 4: Non-IT Equipment (DLC Pumps, Water Tanks, Power, BMS, VESDA, CCTV, Acoustics) */}
                     {wizardTab === 3 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
                         <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                          <h3 className="font-bold navy-text text-sm">A. DLC Hydraulics, Pumps, Water Tanks & Cooling</h3>
+                          <h3 className="font-bold navy-text text-sm">A. DLC Hydraulics, Pumps, Tanks & Residual/AC Cooling</h3>
                           <div className="p-2.5 bg-sky-100/80 rounded-lg text-slate-800 border border-sky-200">
                             <strong>Auto-Coupled Hydraulics:</strong> {Math.round(eng.totalFlowLpm)} LPM flow @ {eng.pumpDesignHeadBar} bar TDH • {eng.coolingMode}
                           </div>
@@ -2485,13 +2706,31 @@
                             </div>
                           </div>
                           <label className="flex items-center gap-2 font-medium">
-                            <input type="checkbox" checked={!!currentProject.includeExtCdu} onChange={e => updateCurrentProject({ includeExtCdu: e.target.checked })} className="w-4 h-4" />
-                            <span>External Row/Side-Car CDUs ({eng.extCduUnits} units)</span>
+                            <input type="checkbox" checked={!!currentProject.includeGlycolDosing} onChange={e => updateCurrentProject({ includeGlycolDosing: e.target.checked })} className="w-4 h-4" />
+                            <span>Automated PG25 Glycol Dosing & Filtration Skid</span>
                           </label>
                           <label className="flex items-center gap-2 font-medium">
-                            <input type="checkbox" checked={!!currentProject.includeRoomDehum} onChange={e => updateCurrentProject({ includeRoomDehum: e.target.checked })} className="w-4 h-4" />
-                            <span>Room Dehumidification & {currentProject.airCoolingType} Units ({eng.roomDehumUnits} units)</span>
+                            <input type="checkbox" checked={!!currentProject.includeExtCdu} onChange={e => updateCurrentProject({ includeExtCdu: e.target.checked })} className="w-4 h-4" />
+                            <span>External Row/Side-Car CDUs ({eng.extCduUnits} towers)</span>
                           </label>
+
+                          {/* Deal-Level Air-Side / Residual Heat Cooling Mode (RDHX vs In-Row vs Perimeter PAC) */}
+                          <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-1.5">
+                            <label className="flex items-center justify-between gap-2 font-bold navy-text">
+                              <span className="flex items-center gap-2">
+                                <input type="checkbox" checked={!!currentProject.includeRoomDehum} onChange={e => updateCurrentProject({ includeRoomDehum: e.target.checked })} className="w-4 h-4" />
+                                <span>AC & Residual Heat Cooling ({eng.airSideUnits} units for {Math.round(eng.totalAirKw)} kW)</span>
+                              </span>
+                            </label>
+                            <div className="flex items-center justify-between gap-2 pl-6">
+                              <span className="text-slate-500">Deployment Architecture:</span>
+                              <select value={currentProject.airCoolingType} onChange={e => updateCurrentProject({ airCoolingType: e.target.value })} className="border rounded px-2 py-1 font-bold bg-slate-50">
+                                <option value="RDHX">RDHX (Rear-Door Heat Exchanger)</option>
+                                <option value="In-Row">In-Row Precision Cooling</option>
+                                <option value="Perimeter PAC">Perimeter PAC / Dehumidifier</option>
+                              </select>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -2505,10 +2744,16 @@
                               <option>Cast-Resin Dry Type</option><option>ONAN Oil-Filled</option>
                             </select>
                           </label>
-                          <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
-                            <input type="checkbox" checked={!!currentProject.includeLvSwitchgear} onChange={e => updateCurrentProject({ includeLvSwitchgear: e.target.checked })} className="w-4 h-4" />
-                            <span>Main LV ACB Switchgear ({eng.lvSwitchgearUnits} panels)</span>
-                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeHtVcb} onChange={e => updateCurrentProject({ includeHtVcb: e.target.checked })} className="w-4 h-4" />
+                              <span>11/33kV HT VCB Panel</span>
+                            </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeLvSwitchgear} onChange={e => updateCurrentProject({ includeLvSwitchgear: e.target.checked })} className="w-4 h-4" />
+                              <span>Main LV ACB Switchgear</span>
+                            </label>
+                          </div>
                           <label className="flex items-center justify-between gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
                             <span className="flex items-center gap-2">
                               <input type="checkbox" checked={!!currentProject.includeUpsContainer} onChange={e => updateCurrentProject({ includeUpsContainer: e.target.checked })} className="w-4 h-4" />
@@ -2518,10 +2763,16 @@
                               <option value={500}>500 kVA</option><option value={1000}>1000 kVA</option><option value={1500}>1500 kVA</option>
                             </select>
                           </label>
-                          <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
-                            <input type="checkbox" checked={!!currentProject.includeBatteryContainer} onChange={e => updateCurrentProject({ includeBatteryContainer: e.target.checked })} className="w-4 h-4" />
-                            <span>{currentProject.batteryChemistry} Battery Pods ({eng.batteryContainersCount} pods, {currentProject.batteryRuntimeMin} min)</span>
-                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeBatteryContainer} onChange={e => updateCurrentProject({ includeBatteryContainer: e.target.checked })} className="w-4 h-4" />
+                              <span>{currentProject.batteryChemistry} Battery Pods ({eng.batteryContainersCount})</span>
+                            </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeIntelligentRpdu} onChange={e => updateCurrentProject({ includeIntelligentRpdu: e.target.checked })} className="w-4 h-4" />
+                              <span>Intelligent Dual rPDUs</span>
+                            </label>
+                          </div>
                           <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
                             <input type="checkbox" checked={!!currentProject.includeDgYard} onChange={e => updateCurrentProject({ includeDgYard: e.target.checked })} className="w-4 h-4" />
                             <span>CPCB IV+ DG Sets ({eng.dgUnitsCount} × 1500 kVA + PESO Fuel Tank)</span>
@@ -2529,7 +2780,11 @@
                           <div className="grid grid-cols-2 gap-2">
                             <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
                               <input type="checkbox" checked={!!currentProject.includeIntegratedBms} onChange={e => updateCurrentProject({ includeIntegratedBms: e.target.checked })} className="w-4 h-4" />
-                              <span>Integrated BMS & Leak Ropes</span>
+                              <span>Integrated BMS / DCIM</span>
+                            </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeLeakRope} onChange={e => updateCurrentProject({ includeLeakRope: e.target.checked })} className="w-4 h-4" />
+                              <span>Addressable Leak Ropes</span>
                             </label>
                             <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
                               <input type="checkbox" checked={!!currentProject.includeVesdaFire} onChange={e => updateCurrentProject({ includeVesdaFire: e.target.checked })} className="w-4 h-4" />
@@ -2541,22 +2796,21 @@
                             </label>
                             <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
                               <input type="checkbox" checked={!!currentProject.includeAcousticBarrier} onChange={e => updateCurrentProject({ includeAcousticBarrier: e.target.checked })} className="w-4 h-4" />
-                              <span>Optional Acoustic Barrier Wall</span>
+                              <span>Acoustic Barrier Wall</span>
                             </label>
                             <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
                               <input type="checkbox" checked={!!currentProject.includeAdminModule} onChange={e => updateCurrentProject({ includeAdminModule: e.target.checked })} className="w-4 h-4" />
                               <span>Admin / NOC & Spares Pod</span>
                             </label>
-                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium col-span-2">
                               <input type="checkbox" checked={!!currentProject.includeStagingModule} onChange={e => updateCurrentProject({ includeStagingModule: e.target.checked })} className="w-4 h-4" />
-                              <span>Staging & Leak-Test Bay</span>
+                              <span>Staging, Unloading Dock & Nitrogen Leak-Test Bay</span>
                             </label>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* STEP 5: Redundancy & Statutory Compliance */}
                     {wizardTab === 4 && (
                       <div className="space-y-4 text-sm">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -2594,12 +2848,10 @@
                       </div>
                     )}
 
-                    {/* STEP 6: Land Parcel */}
                     {wizardTab === 5 && (
                       <ParcelLayoutPlanner project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
                     )}
 
-                    {/* STEP 7: Installation, Multi-Year AMC, Non-Standard Works & Validator */}
                     {wizardTab === 6 && (
                       <div className="space-y-4 text-xs">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2690,12 +2942,11 @@
                 </div>
               )}
 
-              {/* 4. ENGINEERING OPTIMIZER, VALIDATOR, 5-YEAR TCO & GANTT WORKSPACE */}
+              {/* 4. ENGINEERING OPTIMIZER, VALIDATOR, 5-YEAR TCO & DEAL BOQ WORKSPACE */}
               {screen === "workspace" && (
                 <div className="space-y-6">
                   <ValidatorCard eng={eng} compact={false} />
 
-                  {/* KPI Summary */}
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                     <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
                       <div className="text-xs text-slate-500">Design / Actual IT Load</div>
@@ -2708,7 +2959,7 @@
                       <div className="text-[11px] text-slate-400">{(eng.totalWaterStorageLitres/1000)} kL Tanks • {eng.pumpSkidsCount} Pump Skids</div>
                     </div>
                     <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
-                      <div className="text-xs text-slate-500">Turnkey Quote (Incl. GST)</div>
+                      <div className="text-xs text-slate-500">Non-IT Turnkey (Incl. GST)</div>
                       <div className="text-lg font-black coral-text">{formatMoney(eng.totals.grandTotal, currentProject.currency, standards)}</div>
                       <div className="text-[11px] text-slate-400">CapEx: {formatMoney(eng.capexSellingPreTax, currentProject.currency, standards)}</div>
                     </div>
@@ -2720,7 +2971,7 @@
                     <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
                       <div className="text-xs text-slate-500">5-Year Lifecycle TCO</div>
                       <div className="text-lg font-black navy-text">{formatMoney(eng.fiveYearTcoInr, currentProject.currency, standards)}</div>
-                      <div className="text-[11px] text-slate-400">CapEx + 5-Yr Power/Water/AMC</div>
+                      <div className="text-[11px] text-slate-400">Non-IT CapEx + 5-Yr OpEx</div>
                     </div>
                   </div>
 
@@ -2736,7 +2987,7 @@
                           ★ Save Container to Standard Catalog
                         </button>
                         <button onClick={() => exportNativePptxDeck(currentProject, eng, standards, logoDataUrl)} className="px-3.5 py-1.5 rounded-lg coral-bg text-white text-xs font-bold">
-                          ⬇ Export Branded .PPTX Deck
+                          ⬇ Export Consulting .PPTX Deck
                         </button>
                       </div>
                     </div>
@@ -2761,13 +3012,84 @@
                     </div>
                   </div>
 
+                  {/* Consolidated BOQ with Deal-Specific Special Vendor Pricing Dialog */}
+                  <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold navy-text">Consolidated Non-IT BOQ & Deal-Specific Vendor Quotes</h3>
+                        <p className="text-xs text-slate-500">IT Racks excluded (priced in HPC sheet). Click any item's <strong>Quote / Override</strong> button to apply deal-specific vendor discounts, special prices, validity dates & background notes without altering Master Parameters.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={exportCommercialPriceCsv} className="px-3.5 py-2 rounded-lg navy-bg text-white text-xs font-bold">Export Price Sheet (.CSV)</button>
+                        <button onClick={() => exportNativePptxDeck(currentProject, eng, standards, logoDataUrl)} className="px-3.5 py-2 rounded-lg coral-bg text-white text-xs font-bold">Export .PPTX Deck</button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left border-collapse">
+                        <thead>
+                          <tr className="navy-bg text-white">
+                            <th className="p-2.5">Category & Subsystem</th>
+                            <th className="p-2.5">Make & Model</th>
+                            <th className="p-2.5 text-center">Qty</th>
+                            <th className="p-2.5 text-right">Master Base (₹)</th>
+                            <th className="p-2.5 text-right">Deal Unit Cost (₹)</th>
+                            <th className="p-2.5 text-right">Pre-Tax Quote</th>
+                            <th className="p-2.5 text-right">Incl. GST</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {eng.bomItems.map(it => {
+                            const isExpired = it.validUntil && new Date(it.validUntil) < new Date(new Date().toISOString().slice(0, 10));
+                            return (
+                              <tr key={it.key} className={`border-b border-slate-200 hover:bg-slate-50 ${it.isOverridden ? "bg-amber-50/40" : ""}`}>
+                                <td className="p-2.5">
+                                  <span className="text-[10px] uppercase font-bold text-slate-400 block">{it.category}</span>
+                                  <div className="font-bold navy-text">{it.label}</div>
+                                  <div className="text-[11px] text-slate-500">{it.specs}</div>
+                                  {it.isOverridden && (
+                                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                                      <span className="px-1.5 py-0.5 rounded bg-amber-200 text-amber-950 font-bold">
+                                        ★ Special Quote ({it.discountPct > 0 ? `-${it.discountPct}%` : `+${Math.abs(it.discountPct)}%`})
+                                      </span>
+                                      {it.validUntil && (
+                                        <span className={`px-1.5 py-0.5 rounded font-bold ${isExpired ? "bg-red-100 text-red-700" : "bg-slate-200 text-slate-700"}`}>
+                                          Valid: {it.validUntil}{isExpired ? " (EXPIRED)" : ""}
+                                        </span>
+                                      )}
+                                      {it.comments && <span className="text-slate-600 italic">"{it.comments}"</span>}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-2.5 text-slate-700">{it.make} — {it.model}</td>
+                                <td className="p-2.5 text-center font-bold">{it.qty}</td>
+                                <td className="p-2.5 text-right font-mono text-slate-500">₹{Math.round(it.masterUnitCost).toLocaleString("en-IN")}</td>
+                                <td className="p-2.5 text-right">
+                                  <button
+                                    onClick={() => openSpecialQuoteDialog(it)}
+                                    className={`px-2.5 py-1.5 rounded-lg border font-mono font-bold text-right inline-flex items-center gap-1.5 ${
+                                      it.isOverridden ? "border-amber-500 bg-amber-100 text-amber-950" : "border-slate-300 bg-white hover:border-blue-600 navy-text"
+                                    }`}
+                                  >
+                                    <span>₹{Math.round(it.unitCost).toLocaleString("en-IN")}</span>
+                                    <span className="text-[10px] font-sans">✎</span>
+                                  </button>
+                                </td>
+                                <td className="p-2.5 text-right font-bold">{formatMoney(it.sellingPreTax, currentProject.currency, standards)}</td>
+                                <td className="p-2.5 text-right font-bold navy-text">{formatMoney(it.grandTotalInclGst, currentProject.currency, standards)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
                   {/* Implementation Gantt Planning Chart */}
                   <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-bold navy-text">Turnkey Implementation Gantt Planning Chart</h3>
-                        <p className="text-xs text-slate-500">Execution Mode: {project.deploymentMode} • Total Commissioning Horizon: {eng.ganttTasks[eng.ganttTasks.length - 1].startWk + eng.ganttTasks[eng.ganttTasks.length - 1].durWk - 1} Weeks</p>
-                      </div>
+                    <div>
+                      <h3 className="text-lg font-bold navy-text">Macro Turnkey Implementation Roadmap</h3>
+                      <p className="text-xs text-slate-500">Execution Mode: {currentProject.deploymentMode} • Total Commissioning Horizon: {eng.ganttTasks[eng.ganttTasks.length - 1].startWk + eng.ganttTasks[eng.ganttTasks.length - 1].durWk - 1} Weeks</p>
                     </div>
                     <div className="space-y-2 text-xs">
                       {eng.ganttTasks.map((g, idx) => {
@@ -2790,55 +3112,6 @@
                       })}
                     </div>
                   </div>
-
-                  {/* Itemized BOM & Commercial Table */}
-                  <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className="text-lg font-bold navy-text">Consolidated Turnkey BOM, Services, AMC & Deal Overrides</h3>
-                      <div className="flex gap-2">
-                        <button onClick={exportCommercialPriceCsv} className="px-3.5 py-2 rounded-lg navy-bg text-white text-xs font-bold">Export Price Sheet (.CSV)</button>
-                        <button onClick={() => exportNativePptxDeck(currentProject, eng, standards, logoDataUrl)} className="px-3.5 py-2 rounded-lg coral-bg text-white text-xs font-bold">Export .PPTX Deck</button>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs text-left border-collapse">
-                        <thead>
-                          <tr className="navy-bg text-white">
-                            <th className="p-2.5">Category & Subsystem</th>
-                            <th className="p-2.5">Make & Model</th>
-                            <th className="p-2.5 text-center">Qty</th>
-                            <th className="p-2.5 text-right">Deal Unit Cost (₹)</th>
-                            <th className="p-2.5 text-right">Pre-Tax Quote</th>
-                            <th className="p-2.5 text-right">Total Incl. GST</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {eng.bomItems.map(it => (
-                            <tr key={it.key} className="border-b border-slate-200 hover:bg-slate-50">
-                              <td className="p-2.5">
-                                <span className="text-[10px] uppercase font-bold text-slate-400 block">{it.category}</span>
-                                <div className="font-bold navy-text">{it.label}</div>
-                                <div className="text-[11px] text-slate-500">{it.specs}</div>
-                              </td>
-                              <td className="p-2.5 text-slate-700">{it.make} — {it.model}</td>
-                              <td className="p-2.5 text-center font-bold">{it.qty}</td>
-                              <td className="p-2.5 text-right">
-                                <input
-                                  type="number"
-                                  value={it.unitCost}
-                                  onChange={e => updateCurrentProject({ rateOverrides: { ...currentProject.rateOverrides, [it.key]: e.target.value } })}
-                                  className="w-28 text-right border border-slate-300 rounded px-2 py-1 font-mono"
-                                />
-                              </td>
-                              <td className="p-2.5 text-right font-bold">{formatMoney(it.sellingPreTax, currentProject.currency, standards)}</td>
-                              <td className="p-2.5 text-right font-bold navy-text">{formatMoney(it.grandTotalInclGst, currentProject.currency, standards)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -2847,17 +3120,17 @@
                 <ThreeDStudio project={currentProject} eng={eng} />
               )}
 
-              {/* 6. OUTPUTS, BRANDED .PPTX SLIDE DECK & CAD CENTER */}
+              {/* 6. OUTPUTS, CONSULTING .PPTX SLIDE DECK & CAD CENTER */}
               {screen === "outputs" && (
                 <div className="space-y-6">
                   <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
                       <div>
-                        <h2 className="text-xl font-bold navy-text">Executive Slide Deck (.PPTX), CAD Blueprints & Schedules</h2>
-                        <p className="text-xs text-slate-500">Exports native PowerPoint (.PPTX) adhering strictly to Tosh A Black 24pt / Roshna Black 22pt headers, Roboto ≤12pt body, native shapes, native tables & 3.1" blank footer</p>
+                        <h2 className="text-xl font-bold navy-text">Consulting Slide Deck (.PPTX), CAD Blueprints & Schedules</h2>
+                        <p className="text-xs text-slate-500">Pure consulting layout: Brand Orange (#FF5539) + White + Light Grey only, zero box grids, 0.1" text boundary on all sides, Tosh A Black 24pt & Roshna Black 22pt unbolded headers, 3.1" blank footer</p>
                       </div>
                       <button onClick={() => exportNativePptxDeck(currentProject, eng, standards, logoDataUrl)} className="touch-btn px-5 py-2.5 rounded-xl coral-bg text-white text-sm font-bold shadow">
-                        ⬇ Download Branded Slide Deck (.PPTX)
+                        ⬇ Download Consulting Slide Deck (.PPTX)
                       </button>
                     </div>
 
@@ -2890,17 +3163,32 @@
                 </div>
               )}
 
-              {/* 8. GLOBAL PARAMETERS & MASTER CATALOGS */}
+              {/* 8. GLOBAL PARAMETERS & MASTER CATALOGS (FULL CRUD + SEPARATE JSON EXPORT/IMPORT) */}
               {screen === "parameters" && (
                 <div className="bg-white rounded-xl card-shadow border border-slate-200 overflow-hidden">
-                  <div className="navy-bg text-white p-5">
-                    <h2 className="text-xl font-bold">Global Parameters & Standard Catalogs</h2>
-                    <div className="flex flex-wrap gap-1.5 mt-4">
+                  <div className="navy-bg text-white p-5 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-xl font-bold">Global Master Parameters & Equipment Catalogs</h2>
+                        <p className="text-xs text-slate-300">Master starting baselines stored independently from Deal-Level Special Vendor Quotes</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={exportMasterCatalogJson} className="px-3.5 py-2 rounded-lg bg-emerald-500 text-slate-950 text-xs font-black">
+                          ⬇ Export Master Catalog (.JSON)
+                        </button>
+                        <label className="px-3.5 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-bold cursor-pointer">
+                          ⬆ Import Master Catalog (.JSON)
+                          <input type="file" accept=".json" onChange={importMasterCatalogJson} className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
                       {[
-                        ["skus", "1. Rack SKU Library (LPM & ΔP)"],
-                        ["containers", "2. Standard & Saved Containers"],
-                        ["rates", "3. Master OEM Rate Card & OpEx"],
-                        ["branding", "4. Company Logo & Drive OAuth"]
+                        ["skus", `1. IT Rack SKUs — Engineering Specs (${skus.length})`],
+                        ["containers", `2. Container Shells (${containerCatalog.length})`],
+                        ["nonit", `3. Non-IT Equipment Master (${nonItCatalog.length})`],
+                        ["branding", "4. Margins, Logo & Drive OAuth"]
                       ].map(([k, lbl]) => (
                         <button key={k} onClick={() => setParamTab(k)} className={`px-3.5 py-2 rounded-lg text-xs font-bold ${paramTab === k ? "coral-bg text-white" : "bg-white/15 text-slate-200"}`}>
                           {lbl}
@@ -2909,75 +3197,259 @@
                     </div>
                   </div>
 
+                  {/* TAB 1: IT RACKS MASTER (ZERO COST FIELDS, FULL ENGINEERING SPECS + CRUD) */}
                   {paramTab === "skus" && (
                     <div className="p-5 space-y-3 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-slate-600">Configure all IT Rack engineering parameters (no rack pricing here — IT hardware is priced separately in your HPC sheet).</p>
+                        <button
+                          onClick={() => setSkus(prev => [...prev, {
+                            id: "sku-" + Date.now(),
+                            name: "Custom High-Density Rack",
+                            coolingType: "DLC",
+                            standard: "Custom / OCP",
+                            heightMm: 2500, widthMm: 800, depthMm: 1200,
+                            weightKg: 1650,
+                            peakKw: 200, continuousFactor: 0.95, operatingUtilFactor: 0.85,
+                            liquidSplitPct: 90,
+                            cduIntegrated: false,
+                            cduTowerHeightMm: 2200, cduTowerWidthMm: 600, cduTowerDepthMm: 1200,
+                            flowLpmPerKw: 1.45, reqDeltaPBar: 1.8, mawpBar: 4.0,
+                            powerEntry: "Top", plumbingEntry: "Bottom",
+                            color: "#002870"
+                          }])}
+                          className="px-3.5 py-2 rounded-lg coral-bg text-white font-bold"
+                        >
+                          + Add Rack SKU
+                        </button>
+                      </div>
+
                       <div className="overflow-x-auto border border-slate-200 rounded-xl">
                         <table className="w-full text-left border-collapse">
                           <thead>
-                            <tr className="bg-slate-100 border-b border-slate-200">
-                              <th className="p-3">Rack SKU</th>
-                              <th className="p-3">Peak kW</th>
-                              <th className="p-3">Flow (LPM/kW)</th>
-                              <th className="p-3">Req ΔP (bar)</th>
-                              <th className="p-3">Unit Cost (₹)</th>
-                              <th className="p-3">Action</th>
+                            <tr className="bg-slate-100 border-b border-slate-200 text-[11px]">
+                              <th className="p-2.5">Rack Name (User Configurable)</th>
+                              <th className="p-2.5">Type</th>
+                              <th className="p-2.5">kW</th>
+                              <th className="p-2.5">Liquid %</th>
+                              <th className="p-2.5">Weight (kg)</th>
+                              <th className="p-2.5">Dimensions L×W×D (mm)</th>
+                              <th className="p-2.5">CDU Integrated?</th>
+                              <th className="p-2.5">CDU Tower L×W×D (mm)</th>
+                              <th className="p-2.5">Power Entry</th>
+                              <th className="p-2.5">Plumbing Entry</th>
+                              <th className="p-2.5">LPM/kW & ΔP</th>
+                              <th className="p-2.5">Action</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {skus.map((s, idx) => (
-                              <tr key={s.id} className="border-b border-slate-200">
-                                <td className="p-3 font-bold navy-text">{s.name}</td>
-                                <td className="p-3"><input type="number" value={s.peakKw} onChange={e => setSkus(prev => prev.map((x, i) => i === idx ? { ...x, peakKw: Number(e.target.value) } : x))} className="w-20 border rounded px-2 py-1" /></td>
-                                <td className="p-3"><input type="number" step="0.05" value={s.flowLpmPerKw} onChange={e => setSkus(prev => prev.map((x, i) => i === idx ? { ...x, flowLpmPerKw: Number(e.target.value) } : x))} className="w-20 border rounded px-2 py-1" /></td>
-                                <td className="p-3"><input type="number" step="0.1" value={s.reqDeltaPBar} onChange={e => setSkus(prev => prev.map((x, i) => i === idx ? { ...x, reqDeltaPBar: Number(e.target.value) } : x))} className="w-20 border rounded px-2 py-1" /></td>
-                                <td className="p-3"><input type="number" value={s.unitCostInr} onChange={e => setSkus(prev => prev.map((x, i) => i === idx ? { ...x, unitCostInr: Number(e.target.value) } : x))} className="w-28 border rounded px-2 py-1 font-mono" /></td>
-                                <td className="p-3 text-slate-400">{s.cduMode} CDU</td>
-                              </tr>
-                            ))}
+                            {skus.map((s, idx) => {
+                              const updateSku = (patch) => setSkus(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x));
+                              return (
+                                <tr key={s.id} className="border-b border-slate-200 hover:bg-slate-50">
+                                  <td className="p-2">
+                                    <input type="text" value={s.name} onChange={e => updateSku({ name: e.target.value })} className="w-48 border rounded px-2 py-1 font-bold navy-text" />
+                                  </td>
+                                  <td className="p-2">
+                                    <select value={s.coolingType} onChange={e => updateSku({ coolingType: e.target.value, liquidSplitPct: e.target.value === "AC" ? 0 : (s.liquidSplitPct || 90), plumbingEntry: e.target.value === "AC" ? "None" : "Bottom" })} className="border rounded px-1.5 py-1 font-bold">
+                                      <option value="DLC">DLC</option>
+                                      <option value="AC">AC</option>
+                                    </select>
+                                  </td>
+                                  <td className="p-2"><input type="number" value={s.peakKw} onChange={e => updateSku({ peakKw: Number(e.target.value) })} className="w-16 border rounded px-1.5 py-1 font-bold" /></td>
+                                  <td className="p-2"><input type="number" min="0" max="100" disabled={s.coolingType === "AC"} value={s.coolingType === "AC" ? 0 : s.liquidSplitPct} onChange={e => updateSku({ liquidSplitPct: Number(e.target.value) })} className="w-14 border rounded px-1.5 py-1 disabled:bg-slate-100" /></td>
+                                  <td className="p-2"><input type="number" value={s.weightKg} onChange={e => updateSku({ weightKg: Number(e.target.value) })} className="w-16 border rounded px-1.5 py-1" /></td>
+                                  <td className="p-2">
+                                    <div className="flex items-center gap-1">
+                                      <input type="number" value={s.heightMm} onChange={e => updateSku({ heightMm: Number(e.target.value) })} className="w-14 border rounded px-1 py-1" title="Length/Height (mm)" />
+                                      <span>×</span>
+                                      <input type="number" value={s.widthMm} onChange={e => updateSku({ widthMm: Number(e.target.value) })} className="w-14 border rounded px-1 py-1" title="Width (mm)" />
+                                      <span>×</span>
+                                      <input type="number" value={s.depthMm} onChange={e => updateSku({ depthMm: Number(e.target.value) })} className="w-14 border rounded px-1 py-1" title="Depth (mm)" />
+                                    </div>
+                                  </td>
+                                  <td className="p-2">
+                                    <select disabled={s.coolingType === "AC"} value={s.cduIntegrated ? "Yes" : "No"} onChange={e => updateSku({ cduIntegrated: e.target.value === "Yes" })} className="border rounded px-1.5 py-1 disabled:bg-slate-100">
+                                      <option value="Yes">Yes</option>
+                                      <option value="No">No (Ext)</option>
+                                    </select>
+                                  </td>
+                                  <td className="p-2">
+                                    {s.coolingType === "DLC" && !s.cduIntegrated ? (
+                                      <div className="flex items-center gap-1">
+                                        <input type="number" value={s.cduTowerHeightMm || 2200} onChange={e => updateSku({ cduTowerHeightMm: Number(e.target.value) })} className="w-14 border rounded px-1 py-1" />
+                                        <span>×</span>
+                                        <input type="number" value={s.cduTowerWidthMm || 600} onChange={e => updateSku({ cduTowerWidthMm: Number(e.target.value) })} className="w-14 border rounded px-1 py-1" />
+                                        <span>×</span>
+                                        <input type="number" value={s.cduTowerDepthMm || 1200} onChange={e => updateSku({ cduTowerDepthMm: Number(e.target.value) })} className="w-14 border rounded px-1 py-1" />
+                                      </div>
+                                    ) : <span className="text-slate-400">N/A</span>}
+                                  </td>
+                                  <td className="p-2">
+                                    <select value={s.powerEntry} onChange={e => updateSku({ powerEntry: e.target.value })} className="border rounded px-1.5 py-1">
+                                      <option value="Top">Top</option>
+                                      <option value="Bottom">Bottom</option>
+                                    </select>
+                                  </td>
+                                  <td className="p-2">
+                                    <select disabled={s.coolingType === "AC"} value={s.plumbingEntry} onChange={e => updateSku({ plumbingEntry: e.target.value })} className="border rounded px-1.5 py-1 disabled:bg-slate-100">
+                                      <option value="Top">Top</option>
+                                      <option value="Bottom">Bottom</option>
+                                      <option value="None">None</option>
+                                    </select>
+                                  </td>
+                                  <td className="p-2">
+                                    <div className="flex items-center gap-1">
+                                      <input type="number" step="0.05" disabled={s.coolingType === "AC"} value={s.flowLpmPerKw} onChange={e => updateSku({ flowLpmPerKw: Number(e.target.value) })} className="w-14 border rounded px-1 py-1" title="LPM/kW" />
+                                      <input type="number" step="0.1" disabled={s.coolingType === "AC"} value={s.reqDeltaPBar} onChange={e => updateSku({ reqDeltaPBar: Number(e.target.value) })} className="w-12 border rounded px-1 py-1" title="Delta-P bar" />
+                                    </div>
+                                  </td>
+                                  <td className="p-2">
+                                    <button onClick={() => setSkus(prev => prev.filter((_, i) => i !== idx))} className="px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 font-bold">Delete</button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
                     </div>
                   )}
 
+                  {/* TAB 2: STANDARD & SAVED CONTAINER SHELLS (FULL CRUD) */}
                   {paramTab === "containers" && (
                     <div className="p-5 space-y-3 text-xs">
-                      <p className="text-slate-600">Standard and promoted bespoke containers available for future customer deals:</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-slate-600">Standard and promoted bespoke container shells with starting per-pod baseline costs:</p>
+                        <button
+                          onClick={() => setContainerCatalog(prev => [...prev, {
+                            id: "cnt-" + Date.now(),
+                            name: "Custom 14.0m Sovereign Pod",
+                            lengthMm: 14000, widthMm: 4200, heightMm: 3900,
+                            metallurgy: "Corten-A SPA-H", wallMm: 2.5, roofMm: 3.0, floorMm: 5.0,
+                            plenumMm: 750, topClearanceMm: 1000,
+                            baseCostInr: 8400000
+                          }])}
+                          className="px-3.5 py-2 rounded-lg coral-bg text-white font-bold"
+                        >
+                          + Add Container Shell
+                        </button>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {containerCatalog.map(c => (
-                          <div key={c.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                            <div className="font-bold navy-text text-sm">{c.name}</div>
-                            <div className="text-slate-600 mt-1">
-                              {(c.lengthMm/1000).toFixed(2)}m L × {(c.widthMm/1000).toFixed(2)}m W × {(c.heightMm/1000).toFixed(2)}m H • {c.metallurgy}
+                        {containerCatalog.map((c, idx) => {
+                          const updateCnt = (patch) => setContainerCatalog(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x));
+                          return (
+                            <div key={c.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <input type="text" value={c.name} onChange={e => updateCnt({ name: e.target.value })} className="font-bold navy-text text-sm border rounded px-2 py-1 bg-white flex-1" />
+                                <button onClick={() => setContainerCatalog(prev => prev.filter((_, i) => i !== idx))} className="px-2 py-1 rounded bg-red-50 text-red-700 font-bold">Delete</button>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2">
+                                <div><span className="text-slate-400 block">Length (mm)</span><input type="number" value={c.lengthMm} onChange={e => updateCnt({ lengthMm: Number(e.target.value) })} className="w-full border rounded px-2 py-1 bg-white" /></div>
+                                <div><span className="text-slate-400 block">Width (mm)</span><input type="number" value={c.widthMm} onChange={e => updateCnt({ widthMm: Number(e.target.value) })} className="w-full border rounded px-2 py-1 bg-white" /></div>
+                                <div><span className="text-slate-400 block">Height (mm)</span><input type="number" value={c.heightMm} onChange={e => updateCnt({ heightMm: Number(e.target.value) })} className="w-full border rounded px-2 py-1 bg-white" /></div>
+                                <div><span className="text-slate-400 block">Base Cost (₹)</span><input type="number" value={c.baseCostInr} onChange={e => updateCnt({ baseCostInr: Number(e.target.value) })} className="w-full border rounded px-2 py-1 bg-white font-mono font-bold text-emerald-800" /></div>
+                              </div>
                             </div>
-                            <div className="font-mono font-bold text-emerald-700 mt-1">Reference Cost: ₹{c.baseCostInr.toLocaleString("en-IN")} / pod</div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
-                  {paramTab === "rates" && (
+                  {/* TAB 3: FULL NON-IT EQUIPMENT MASTER CATALOG (CATEGORIZED + FULL CRUD) */}
+                  {paramTab === "nonit" && (
                     <div className="p-5 space-y-4 text-xs">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {nonItCategories.map(cat => (
+                            <button
+                              key={cat}
+                              onClick={() => setNonItCatFilter(cat)}
+                              className={`px-2.5 py-1.5 rounded-lg font-bold border ${nonItCatFilter === cat ? "navy-bg text-white border-[#002870]" : "bg-slate-50 border-slate-300 text-slate-700"}`}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => setNonItCatalog(prev => [{
+                            id: "custom-nonit-" + Date.now(),
+                            category: nonItCatFilter === "ALL" ? "Power Distribution & Transformation" : nonItCatFilter,
+                            label: "New Non-IT Subsystem / Equipment",
+                            unit: "per unit",
+                            cost: 1250000,
+                            make: "Approved OEM",
+                            model: "STD-MODEL"
+                          }, ...prev])}
+                          className="px-3.5 py-2 rounded-lg coral-bg text-white font-bold"
+                        >
+                          + Add Non-IT Equipment
+                        </button>
+                      </div>
+
+                      <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 border-b border-slate-200">
+                              <th className="p-2.5">Category</th>
+                              <th className="p-2.5">Equipment / Subsystem Description</th>
+                              <th className="p-2.5">OEM Make</th>
+                              <th className="p-2.5">Model</th>
+                              <th className="p-2.5">Unit Basis</th>
+                              <th className="p-2.5 text-right">Master Starting Cost (₹)</th>
+                              <th className="p-2.5">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {nonItCatalog
+                              .filter(item => nonItCatFilter === "ALL" || item.category === nonItCatFilter)
+                              .map((item) => {
+                                const updateItem = (patch) => setNonItCatalog(prev => prev.map(x => x.id === item.id ? { ...x, ...patch } : x));
+                                return (
+                                  <tr key={item.id} className="border-b border-slate-200 hover:bg-slate-50">
+                                    <td className="p-2">
+                                      <select value={item.category} onChange={e => updateItem({ category: e.target.value })} className="border rounded px-1.5 py-1 bg-white max-w-[180px]">
+                                        {nonItCategories.filter(c => c !== "ALL").map(c => <option key={c} value={c}>{c}</option>)}
+                                      </select>
+                                    </td>
+                                    <td className="p-2"><input type="text" value={item.label} onChange={e => updateItem({ label: e.target.value })} className="w-64 border rounded px-2 py-1 font-bold navy-text" /></td>
+                                    <td className="p-2"><input type="text" value={item.make} onChange={e => updateItem({ make: e.target.value })} className="w-32 border rounded px-2 py-1" /></td>
+                                    <td className="p-2"><input type="text" value={item.model} onChange={e => updateItem({ model: e.target.value })} className="w-32 border rounded px-2 py-1" /></td>
+                                    <td className="p-2"><input type="text" value={item.unit} onChange={e => updateItem({ unit: e.target.value })} className="w-28 border rounded px-2 py-1" /></td>
+                                    <td className="p-2 text-right"><input type="number" value={item.cost} onChange={e => updateItem({ cost: Number(e.target.value) })} className="w-32 border rounded px-2 py-1 text-right font-mono font-bold text-emerald-800" /></td>
+                                    <td className="p-2">
+                                      <button onClick={() => setNonItCatalog(prev => prev.filter(x => x.id !== item.id))} className="px-2 py-1 rounded bg-red-50 text-red-700 font-bold">Delete</button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 4: DEFAULT MARGINS, TARIFFS, COMPANY LOGO & DRIVE OAUTH */}
+                  {paramTab === "branding" && (
+                    <div className="p-6 space-y-6 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
                         <div><label className="block font-bold">Grid Tariff (₹/kWh)</label><input type="number" step="0.5" value={standards.gridTariffInrKwh} onChange={e => setStandards(s => ({ ...s, gridTariffInrKwh: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
                         <div><label className="block font-bold">Water Tariff (₹/kL)</label><input type="number" value={standards.waterTariffInrKl} onChange={e => setStandards(s => ({ ...s, waterTariffInrKl: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
                         <div><label className="block font-bold">Default Margin %</label><input type="number" value={standards.defaultMarginPct} onChange={e => setStandards(s => ({ ...s, defaultMarginPct: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
                         <div><label className="block font-bold">Default GST %</label><input type="number" value={standards.defaultGstPct} onChange={e => setStandards(s => ({ ...s, defaultGstPct: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
                       </div>
-                    </div>
-                  )}
 
-                  {paramTab === "branding" && (
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                      <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                        <h3 className="font-bold navy-text">Company Logo (Header, PDF & Top-Right of .PPTX Slides)</h3>
-                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="block text-xs" />
-                        {logoDataUrl && <img src={logoDataUrl} alt="Logo Preview" className="h-12 w-auto object-contain bg-white p-1 rounded border" />}
-                      </div>
-                      <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                        <h3 className="font-bold navy-text">Google Drive OAuth Client ID</h3>
-                        <input type="text" value={clientId} onChange={e => setClientId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono bg-white" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                          <h3 className="font-bold navy-text">Company Logo (Header & Top-Right of .PPTX Slides)</h3>
+                          <input type="file" accept="image/*" onChange={handleLogoUpload} className="block text-xs" />
+                          {logoDataUrl && <img src={logoDataUrl} alt="Logo Preview" className="h-12 w-auto object-contain bg-white p-1 rounded border" />}
+                        </div>
+                        <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                          <h3 className="font-bold navy-text">Google Drive OAuth Client ID (Syncs Deals + Master JSON)</h3>
+                          <input type="text" value={clientId} onChange={e => setClientId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono bg-white" />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2985,11 +3457,130 @@
               )}
             </div>
           </main>
+
+          {/* DEAL-LEVEL SPECIAL VENDOR PRICING DIALOG BOX */}
+          {quoteModalItem && (
+            <div className="fixed inset-0 bg-slate-950/60 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-xs">
+                <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                  <div>
+                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-black uppercase text-[10px]">Deal-Level Special Vendor Quote</span>
+                    <h3 className="text-base font-bold navy-text mt-1">{quoteModalItem.label}</h3>
+                    <p className="text-slate-500">Applies strictly to <strong>{currentProject.name}</strong> — Master Catalog remains untouched.</p>
+                  </div>
+                  <button onClick={() => setQuoteModalItem(null)} className="text-slate-400 hover:text-slate-700 font-bold text-base">✕</button>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center">
+                  <span className="text-slate-600 font-medium">Master Catalog Starting Cost:</span>
+                  <span className="font-mono font-bold text-sm navy-text">₹{Math.round(quoteModalItem.masterUnitCost).toLocaleString("en-IN")}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setQuoteForm(f => ({ ...f, mode: "discount" }))}
+                    className={`py-2 px-3 rounded-lg font-bold border ${quoteForm.mode === "discount" ? "navy-bg text-white border-[#002870]" : "bg-white border-slate-300 text-slate-700"}`}
+                  >
+                    Option A: Discount % off Master
+                  </button>
+                  <button
+                    onClick={() => setQuoteForm(f => ({ ...f, mode: "price" }))}
+                    className={`py-2 px-3 rounded-lg font-bold border ${quoteForm.mode === "price" ? "coral-bg text-white border-[#FF5539]" : "bg-white border-slate-300 text-slate-700"}`}
+                  >
+                    Option B: Direct Special Price (₹)
+                  </button>
+                </div>
+
+                {quoteForm.mode === "discount" ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Vendor Discount (%)</label>
+                      <input
+                        type="number" step="0.5"
+                        value={quoteForm.discountPct}
+                        onChange={e => {
+                          const d = Number(e.target.value);
+                          const calcPrice = Math.round(quoteModalItem.masterUnitCost * (1 - d / 100));
+                          setQuoteForm(f => ({ ...f, discountPct: d, specialPrice: calcPrice }));
+                        }}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Resulting Deal Unit Price (₹)</label>
+                      <div className="w-full border border-slate-200 bg-slate-100 rounded-lg px-3 py-2 font-mono font-bold text-emerald-800">
+                        ₹{Math.round(quoteModalItem.masterUnitCost * (1 - (Number(quoteForm.discountPct) || 0) / 100)).toLocaleString("en-IN")}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Negotiated Deal Unit Price (₹)</label>
+                      <input
+                        type="number"
+                        value={quoteForm.specialPrice}
+                        onChange={e => {
+                          const p = Number(e.target.value);
+                          const d = quoteModalItem.masterUnitCost > 0 ? Number((((quoteModalItem.masterUnitCost - p) / quoteModalItem.masterUnitCost) * 100).toFixed(1)) : 0;
+                          setQuoteForm(f => ({ ...f, specialPrice: p, discountPct: d }));
+                        }}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Effective Variance vs. Master</label>
+                      <div className="w-full border border-slate-200 bg-slate-100 rounded-lg px-3 py-2 font-mono font-bold text-amber-800">
+                        {quoteModalItem.masterUnitCost > 0
+                          ? `${(((quoteModalItem.masterUnitCost - (Number(quoteForm.specialPrice) || 0)) / quoteModalItem.masterUnitCost) * 100).toFixed(1)}% off Master`
+                          : "Custom Rate"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Vendor Quote Validity Date</label>
+                  <input
+                    type="date"
+                    value={quoteForm.validUntil}
+                    onChange={e => setQuoteForm(f => ({ ...f, validUntil: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Commercial Background, Vendor Ref & Terms / Comments</label>
+                  <textarea
+                    rows="3"
+                    placeholder="e.g., OEM Q4 project bid #VT-409; includes 3-yr extended warranty & free site supervision; valid for PO before month-end..."
+                    value={quoteForm.comments}
+                    onChange={e => setQuoteForm(f => ({ ...f, comments: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                  <button onClick={clearSpecialQuote} className="px-3 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 font-bold">
+                    ↺ Revert to Master Baseline
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setQuoteModalItem(null)} className="px-3.5 py-2 rounded-lg border border-slate-300 font-bold">Cancel</button>
+                    <button onClick={saveSpecialQuote} className="px-4 py-2 rounded-lg coral-bg text-white font-bold">Save Deal Quote</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    ReactDOM.createRoot(document.getElementById("root")).render(
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    );
   </script>
   <script>
     if ('serviceWorker' in navigator) {
