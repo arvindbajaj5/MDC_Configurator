@@ -20,13 +20,14 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { box-sizing: border-box; font-family: 'Roboto', sans-serif; }
-    body { margin: 0; background: #F4F6FA; color: #0F172A; -webkit-tap-highlight-color: transparent; }
+    html, body, #root { height: 100%; margin: 0; overflow: hidden; background: #F4F6FA; color: #0F172A; }
+    body { -webkit-tap-highlight-color: transparent; }
     .navy-bg { background-color: #002870; }
     .navy-text { color: #002870; }
     .coral-bg { background-color: #FF5539; }
     .coral-text { color: #FF5539; }
     .card-shadow { box-shadow: 0 4px 20px -2px rgba(0, 40, 112, 0.08); }
-    .touch-btn { min-height: 44px; }
+    .touch-btn { min-height: 40px; }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #E2E8F0; }
     ::-webkit-scrollbar-thumb { background: #94A3B8; border-radius: 3px; }
@@ -39,7 +40,7 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v3_data";
+    const STORAGE_KEY = "ai_mdc_studio_v4_data";
 
     const INITIAL_SKUS = [
       {
@@ -115,22 +116,52 @@
     ];
 
     const DEFAULT_RATE_CARD = {
-      shellPerSqm: { cost: 48000, make: "Bespoke Fab", model: "SPA-H Corten Heavy" },
-      extCdu1500Kw: { cost: 6800000, make: "Vertiv / CoolIT", model: "Liebert XDU-1350 / CHx2000" },
-      adiabaticCooler1Mw: { cost: 5200000, make: "Guntner / Kelvion", model: "GFD-Adiabatic-1000" },
-      trimChiller500Kw: { cost: 4400000, make: "Trane / Climaveneta", model: "RTAF-500-VFD" },
-      roomDehumPac40Kw: { cost: 850000, make: "Stulz / Vertiv", model: "MiniSpace-EC-40" },
-      buswayPerMeter: { cost: 62000, make: "Schneider / Zucchini", model: "Canalis-KT-1600A" },
-      ss316HeaderPerMeter: { cost: 38000, make: "Jindal / Victaulic", model: "SS316L-DN150-Grooved" },
-      upsContainer1Mw: { cost: 9200000, make: "Eaton / ABB", model: "93PM-1000kVA-Pod" },
-      batteryContainer15Min: { cost: 7800000, make: "Exide / Amara Raja LFP", model: "LFP-Rack-BESS-15M" },
-      dgSet1500Kva: { cost: 11500000, make: "Cummins / Caterpillar", model: "C1500D5P-CPCB4+" },
-      adminSparesModule: { cost: 4600000, make: "Modular Prefab", model: "NOC-Workshop-40ft" },
-      stagingDockModule: { cost: 3900000, make: "Modular Prefab", model: "Unpack-BurnIn-Dock" },
-      civilPlinthPerSqm: { cost: 14500, make: "RCC M35 Grade", model: "IS456-Monsoon-Plinth" }
+      shellPerSqm: { label: "Modular Container Shell Fabrication", cost: 48000, unit: "per m²", make: "Bespoke Fab", model: "SPA-H Corten Heavy" },
+      extCdu1500Kw: { label: "External Row/Side-Car Liquid CDU", cost: 6800000, unit: "per unit", make: "Vertiv / CoolIT", model: "Liebert XDU-1350" },
+      adiabaticCooler1Mw: { label: "Yard Adiabatic / Dry Fluid Cooler", cost: 5200000, unit: "per 1MW unit", make: "Guntner / Kelvion", model: "GFD-Adiabatic-1000" },
+      trimChiller500Kw: { label: "Peak Monsoon Trim Chiller", cost: 4400000, unit: "per 500kW unit", make: "Trane / Climaveneta", model: "RTAF-500-VFD" },
+      roomDehumPac40Kw: { label: "Room Dehumidification & PAC Unit", cost: 850000, unit: "per 40kW unit", make: "Stulz / Vertiv", model: "MiniSpace-EC-40" },
+      buswayPerMeter: { label: "Overhead Dual A/B Power Busway", cost: 62000, unit: "per meter", make: "Schneider / Zucchini", model: "Canalis-KT-1600A" },
+      ss316HeaderPerMeter: { label: "Underfloor SS316L Coolant Header", cost: 38000, unit: "per meter", make: "Jindal / Victaulic", model: "SS316L-DN150-Grooved" },
+      upsContainer1Mw: { label: "Containerized Modular UPS Pod", cost: 9200000, unit: "per 1MW pod", make: "Eaton / ABB", model: "93PM-1000kVA-Pod" },
+      batteryContainer15Min: { label: "Containerized Battery Pod (BESS)", cost: 7800000, unit: "per 1.2MWh pod", make: "Exide / Amara Raja", model: "LFP-Rack-BESS" },
+      dgSet1500Kva: { label: "CPCB IV+ Acoustic DG Set + PESO Tank", cost: 11500000, unit: "per 1500kVA", make: "Cummins / Cat", model: "C1500D5P-CPCB4+" },
+      adminSparesModule: { label: "Admin, NOC & ESD Spares Container", cost: 4600000, unit: "per module", make: "Modular Prefab", model: "NOC-Workshop-40ft" },
+      stagingDockModule: { label: "Staging, Unloading & Leak-Test Bay", cost: 3900000, unit: "per module", make: "Modular Prefab", model: "Unpack-BurnIn-Dock" },
+      civilPlinthPerSqm: { label: "Elevated RCC Monsoon Plinth & Canopy", cost: 14500, unit: "per m²", make: "RCC M35 Grade", model: "IS456-Monsoon-Plinth" }
     };
 
-    const CLIMATE_PRESETS = {
+    const INITIAL_STANDARDS = {
+      iso20LengthMm: 6058,
+      iso40LengthMm: 12192,
+      defaultCustomMaxLenMm: 13500,
+      defaultHeightMm: 3900,
+      defaultWidthMm: 4200,
+      defaultMetallurgy: "Corten-A SPA-H",
+      wallThicknessMm: 2.0,
+      roofThicknessMm: 3.0,
+      floorThicknessMm: 4.5,
+      plenumHeightMm: 700,
+      topClearanceMm: 950,
+      maxPodPayloadKg: 36000,
+      maxDlcKwPerPod: 2000,
+      maxAcKwPerPod: 400,
+      coolantType: "PG25 (25% Propylene Glycol + DI Water)",
+      supplyTempC: 32,
+      returnTempC: 44,
+      wetBulbSwitchoverC: 28.5,
+      buswayAmperageA: 1600,
+      lfpDoDPct: 85,
+      vrlaDoDPct: 65,
+      dgFuelLitresPerKwh: 0.26,
+      defaultMarginPct: 18,
+      defaultContingencyPct: 7,
+      defaultGstPct: 18,
+      usdRate: 84,
+      eurRate: 91
+    };
+
+    const INITIAL_CLIMATES = {
       "Mumbai (Coastal Monsoon)": { peakDryBulb: 38, peakWetBulb: 29.5, monsoonMonths: 4, defaultWater: "Constrained" },
       "Delhi NCR (Extreme Summer)": { peakDryBulb: 46, peakWetBulb: 28.0, monsoonMonths: 2, defaultWater: "Constrained" },
       "Bengaluru (Moderate Plateau)": { peakDryBulb: 35, peakWetBulb: 23.5, monsoonMonths: 3, defaultWater: "Abundant" },
@@ -138,17 +169,18 @@
       "Hyderabad / Pune (Dry Deccan)": { peakDryBulb: 42, peakWetBulb: 25.0, monsoonMonths: 3, defaultWater: "Constrained" }
     };
 
-    const makeDefaultProject = (id, name, client, status = "In Review") => ({
+    const makeDefaultProject = (id, name, client, status = "In Review", std = INITIAL_STANDARDS) => ({
       id,
       name,
       client,
       status,
       updatedAt: new Date().toISOString().slice(0, 10),
+      archetype: "Sovereign AI Training Factory",
+      targetItMw: 15.0,
       currency: "INR",
-      fxRate: 1,
-      marginPct: 18,
-      contingencyPct: 7,
-      gstPct: 18,
+      marginPct: std.defaultMarginPct,
+      contingencyPct: std.defaultContingencyPct,
+      gstPct: std.defaultGstPct,
       rackQuantities: {
         "sku-dlc-265": 32,
         "sku-helios": 12,
@@ -156,18 +188,18 @@
         "sku-rubin144": 0,
         "sku-air-core": 12
       },
-      containerLengthMode: "CustomOptimum", // "ISO20" | "ISO40" | "CustomOptimum"
-      maxCustomLengthMm: 13500,
-      containerHeightMm: 3900,
-      containerWidthMm: 4200,
-      metallurgy: "Corten-A SPA-H",
-      wallThicknessMm: 2.0,
-      roofThicknessMm: 3.0,
-      floorThicknessMm: 4.5,
-      plenumHeightMm: 700,
-      topClearanceMm: 950,
-      hallTopology: "GangedLinear", // "Isolated" | "GangedLinear" | "GangedUShaped"
-      packingStrategy: "MinCapex", // "MinCapex" | "UniformPods" | "Segregated"
+      containerLengthMode: "CustomOptimum",
+      maxCustomLengthMm: std.defaultCustomMaxLenMm,
+      containerHeightMm: std.defaultHeightMm,
+      containerWidthMm: std.defaultWidthMm,
+      metallurgy: std.defaultMetallurgy,
+      wallThicknessMm: std.wallThicknessMm,
+      roofThicknessMm: std.roofThicknessMm,
+      floorThicknessMm: std.floorThicknessMm,
+      plenumHeightMm: std.plenumHeightMm,
+      topClearanceMm: std.topClearanceMm,
+      hallTopology: "GangedLinear",
+      packingStrategy: "MinCapex",
       includeAdminModule: true,
       includeStagingModule: true,
       includeUpsContainer: true,
@@ -184,14 +216,13 @@
       regulatoryCode: "India BIS / CEA / CPCB IV+ / PESO / NBC",
       monsoonCanopy: true,
       airlockVestibule: true,
-      parcelShape: "IrregularTrapezoid", // "IrregularTrapezoid" | "LShaped" | "CustomGeoJSON"
+      parcelShape: "IrregularTrapezoid",
       parcelVertices: [
         { x: 0, y: 0 },
         { x: 92, y: 0 },
         { x: 108, y: 64 },
         { x: 14, y: 78 }
       ],
-      roadFrontageEdge: 0,
       setbackMeters: 6.0,
       hallRotationDeg: 0,
       rateOverrides: {}
@@ -201,12 +232,13 @@
       makeDefaultProject("proj-15mw-ai", "15 MW Sovereign AI Cluster — Navi Mumbai", "National HPC Authority", "Proposal Ready"),
       makeDefaultProject("proj-2mw-edge", "2.0 MW Defense Geospatial Edge Pod", "Strategic Command C3", "Draft")
     ];
+    INITIAL_PROJECTS[1].targetItMw = 2.0;
+    INITIAL_PROJECTS[1].archetype = "Tactical / Defense Edge Pod";
     INITIAL_PROJECTS[1].rackQuantities = { "sku-dlc-265": 8, "sku-helios": 0, "sku-nvl72": 0, "sku-rubin144": 0, "sku-air-core": 4 };
     INITIAL_PROJECTS[1].hallTopology = "Isolated";
     INITIAL_PROJECTS[1].containerLengthMode = "ISO40";
 
-    // Engineering & Bin-Packing Solver
-    function computeEngineering(project, skus, rateCard) {
+    function computeEngineering(project, skus, rateCard, standards, climates) {
       const skuMap = Object.fromEntries(skus.map(s => [s.id, s]));
       const activeRacks = [];
       let totalPeakKw = 0;
@@ -216,8 +248,6 @@
       let totalAirKw = 0;
       let totalFlowLpm = 0;
       let extCduRequiredKw = 0;
-      let intCduRackCount = 0;
-      let extCduRackCount = 0;
 
       Object.entries(project.rackQuantities || {}).forEach(([skuId, qty]) => {
         const q = Number(qty) || 0;
@@ -233,20 +263,12 @@
         totalLiquidKw += liqKw * q;
         totalAirKw += airKw * q;
         totalFlowLpm += liqKw * sku.flowLpmPerKw * q;
-        if (sku.cduMode === "External") {
-          extCduRequiredKw += liqKw * q;
-          extCduRackCount += q;
-        } else if (sku.cduMode === "Integrated") {
-          intCduRackCount += q;
-        }
+        if (sku.cduMode === "External") extCduRequiredKw += liqKw * q;
         for (let i = 0; i < q; i++) {
           activeRacks.push({
             ...sku,
             instanceIndex: i + 1,
-            contKw,
-            actKw,
-            liqKw,
-            airKw,
+            contKw, actKw, liqKw, airKw,
             wetWeightKg: sku.dryWeightKg + sku.coolantWeightKg
           });
         }
@@ -255,20 +277,18 @@
       const dlcRacks = activeRacks.filter(r => r.category === "DLC");
       const acRacks = activeRacks.filter(r => r.category === "AC");
 
-      // Determine container usable row length (2 facing rows per container)
       const airlockReserveMm = project.airlockVestibule ? 1400 : 400;
       const wallInsulReserveMm = 400;
-      let targetExtLengthMm = 12192;
-      if (project.containerLengthMode === "ISO20") targetExtLengthMm = 6058;
-      else if (project.containerLengthMode === "ISO40") targetExtLengthMm = 12192;
-      else targetExtLengthMm = project.maxCustomLengthMm || 13500;
+      let targetExtLengthMm = standards.iso40LengthMm;
+      if (project.containerLengthMode === "ISO20") targetExtLengthMm = standards.iso20LengthMm;
+      else if (project.containerLengthMode === "ISO40") targetExtLengthMm = standards.iso40LengthMm;
+      else targetExtLengthMm = project.maxCustomLengthMm || standards.defaultCustomMaxLenMm;
 
       const maxUsableRowMm = Math.max(3600, targetExtLengthMm - airlockReserveMm - wallInsulReserveMm);
-      const maxDlcKwPerPod = 2000;
-      const maxAcKwPerPod = 400;
-      const maxPayloadKgPerPod = 36000;
+      const maxDlcKwPerPod = standards.maxDlcKwPerPod || 2000;
+      const maxAcKwPerPod = standards.maxAcKwPerPod || 400;
+      const maxPayloadKgPerPod = standards.maxPodPayloadKg || 36000;
 
-      // Sort racks descending by power for tight bin-packing
       const sortedDlc = [...dlcRacks].sort((a, b) => b.contKw - a.contKw);
       const pods = [];
 
@@ -276,7 +296,6 @@
         const localPods = [];
         rackList.forEach(rack => {
           let placed = false;
-          // If Segregated strategy, only place in pod with same SKU
           for (let p of localPods) {
             if (project.packingStrategy === "Segregated" && p.racks.length > 0 && p.racks[0].id !== rack.id) continue;
             const cduWidthReserve = p.needsExtCdu || rack.cduMode === "External" ? 900 : 0;
@@ -339,7 +358,6 @@
           p.grossRiggingKg = emptyTareKg + p.wetWeightKg;
           p.shellAreaSqm = shellAreaSqm;
           p.bayUtilPct = Math.min(100, Math.round((usedBayMm / (extLenMm - airlockReserveMm - wallInsulReserveMm)) * 100));
-          p.powerUtilPct = Math.min(100, Math.round((p.contKw / maxKwCap) * 100));
           pods.push(p);
         });
       };
@@ -347,14 +365,12 @@
       packGroup(sortedDlc, "DLC", maxDlcKwPerPod);
       packGroup(acRacks, "AC", maxAcKwPerPod);
 
-      // Deduplicate interior walls if Ganged Hall mode
       const isGanged = project.hallTopology !== "Isolated";
       const sharedWallSavingsSqm = isGanged && pods.length > 1
         ? (pods.length - 1) * ((pods[0]?.extLengthMm || 12000) / 1000) * (project.containerHeightMm / 1000) * 1.6
         : 0;
 
-      // Cooling & Climate Advisor
-      const climate = CLIMATE_PRESETS[project.climatePreset] || CLIMATE_PRESETS["Mumbai (Coastal Monsoon)"];
+      const climate = climates[project.climatePreset] || Object.values(climates)[0];
       let coolingMode = "Adiabatic Spray-Assisted Fluid Coolers";
       let annualWueLPerKwh = 0.28;
       let trimChillerKw = 0;
@@ -362,7 +378,7 @@
         coolingMode = "Zero-Water Dry Coolers + Mechanical Trim Chillers";
         annualWueLPerKwh = 0.0;
         trimChillerKw = Math.round(totalContKw * 0.45);
-      } else if (climate.peakWetBulb >= 28.5) {
+      } else if (climate.peakWetBulb >= standards.wetBulbSwitchoverC) {
         coolingMode = "Hybrid Adiabatic Coolers + Peak Monsoon Trim Chillers";
         annualWueLPerKwh = 0.35;
         trimChillerKw = Math.round(totalContKw * 0.30);
@@ -380,11 +396,11 @@
       const pueDesign = Number((1.09 + (trimChillerKw > 0 ? 0.045 : 0.02) + (totalAirKw / Math.max(1, totalContKw)) * 0.14).toFixed(3));
       const totalFacilityPeakKw = Math.round(totalPeakKw * pueDesign);
       const upsContainersCount = project.includeUpsContainer ? Math.max(1, Math.ceil((totalFacilityPeakKw / 1000) * (project.uptimeTier === "Tier IV" ? 2 : 1))) : 0;
-      const batteryKwhReq = (totalFacilityPeakKw * (project.batteryRuntimeMin / 60)) * 1.15;
+      const dodFactor = project.batteryChemistry === "LFP" ? (standards.lfpDoDPct / 100) : (standards.vrlaDoDPct / 100);
+      const batteryKwhReq = (totalFacilityPeakKw * (project.batteryRuntimeMin / 60)) / Math.max(0.5, dodFactor);
       const batteryContainersCount = project.includeBatteryContainer ? Math.max(1, Math.ceil(batteryKwhReq / 1200)) : 0;
       const dgUnitsCount = project.includeDgYard ? Math.max(2, Math.ceil((totalFacilityPeakKw / 1200) * tierMult)) : 0;
 
-      // Build BOM with Rate Card & Overrides
       const getItemPrice = (key, qty, label, category, specs) => {
         const base = rateCard[key] || { cost: 500000, make: "Standard OEM", model: "GEN-1" };
         const override = project.rateOverrides?.[key];
@@ -404,7 +420,6 @@
       };
 
       const bomItems = [];
-      // Rack SKUs
       skus.forEach(sku => {
         const q = Number(project.rackQuantities?.[sku.id]) || 0;
         if (q > 0) {
@@ -435,8 +450,8 @@
       if (roomDehumUnits > 0) bomItems.push(getItemPrice("roomDehumPac40Kw", roomDehumUnits, `Room Dehumidification & ${project.airCoolingType} Units`, "Air & Room Control", `Handles ${Math.round(totalAirKw)} kW residual radiant & AC load`));
 
       const totalMeters = pods.reduce((s, p) => s + (p.extLengthMm / 1000) * 2, 0);
-      bomItems.push(getItemPrice("buswayPerMeter", Math.round(totalMeters * (project.uptimeTier === "Tier IV" ? 2 : 1.5)), "Overhead Dual A/B Power Busways & Tap-Offs", "Electrical", `${project.uptimeTier} Redundant Overhead Distribution`));
-      bomItems.push(getItemPrice("ss316HeaderPerMeter", Math.round(totalMeters * 2.2), "Underfloor SS316L Supply/Return Coolant Headers", "Piping & Headers", `DN150 Grooved + Flex Drops (${Math.round(totalFlowLpm)} LPM)`));
+      bomItems.push(getItemPrice("buswayPerMeter", Math.round(totalMeters * (project.uptimeTier === "Tier IV" ? 2 : 1.5)), `Overhead Dual A/B Power Busways (${standards.buswayAmperageA}A)`, "Electrical", `${project.uptimeTier} Redundant Overhead Distribution`));
+      bomItems.push(getItemPrice("ss316HeaderPerMeter", Math.round(totalMeters * 2.2), "Underfloor SS316L Supply/Return Coolant Headers", "Piping & Headers", `${standards.coolantType} (${Math.round(totalFlowLpm)} LPM)`));
 
       if (upsContainersCount > 0) bomItems.push(getItemPrice("upsContainer1Mw", upsContainersCount, "Containerized Modular UPS Power Pods", "Power Containers", `${project.uptimeTier} Modular UPS + LV Switchgear`));
       if (batteryContainersCount > 0) bomItems.push(getItemPrice("batteryContainer15Min", batteryContainersCount, `Containerized ${project.batteryChemistry} Battery Pods (${project.batteryRuntimeMin} min)`, "Power Containers", `${Math.round(batteryKwhReq)} kWh + Gas Venting & Suppression`));
@@ -455,7 +470,6 @@
         grandTotal: acc.grandTotal + it.grandTotalInclGst
       }), { rawCost: 0, contingency: 0, sellingPreTax: 0, gst: 0, grandTotal: 0 });
 
-      // Parcel Area & Fit Check
       const verts = project.parcelVertices || [];
       let area = 0;
       for (let i = 0; i < verts.length; i++) {
@@ -469,21 +483,20 @@
 
       return {
         pods, totalPeakKw, totalContKw, totalActualKw, totalLiquidKw, totalAirKw,
-        totalFlowLpm, extCduRequiredKw, intCduRackCount, extCduRackCount,
-        coolingMode, annualWueLPerKwh, trimChillerKw, pueDesign, totalFacilityPeakKw,
-        upsContainersCount, batteryContainersCount, dgUnitsCount,
+        totalFlowLpm, extCduRequiredKw, coolingMode, annualWueLPerKwh, trimChillerKw,
+        pueDesign, totalFacilityPeakKw, upsContainersCount, batteryContainersCount, dgUnitsCount,
         sharedWallSavingsSqm, bomItems, totals,
         grossPlotSqm, netBuildableSqm, requiredFootprintSqm, plotUtilizationPct
       };
     }
 
-    function formatMoney(valInr, currency = "INR") {
+    function formatMoney(valInr, currency = "INR", standards = INITIAL_STANDARDS) {
       if (currency === "USD") {
-        const v = valInr / 84;
+        const v = valInr / (standards.usdRate || 84);
         return "$" + (v >= 1e6 ? (v / 1e6).toFixed(2) + "M" : Math.round(v).toLocaleString("en-US"));
       }
       if (currency === "EUR") {
-        const v = valInr / 91;
+        const v = valInr / (standards.eurRate || 91);
         return "€" + (v >= 1e6 ? (v / 1e6).toFixed(2) + "M" : Math.round(v).toLocaleString("en-US"));
       }
       if (valInr >= 1e7) return "₹" + (valInr / 1e7).toFixed(2) + " Cr";
@@ -491,10 +504,10 @@
       return "₹" + Math.round(valInr).toLocaleString("en-IN");
     }
 
-    // Interactive 360° 3D Container & Hall Studio Component
+    // 360° 3D Container & Hall Studio Component
     function ThreeDStudio({ project, eng }) {
       const mountRef = useRef(null);
-      const [viewScope, setViewScope] = useState("Hall"); // "Hall" | "SinglePod"
+      const [viewScope, setViewScope] = useState("Hall");
       const [selectedPodIdx, setSelectedPodIdx] = useState(0);
       const [isLoadedMode, setIsLoadedMode] = useState(true);
       const [cameraPreset, setCameraPreset] = useState("Iso");
@@ -515,7 +528,7 @@
         const el = mountRef.current;
         if (!el || !window.THREE) return;
         const width = el.clientWidth || 800;
-        const height = el.clientHeight || 520;
+        const height = el.clientHeight || 500;
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0B1528);
@@ -528,7 +541,6 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
         el.innerHTML = "";
         el.appendChild(renderer.domElement);
 
@@ -538,20 +550,15 @@
         controls.maxPolarAngle = Math.PI * 0.49;
         controlsRef.current = controls;
 
-        // Lights
-        const amb = new THREE.AmbientLight(0xffffff, 0.65);
-        scene.add(amb);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.65));
         const dir = new THREE.DirectionalLight(0xffffff, 0.9);
         dir.position.set(22, 32, 18);
-        dir.castShadow = true;
         scene.add(dir);
         const fill = new THREE.DirectionalLight(0x60A5FA, 0.35);
         fill.position.set(-18, 12, -16);
         scene.add(fill);
 
-        // Ground Grid & Civil Plinth
-        const grid = new THREE.GridHelper(80, 80, 0x1E3A8A, 0x172554);
-        scene.add(grid);
+        scene.add(new THREE.GridHelper(80, 80, 0x1E3A8A, 0x172554));
 
         const podsToRender = viewScope === "SinglePod"
           ? [eng.pods[selectedPodIdx] || eng.pods[0]].filter(Boolean)
@@ -591,11 +598,9 @@
 
           const podGroup = new THREE.Group();
           if (isUShaped && podsToRender.length >= 3) {
-            if (pIdx === 0) {
-              podGroup.position.set(-L * 0.65, 0, 0);
-            } else if (pIdx === podsToRender.length - 1) {
-              podGroup.position.set(L * 0.65, 0, 0);
-            } else {
+            if (pIdx === 0) podGroup.position.set(-L * 0.65, 0, 0);
+            else if (pIdx === podsToRender.length - 1) podGroup.position.set(L * 0.65, 0, 0);
+            else {
               podGroup.rotation.y = Math.PI / 2;
               podGroup.position.set((pIdx - 1) * (W + 0.1), 0, -L * 0.75);
             }
@@ -604,17 +609,14 @@
             cursorX += W + spacing;
           }
 
-          // Civil Plinth
           const plinth = new THREE.Mesh(new THREE.BoxGeometry(W + 0.3, plinthH, L + 0.3), matPlinth);
           plinth.position.y = plinthH / 2;
           podGroup.add(plinth);
 
-          // Raised Floor Deck
           const floorDeck = new THREE.Mesh(new THREE.BoxGeometry(W - 0.15, 0.06, L - 0.15), matFloor);
           floorDeck.position.y = plinthH + plenumH;
           podGroup.add(floorDeck);
 
-          // Shell Frame & Walls
           if (layers.shell) {
             const skipLeftWall = isGanged && pIdx > 0 && !isUShaped;
             const skipRightWall = isGanged && pIdx < podsToRender.length - 1 && !isUShaped;
@@ -629,7 +631,6 @@
               rightW.position.set(W / 2, plinthH + H / 2, 0);
               podGroup.add(rightW);
             }
-            // End walls with Rigging Hatch & Airlock outline
             const frontW = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.08), matWall);
             frontW.position.set(0, plinthH + H / 2, L / 2);
             podGroup.add(frontW);
@@ -638,14 +639,12 @@
             backW.position.set(0, plinthH + H / 2, -L / 2);
             podGroup.add(backW);
 
-            // ISO Corner Posts (Coral)
             [[-W/2, -L/2], [W/2, -L/2], [-W/2, L/2], [W/2, L/2]].forEach(([cx, cz]) => {
               const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, H, 0.16), matFrame);
               post.position.set(cx, plinthH + H / 2, cz);
               podGroup.add(post);
             });
 
-            // External Plumbing & Power Bulkhead Stub-outs on rear wall
             const supStub = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.55, 16), matSupplyPipe);
             supStub.rotation.x = Math.PI / 2;
             supStub.position.set(-W * 0.28, plinthH + plenumH * 0.55, -L / 2 - 0.25);
@@ -657,7 +656,6 @@
             podGroup.add(retStub);
           }
 
-          // Underfloor SS316L Plumbing Headers
           if (layers.plumbing) {
             [-W * 0.26, W * 0.26].forEach(rx => {
               const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, L - 0.4, 14), matSupplyPipe);
@@ -672,7 +670,6 @@
             });
           }
 
-          // Overhead A/B Busways & Data Fiber Ladder Trays
           if (layers.buswaysData) {
             const busY = plinthH + H - 0.35;
             [-W * 0.28, W * 0.28].forEach(rx => {
@@ -690,14 +687,12 @@
             });
           }
 
-          // Room Temperature Maintenance / Dehumidification & PAC/In-Row Units
           if (layers.roomCooling) {
             const acBox = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.1, 0.65), matAcUnit);
             acBox.position.set(0, plinthH + plenumH + 1.05, -L / 2 + 0.55);
             podGroup.add(acBox);
           }
 
-          // Loaded 2-Row Racks + Spreader Frames + Vertical rPDUs + External CDU
           if (isLoadedMode && layers.racks) {
             const renderRow = (rowRacks, sideSign) => {
               let zCursor = -L / 2 + 1.2;
@@ -708,7 +703,6 @@
                 const rx = sideSign * (W * 0.27);
                 const rz = zCursor + rW / 2;
 
-                // Steel Spreader Frame on Raised Floor
                 const spreader = new THREE.Mesh(
                   new THREE.BoxGeometry(rD + 0.12, 0.05, rW + 0.06),
                   new THREE.MeshStandardMaterial({ color: 0xCBD5E1, metalness: 0.8, roughness: 0.3 })
@@ -716,32 +710,24 @@
                 spreader.position.set(rx, plinthH + plenumH + 0.05, rz);
                 podGroup.add(spreader);
 
-                // Rack Cabinet
-                const rackMat = new THREE.MeshStandardMaterial({
-                  color: new THREE.Color(rk.color || "#002870"),
-                  roughness: 0.35, metalness: 0.45
-                });
-                const cabinet = new THREE.Mesh(new THREE.BoxGeometry(rD, rH, rW), rackMat);
+                const cabinet = new THREE.Mesh(
+                  new THREE.BoxGeometry(rD, rH, rW),
+                  new THREE.MeshStandardMaterial({ color: new THREE.Color(rk.color || "#002870"), roughness: 0.35, metalness: 0.45 })
+                );
                 cabinet.position.set(rx, plinthH + plenumH + 0.08 + rH / 2, rz);
                 podGroup.add(cabinet);
 
-                // Dual Vertical rPDUs on Rear of Rack
                 [-rW * 0.35, rW * 0.35].forEach((offsetZ, idxPdu) => {
-                  const pdu = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.06, rH * 0.88, 0.06),
-                    idxPdu === 0 ? matBusA : matBusB
-                  );
+                  const pdu = new THREE.Mesh(new THREE.BoxGeometry(0.06, rH * 0.88, 0.06), idxPdu === 0 ? matBusA : matBusB);
                   pdu.position.set(rx + sideSign * (rD / 2 + 0.04), plinthH + plenumH + 0.08 + rH / 2, rz + offsetZ);
                   podGroup.add(pdu);
                 });
 
-                // Liquid Drop Pipes to Underfloor Header
                 if (rk.category === "DLC") {
                   const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, plenumH + 0.25, 10), matSupplyPipe);
                   drop.position.set(rx, plinthH + plenumH * 0.55, rz);
                   podGroup.add(drop);
                 }
-
                 zCursor += rW + 0.08;
               });
             };
@@ -762,14 +748,10 @@
           scene.add(podGroup);
         });
 
-        // Optional Support Pods (Admin/Spares, Staging, UPS, Battery) in Hall View
         if (viewScope === "Hall" && layers.supportPods) {
           const baseZ = (podsToRender[0]?.extLengthMm || 12000) / 2000 + 4.5;
           const addSupportBox = (x, z, w, h, l, col) => {
-            const m = new THREE.Mesh(
-              new THREE.BoxGeometry(w, h, l),
-              new THREE.MeshStandardMaterial({ color: col, roughness: 0.45, metalness: 0.35 })
-            );
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), new THREE.MeshStandardMaterial({ color: col, roughness: 0.45, metalness: 0.35 }));
             m.position.set(x, h / 2 + 0.2, z);
             scene.add(m);
           };
@@ -846,7 +828,6 @@
             </div>
           </div>
 
-          {/* Camera & Layer Toolbar */}
           <div className="bg-slate-100 px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-bold text-slate-600 mr-1">Camera:</span>
@@ -874,9 +855,8 @@
             </div>
           </div>
 
-          <div ref={mountRef} className="w-full h-[520px] bg-slate-950 cursor-grab active:cursor-grabbing" />
+          <div ref={mountRef} className="w-full h-[490px] bg-slate-950 cursor-grab active:cursor-grabbing" />
 
-          {/* Legend Strip */}
           <div className="bg-slate-900 text-slate-200 px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-4">
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm inline-block bg-sky-500"></span> Supply Coolant (SS316L)</span>
@@ -894,11 +874,9 @@
       );
     }
 
-    // Geomap & Irregular Land Parcel Auto-Layout Component
+    // Irregular Land Parcel & Auto-Layout Component
     function ParcelLayoutPlanner({ project, eng, onUpdateProject }) {
-      const [geoInput, setGeoInput] = useState("");
       const [statusMsg, setStatusMsg] = useState("");
-
       const verts = project.parcelVertices || [];
       const minX = Math.min(...verts.map(v => v.x), 0);
       const maxX = Math.max(...verts.map(v => v.x), 100);
@@ -1028,18 +1006,15 @@
             </div>
 
             <div className="lg:col-span-2 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col items-center justify-center">
-              <svg viewBox={`${minX - 12} ${minY - 12} ${maxX - minX + 24} ${maxY - minY + 24}`} className="w-full h-[380px]">
+              <svg viewBox={`${minX - 12} ${minY - 12} ${maxX - minX + 24} ${maxY - minY + 24}`} className="w-full h-[360px]">
                 <defs>
                   <pattern id="siteGrid" width="10" height="10" patternUnits="userSpaceOnUse">
                     <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#1E293B" strokeWidth="0.3" />
                   </pattern>
                 </defs>
                 <rect x={minX - 12} y={minY - 12} width={maxX - minX + 24} height={maxY - minY + 24} fill="url(#siteGrid)" />
-                {/* Outer Survey Boundary */}
                 <polygon points={polyStr} fill="rgba(14, 165, 233, 0.10)" stroke="#38BDF8" strokeWidth="0.8" />
-                {/* Inner Statutory Fire Setback Boundary */}
                 <polygon points={polyStr} transform={`translate(${cx},${cy}) scale(0.86) translate(${-cx},${-cy})`} fill="rgba(16, 185, 129, 0.08)" stroke="#10B981" strokeWidth="0.5" strokeDasharray="1.5,1" />
-                {/* Main Road Frontage Callout */}
                 {verts.length >= 2 && (
                   <g>
                     <line x1={verts[0].x} y1={verts[0].y} x2={verts[1].x} y2={verts[1].y} stroke="#FF5539" strokeWidth="1.4" />
@@ -1049,9 +1024,7 @@
                   </g>
                 )}
 
-                {/* Rotated Modular Campus Group inside Buildable Zone */}
                 <g transform={`translate(${cx}, ${cy}) rotate(${project.hallRotationDeg})`}>
-                  {/* IT Compute Pods */}
                   {eng.pods.slice(0, 8).map((p, idx) => {
                     const pw = p.extWidthMm / 1000;
                     const pl = p.extLengthMm / 1000;
@@ -1066,7 +1039,6 @@
                       </g>
                     );
                   })}
-                  {/* Staging & Admin near Road Gate */}
                   {project.includeStagingModule && (
                     <g>
                       <rect x={-18} y={-22} width={9} height={5} fill="#D97706" stroke="#FCD34D" strokeWidth="0.3" />
@@ -1079,7 +1051,6 @@
                       <text x={0} y={-19.8} fill="#FFF" fontSize="1.8" textAnchor="middle">ADMIN / NOC & SPARES</text>
                     </g>
                   )}
-                  {/* UPS, Battery & Adiabatic Yard */}
                   {project.includeUpsContainer && (
                     <g>
                       <rect x={-18} y={12} width={12.2} height={3.2} fill="#4F46E5" stroke="#A5B4FC" strokeWidth="0.3" />
@@ -1104,8 +1075,8 @@
       );
     }
 
-    // Level 2 Technical CAD Blueprints Viewer (SVG + Paper/Blueprint toggle)
-    function CadBlueprintViewer({ project, eng, logoDataUrl, initialSheet = "A-101" }) {
+    // Level 2 CAD Blueprints Viewer
+    function CadBlueprintViewer({ project, eng, initialSheet = "A-101" }) {
       const [sheet, setSheet] = useState(initialSheet);
       const [paperMode, setPaperMode] = useState(false);
 
@@ -1139,7 +1110,7 @@
           </div>
 
           <div className="p-4 flex justify-center" style={{ backgroundColor: bg }}>
-            <svg id="cad-svg-canvas" viewBox="0 0 1100 680" className="w-full max-w-5xl border" style={{ borderColor: primary }}>
+            <svg viewBox="0 0 1100 680" className="w-full max-w-5xl border" style={{ borderColor: primary }}>
               <defs>
                 <pattern id="cadGrid" width="25" height="25" patternUnits="userSpaceOnUse">
                   <path d="M 25 0 L 0 0 0 25" fill="none" stroke={subGrid} strokeWidth="0.7" />
@@ -1148,7 +1119,6 @@
               <rect x="0" y="0" width="1100" height="680" fill={bg} />
               <rect x="16" y="16" width="1068" height="648" fill="url(#cadGrid)" stroke={primary} strokeWidth="2" />
 
-              {/* Title Block */}
               <rect x="740" y="564" width="344" height="100" fill={paperMode ? "#F8FAFC" : "#0B1B36"} stroke={primary} strokeWidth="1.5" />
               <line x1="740" y1="598" x2="1084" y2="598" stroke={primary} strokeWidth="1" />
               <line x1="740" y1="632" x2="1084" y2="632" stroke={primary} strokeWidth="1" />
@@ -1161,14 +1131,8 @@
               {sheet === "A-101" && (
                 <g>
                   <text x="40" y="52" fill={accent} fontSize="16" fontWeight="bold">A-101: MASTER YARD & IRREGULAR PARCEL SITE PLAN</text>
-                  <polygon
-                    points={(project.parcelVertices || []).map(v => `${80 + v.x * 5.2},${100 + v.y * 5.2}`).join(" ")}
-                    fill="none" stroke={primary} strokeWidth="2.5"
-                  />
-                  <polygon
-                    points={(project.parcelVertices || []).map(v => `${95 + v.x * 4.8},${115 + v.y * 4.8}`).join(" ")}
-                    fill="none" stroke="#10B981" strokeWidth="1.5" strokeDasharray="6,4"
-                  />
+                  <polygon points={(project.parcelVertices || []).map(v => `${80 + v.x * 5.2},${100 + v.y * 5.2}`).join(" ")} fill="none" stroke={primary} strokeWidth="2.5" />
+                  <polygon points={(project.parcelVertices || []).map(v => `${95 + v.x * 4.8},${115 + v.y * 4.8}`).join(" ")} fill="none" stroke="#10B981" strokeWidth="1.5" strokeDasharray="6,4" />
                   {eng.pods.slice(0, 8).map((p, i) => (
                     <g key={p.id} transform={`translate(${180 + i * 54}, 210)`}>
                       <rect x="0" y="0" width="46" height="145" fill={paperMode ? "#E0E7FF" : "#102A56"} stroke={primary} strokeWidth="1.5" />
@@ -1233,23 +1197,18 @@
               {sheet === "A-103" && (
                 <g>
                   <text x="40" y="52" fill={accent} fontSize="16" fontWeight="bold">A-103: VERTICAL CROSS-SECTION & MEP CLEARANCE ELEVATION</text>
-                  {/* Ground & Plinth */}
                   <line x1="80" y1="530" x2="980" y2="530" stroke={fg} strokeWidth="2" />
                   <rect x="160" y="490" width="740" height="40" fill={paperMode ? "#CBD5E1" : "#1E293B"} stroke={primary} strokeWidth="1.5" />
                   <text x="530" y="515" fill={fg} fontSize="11" textAnchor="middle">ELEVATED RCC MONSOON PLINTH</text>
-                  {/* Container Shell */}
                   <rect x="180" y="120" width="700" height="370" fill="none" stroke={primary} strokeWidth="3" />
-                  {/* Raised Floor & Underfloor Plenum */}
                   <line x1="180" y1="420" x2="880" y2="420" stroke={accent} strokeWidth="2.5" />
                   <text x="530" y="458" fill="#38BDF8" fontSize="12" fontWeight="bold" textAnchor="middle">
                     UNDERFLOOR PLUMBING PLENUM ({project.plenumHeightMm} mm) — SS316L SUPPLY & RETURN HEADERS
                   </text>
-                  {/* Left & Right Racks */}
                   <rect x="240" y="210" width="140" height="210" fill={paperMode ? "#DBEAFE" : "#17376E"} stroke={primary} strokeWidth="2" />
                   <text x="310" y="315" fill={fg} fontSize="12" fontWeight="bold" textAnchor="middle">ROW A RACK</text>
                   <rect x="680" y="210" width="140" height="210" fill={paperMode ? "#DBEAFE" : "#17376E"} stroke={primary} strokeWidth="2" />
                   <text x="750" y="315" fill={fg} fontSize="12" fontWeight="bold" textAnchor="middle">ROW B RACK</text>
-                  {/* Top Clearance Zone */}
                   <line x1="180" y1="210" x2="880" y2="210" stroke="#FACC15" strokeDasharray="5,4" />
                   <text x="530" y="165" fill="#FACC15" fontSize="12" fontWeight="bold" textAnchor="middle">
                     OVERHEAD POWER SHELF & BUSWAY / FIBER CLEARANCE ({project.topClearanceMm} mm)
@@ -1306,15 +1265,19 @@
       const [editingId, setEditingId] = useState(INITIAL_PROJECTS[0].id);
       const [skus, setSkus] = useState(INITIAL_SKUS);
       const [rateCard, setRateCard] = useState(DEFAULT_RATE_CARD);
+      const [standards, setStandards] = useState(INITIAL_STANDARDS);
+      const [climates, setClimates] = useState(INITIAL_CLIMATES);
       const [logoDataUrl, setLogoDataUrl] = useState("");
       const [clientId, setClientId] = useState(DEFAULT_CLIENT_ID);
       const [driveToken, setDriveToken] = useState("");
       const [driveStatus, setDriveStatus] = useState("Local Ready");
+
       const [wizardTab, setWizardTab] = useState(0);
+      const [wizardMode, setWizardMode] = useState("create"); // "create" | "edit"
       const [paramTab, setParamTab] = useState("skus");
+      const [editingSkuId, setEditingSkuId] = useState(null);
       const [selectedCadSheet, setSelectedCadSheet] = useState("A-101");
 
-      // Load saved state
       useEffect(() => {
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
@@ -1324,18 +1287,19 @@
             if (parsed.editingId) setEditingId(parsed.editingId);
             if (parsed.skus?.length) setSkus(parsed.skus);
             if (parsed.rateCard) setRateCard(parsed.rateCard);
+            if (parsed.standards) setStandards({ ...INITIAL_STANDARDS, ...parsed.standards });
+            if (parsed.climates) setClimates(parsed.climates);
             if (parsed.logoDataUrl) setLogoDataUrl(parsed.logoDataUrl);
             if (parsed.clientId) setClientId(parsed.clientId);
           }
         } catch (e) {}
       }, []);
 
-      // Persist state
       useEffect(() => {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, editingId, skus, rateCard, logoDataUrl, clientId }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, editingId, skus, rateCard, standards, climates, logoDataUrl, clientId }));
         } catch (e) {}
-      }, [projects, editingId, skus, rateCard, logoDataUrl, clientId]);
+      }, [projects, editingId, skus, rateCard, standards, climates, logoDataUrl, clientId]);
 
       const currentProject = useMemo(
         () => projects.find(p => p.id === editingId) || projects[0],
@@ -1343,15 +1307,14 @@
       );
 
       const eng = useMemo(
-        () => computeEngineering(currentProject, skus, rateCard),
-        [currentProject, skus, rateCard]
+        () => computeEngineering(currentProject, skus, rateCard, standards, climates),
+        [currentProject, skus, rateCard, standards, climates]
       );
 
       const updateCurrentProject = (patch) => {
         setProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, ...patch, updatedAt: new Date().toISOString().slice(0, 10) } : p));
       };
 
-      // Google Drive One-Click Auth & Sync
       const handleGoogleSignIn = () => {
         if (!window.google?.accounts?.oauth2) {
           alert("Google Identity script still loading. Please try again in 2 seconds.");
@@ -1377,7 +1340,7 @@
         }
         setDriveStatus("Syncing...");
         try {
-          const payload = JSON.stringify({ projects, skus, rateCard, exportedAt: new Date().toISOString() }, null, 2);
+          const payload = JSON.stringify({ projects, skus, rateCard, standards, exportedAt: new Date().toISOString() }, null, 2);
           const metadata = { name: `AI_MDC_Projects_Backup.json`, mimeType: "application/json" };
           const form = new FormData();
           form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
@@ -1394,17 +1357,49 @@
         }
       };
 
-      // Start New Project Wizard
       const startNewProjectWizard = () => {
         const newId = "proj-" + Date.now();
-        const np = makeDefaultProject(newId, `AI MDC Proposal #${projects.length + 1}`, "Enterprise Client", "Draft");
+        const np = makeDefaultProject(newId, `AI MDC Proposal #${projects.length + 1}`, "Enterprise Client", "Draft", standards);
         setProjects(prev => [np, ...prev]);
         setEditingId(newId);
+        setWizardMode("create");
         setWizardTab(0);
         setScreen("wizard");
       };
 
-      // CSV & PDF Exporters
+      const reRunWizardForCurrent = () => {
+        setWizardMode("edit");
+        setWizardTab(0);
+        setScreen("wizard");
+      };
+
+      const autoBalanceRacksFromTargetMw = () => {
+        const targetKw = (Number(currentProject.targetItMw) || 2.0) * 1000;
+        const primaryDlc = skus.find(s => s.id === "sku-dlc-265") || skus.find(s => s.category === "DLC");
+        const secondaryDlc = skus.find(s => s.id === "sku-helios");
+        const acSku = skus.find(s => s.category === "AC");
+        const nextQty = {};
+        skus.forEach(s => nextQty[s.id] = 0);
+
+        if (primaryDlc) {
+          const dlcShareKw = targetKw * 0.94;
+          const pKw = primaryDlc.peakKw * primaryDlc.continuousFactor;
+          if (secondaryDlc && targetKw >= 6000) {
+            nextQty[primaryDlc.id] = Math.max(1, Math.round((dlcShareKw * 0.68) / pKw));
+            const sKw = secondaryDlc.peakKw * secondaryDlc.continuousFactor;
+            nextQty[secondaryDlc.id] = Math.max(1, Math.round((dlcShareKw * 0.32) / sKw));
+          } else {
+            nextQty[primaryDlc.id] = Math.max(1, Math.round(dlcShareKw / pKw));
+          }
+        }
+        if (acSku) {
+          const acShareKw = Math.max(50, targetKw * 0.06);
+          const aKw = acSku.peakKw * acSku.continuousFactor;
+          nextQty[acSku.id] = Math.max(2, Math.round(acShareKw / aKw));
+        }
+        updateCurrentProject({ rackQuantities: nextQty });
+      };
+
       const downloadCsv = (filename, rows) => {
         const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1446,7 +1441,6 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
 
-        // Cover Header
         doc.setFillColor(0, 40, 112);
         doc.rect(0, 0, 420, 34, "F");
         if (logoDataUrl) {
@@ -1458,7 +1452,6 @@
         doc.setFontSize(10);
         doc.text(`Project: ${currentProject.name}  |  Client: ${currentProject.client}  |  Uptime: ${currentProject.uptimeTier}`, logoDataUrl ? 56 : 16, 25);
 
-        // KPI Summary Cards
         doc.setTextColor(15, 23, 42);
         doc.setFontSize(11);
         let y = 46;
@@ -1466,13 +1459,10 @@
           `Design IT Load: ${Math.round(eng.totalContKw)} kW (${(eng.totalContKw/1000).toFixed(2)} MW)`,
           `Container Pods: ${eng.pods.length} (${currentProject.hallTopology})`,
           `Design PUE: ${eng.pueDesign} | Cooling: ${eng.coolingMode}`,
-          `Pre-Tax Quote: ${formatMoney(eng.totals.sellingPreTax, currentProject.currency)} | Incl. GST: ${formatMoney(eng.totals.grandTotal, currentProject.currency)}`
+          `Pre-Tax Quote: ${formatMoney(eng.totals.sellingPreTax, currentProject.currency, standards)} | Incl. GST: ${formatMoney(eng.totals.grandTotal, currentProject.currency, standards)}`
         ];
-        kpis.forEach((line, i) => {
-          doc.text(line, 16, y + i * 7);
-        });
+        kpis.forEach((line, i) => doc.text(line, 16, y + i * 7));
 
-        // BOM Table
         y = 82;
         doc.setFillColor(241, 245, 249);
         doc.rect(16, y - 5, 388, 8, "F");
@@ -1489,8 +1479,8 @@
           doc.text(it.label.slice(0, 58), 18, y);
           doc.text(`${it.make} (${it.model})`.slice(0, 38), 145, y);
           doc.text(String(it.qty), 235, y);
-          doc.text(formatMoney(it.sellingPreTax, currentProject.currency), 275, y);
-          doc.text(formatMoney(it.grandTotalInclGst, currentProject.currency), 345, y);
+          doc.text(formatMoney(it.sellingPreTax, currentProject.currency, standards), 275, y);
+          doc.text(formatMoney(it.grandTotalInclGst, currentProject.currency, standards), 345, y);
           y += 7;
         });
 
@@ -1506,49 +1496,54 @@
       };
 
       return (
-        <div className="min-h-screen flex flex-col">
-          {/* Clean Top Bar */}
-          <header className="navy-bg text-white px-4 py-3 shadow-md sticky top-0 z-40">
+        <div className="h-screen flex flex-col overflow-hidden">
+          {/* PINNED PERSISTENT TOP HEADER (Always visible on every screen & device) */}
+          <header className="navy-bg text-white px-4 py-2.5 shadow-md flex-shrink-0 z-50 border-b border-blue-900">
             <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+              {/* Brand Logo & App Title */}
               <div className="flex items-center gap-3 cursor-pointer" onClick={() => setScreen("home")}>
                 {logoDataUrl ? (
                   <img src={logoDataUrl} alt="Company Logo" className="h-9 w-auto bg-white rounded px-1.5 py-0.5 object-contain" />
                 ) : (
-                  <div className="w-9 h-9 rounded-lg coral-bg flex items-center justify-center font-black text-white text-sm">MDC</div>
+                  <div className="w-9 h-9 rounded-lg coral-bg flex items-center justify-center font-black text-white text-sm tracking-tight">MDC</div>
                 )}
                 <div>
-                  <h1 className="text-base sm:text-lg font-bold tracking-tight leading-tight">AI Modular Data Center Configurator</h1>
-                  <p className="text-[11px] text-slate-300">Parametric 0.4 MW – 15 MW+ Engineering, 3D Studio & Commercial Estimator</p>
+                  <h1 className="text-sm sm:text-base font-bold tracking-tight leading-tight">AI Modular Data Center Configurator</h1>
+                  <p className="text-[11px] text-slate-300 hidden sm:block">Enterprise Facility Planner, 3D Studio & Commercial Estimator</p>
                 </div>
               </div>
 
+              {/* Persistent Active Deal Switcher & Global Actions */}
               <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center bg-slate-900/80 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
+                  <span className="text-slate-400 mr-1.5 hidden md:inline">Currently Editing:</span>
+                  <select
+                    value={editingId}
+                    onChange={e => setEditingId(e.target.value)}
+                    className="bg-transparent text-white font-bold focus:outline-none max-w-[180px] sm:max-w-[240px]"
+                  >
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id} className="text-slate-900">{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button onClick={reRunWizardForCurrent} className="touch-btn px-3 py-1.5 rounded-lg bg-blue-800 hover:bg-blue-700 border border-blue-600 text-xs font-bold">
+                  ✎ Design Wizard
+                </button>
+
                 {screen !== "home" && (
-                  <>
-                    <div className="flex items-center bg-slate-900/70 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
-                      <span className="text-slate-400 mr-1.5">Currently Editing:</span>
-                      <select
-                        value={editingId}
-                        onChange={e => setEditingId(e.target.value)}
-                        className="bg-transparent text-white font-bold focus:outline-none max-w-[200px]"
-                      >
-                        {projects.map(p => (
-                          <option key={p.id} value={p.id} className="text-slate-900">{p.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <button onClick={() => setScreen("home")} className="touch-btn px-3.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold">
-                      ⌂ Home
-                    </button>
-                  </>
+                  <button onClick={() => setScreen("home")} className="touch-btn px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold">
+                    ⌂ Home
+                  </button>
                 )}
 
                 {driveToken ? (
-                  <button onClick={saveToGoogleDrive} className="touch-btn px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold">
+                  <button onClick={saveToGoogleDrive} className="touch-btn px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold">
                     ☁ {driveStatus}
                   </button>
                 ) : (
-                  <button onClick={handleGoogleSignIn} className="touch-btn px-3.5 py-1.5 rounded-lg coral-bg hover:opacity-95 text-white text-xs font-bold">
+                  <button onClick={handleGoogleSignIn} className="touch-btn px-3 py-1.5 rounded-lg coral-bg hover:opacity-95 text-white text-xs font-bold">
                     Sign in with Google
                   </button>
                 )}
@@ -1556,291 +1551,376 @@
             </div>
           </header>
 
-          {/* Main Content Area */}
-          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+          {/* SCROLLABLE MAIN WORKSPACE */}
+          <main className="flex-1 overflow-y-auto">
+            <div className="max-w-7xl w-full mx-auto p-4 sm:p-6">
 
-            {/* 1. HUB-AND-SPOKE HOME DASHBOARD */}
-            {screen === "home" && (
-              <div className="space-y-6">
-                {/* Recent / Concurrent Projects Strip */}
-                <div className="bg-white rounded-xl p-4 card-shadow border border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Concurrent Customer Deals & Workspaces</div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {projects.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => { setEditingId(p.id); setScreen("workspace"); }}
-                          className={`px-3 py-2 rounded-lg text-left border text-xs transition ${p.id === editingId ? "border-blue-600 bg-blue-50/70" : "border-slate-200 hover:bg-slate-50"}`}
-                        >
-                          <div className="font-bold navy-text">{p.name}</div>
-                          <div className="text-slate-500 flex items-center gap-2 mt-0.5">
-                            <span>{p.client}</span>
-                            <span className="px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">{p.status}</span>
+              {/* 1. HUB-AND-SPOKE HOME DASHBOARD */}
+              {screen === "home" && (
+                <div className="space-y-6">
+                  {/* Concurrent Deals Quick-Switch Strip */}
+                  <div className="bg-white rounded-xl p-4 card-shadow border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Concurrent Customer Deals & Workspaces</div>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {projects.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => { setEditingId(p.id); setScreen("workspace"); }}
+                            className={`px-3 py-2 rounded-lg text-left border text-xs transition ${p.id === editingId ? "border-blue-600 bg-blue-50/70" : "border-slate-200 hover:bg-slate-50"}`}
+                          >
+                            <div className="font-bold navy-text">{p.name}</div>
+                            <div className="text-slate-500 flex items-center gap-2 mt-0.5">
+                              <span>{p.client}</span>
+                              <span className="px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">{p.status}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={reRunWizardForCurrent} className="touch-btn px-4 py-2.5 rounded-xl border-2 border-[#002870] navy-text font-bold text-xs">
+                        ✎ Re-Run Wizard on Current Deal
+                      </button>
+                      <button onClick={startNewProjectWizard} className="touch-btn px-5 py-2.5 rounded-xl coral-bg text-white font-bold text-sm shadow-sm">
+                        + Start New Project Wizard
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Big Rectangular Function Cards (Parameters Placed Last) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div onClick={startNewProjectWizard} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border-2 border-[#FF5539] hover:translate-y-[-2px] transition flex flex-col justify-between min-h-[190px]">
+                      <div>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold coral-bg text-white mb-3">01 • GUIDED CONSULTANT</span>
+                        <h2 className="text-xl font-bold navy-text">MDC Design Wizard</h2>
+                        <p className="text-sm text-slate-600 mt-1.5">7-step top-down guided questionnaire: Total IT MW & Location → IT Rack Mix → Container & Hall Topology → Non-IT & Redundancy → Parcel Fit.</p>
+                      </div>
+                      <div className="text-xs font-bold coral-text mt-4">Start New or Re-Run Guided Wizard →</div>
+                    </div>
+
+                    <div onClick={() => setScreen("projects")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[190px]">
+                      <div>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-blue-100 navy-text mb-3">02 • MULTI-DEAL PORTFOLIO</span>
+                        <h2 className="text-xl font-bold navy-text">Open & Manage Projects</h2>
+                        <p className="text-sm text-slate-600 mt-1.5">Switch across concurrent customer deals, clone baseline templates, import/export .JSON files, or sync to Google Drive.</p>
+                      </div>
+                      <div className="text-xs font-bold navy-text mt-4">{projects.length} Saved Configurations →</div>
+                    </div>
+
+                    <div onClick={() => setScreen("workspace")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[190px]">
+                      <div>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900 mb-3">03 • OPTIMIZER & PRICING</span>
+                        <h2 className="text-xl font-bold navy-text">Cluster Optimizer, Parcel & Costing</h2>
+                        <p className="text-sm text-slate-600 mt-1.5">Fine-tune individual requirements, 2-row bin-packing, irregular land parcel layout, and special deal unit cost overrides.</p>
+                      </div>
+                      <div className="text-xs font-bold text-emerald-700 mt-4">Open Engineering & Deal Workspace →</div>
+                    </div>
+
+                    <div onClick={() => setScreen("studio3d")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[190px]">
+                      <div>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-100 text-indigo-900 mb-3">04 • INTERACTIVE 3D TWIN</span>
+                        <h2 className="text-xl font-bold navy-text">360° 3D Container & Hall Studio</h2>
+                        <p className="text-sm text-slate-600 mt-1.5">Orbit 360° around single containers or Linear/U-Shaped halls. Toggle Empty Shell vs. Loaded 2-Row racks, glass raised floor, SS316 headers & busways.</p>
+                      </div>
+                      <div className="text-xs font-bold text-indigo-700 mt-4">Launch Interactive 3D Viewport →</div>
+                    </div>
+
+                    <div onClick={() => setScreen("outputs")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[190px]">
+                      <div>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900 mb-3">05 • DELIVERABLES HUB</span>
+                        <h2 className="text-xl font-bold navy-text">Outputs, CAD Blueprints & Exports</h2>
+                        <p className="text-sm text-slate-600 mt-1.5">One-click buttons for Engineering BOM (.CSV), Commercial Price Sheet (.CSV), 2D CAD & SLDs (A-101 to M-301), and Full A3 PDF Pack.</p>
+                      </div>
+                      <div className="text-xs font-bold text-amber-800 mt-4">Open Outputs & Export Center →</div>
+                    </div>
+
+                    <div onClick={() => setScreen("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-2xl p-6 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between min-h-[190px]">
+                      <div>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-amber-300 mb-3">06 • MASTER STANDARDS</span>
+                        <h2 className="text-xl font-bold">Global Parameters & Standards</h2>
+                        <p className="text-sm text-slate-300 mt-1.5">Organized 6-tab master library: Rack SKUs, Container & Structural Standards, Cooling/Climate, Electrical/BESS, OEM Rate Card & Logo.</p>
+                      </div>
+                      <div className="text-xs font-bold text-amber-300 mt-4">Configure Master Parameters →</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. MULTI-PROJECT MANAGER */}
+              {screen === "projects" && (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-xl font-bold navy-text">Concurrent Projects & Deal Portfolio</h2>
+                    <div className="flex gap-2">
+                      <label className="touch-btn px-4 py-2 rounded-lg bg-white border border-slate-300 text-xs font-bold cursor-pointer flex items-center">
+                        Import .JSON Deal
+                        <input type="file" accept=".json" className="hidden" onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          const r = new FileReader();
+                          r.onload = ev => {
+                            try {
+                              const obj = JSON.parse(ev.target.result);
+                              const imported = obj.projects ? obj.projects : [obj];
+                              setProjects(prev => [...imported.map(p => ({ ...p, id: "proj-" + Math.random().toString(36).slice(2, 8) })), ...prev]);
+                            } catch (err) { alert("Invalid JSON file"); }
+                          };
+                          r.readAsText(f);
+                        }} />
+                      </label>
+                      <button onClick={startNewProjectWizard} className="touch-btn px-4 py-2 rounded-lg coral-bg text-white text-xs font-bold">
+                        + New Project Wizard
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {projects.map(p => {
+                      const pEng = computeEngineering(p, skus, rateCard, standards, climates);
+                      return (
+                        <div key={p.id} className="bg-white rounded-xl p-5 card-shadow border border-slate-200 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="text-base font-bold navy-text">{p.name}</h3>
+                              <p className="text-xs text-slate-500">Client: {p.client} • {p.climatePreset} • Updated: {p.updatedAt}</p>
+                            </div>
+                            <select
+                              value={p.status}
+                              onChange={e => setProjects(prev => prev.map(x => x.id === p.id ? { ...x, status: e.target.value } : x))}
+                              className="text-xs border border-slate-300 rounded px-2 py-1 font-bold"
+                            >
+                              <option>Draft</option>
+                              <option>In Review</option>
+                              <option>Proposal Ready</option>
+                              <option>Won</option>
+                            </select>
                           </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 p-3 rounded-lg">
+                            <div><span className="text-slate-400 block">Design IT Load</span><span className="font-bold">{(pEng.totalContKw / 1000).toFixed(2)} MW</span></div>
+                            <div><span className="text-slate-400 block">Pods / Topology</span><span className="font-bold">{pEng.pods.length} ({p.hallTopology})</span></div>
+                            <div><span className="text-slate-400 block">Est. Quote</span><span className="font-bold navy-text">{formatMoney(pEng.totals.sellingPreTax, p.currency, standards)}</span></div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button onClick={() => { setEditingId(p.id); setScreen("workspace"); }} className="px-3 py-1.5 rounded-lg navy-bg text-white text-xs font-bold">Open Workspace</button>
+                            <button onClick={() => { setEditingId(p.id); setWizardMode("edit"); setWizardTab(0); setScreen("wizard"); }} className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-900 border border-blue-200 text-xs font-bold">Re-Run Wizard</button>
+                            <button onClick={() => { setEditingId(p.id); setScreen("studio3d"); }} className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-900 border border-indigo-200 text-xs font-bold">3D Studio</button>
+                            <button onClick={() => {
+                              const clone = { ...p, id: "proj-" + Date.now(), name: p.name + " (Copy)" };
+                              setProjects(prev => [clone, ...prev]);
+                            }} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold">Duplicate</button>
+                            <button onClick={() => {
+                              const blob = new Blob([JSON.stringify(p, null, 2)], { type: "application/json" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a"); a.href = url; a.download = `${p.name.replace(/\s+/g, "_")}.json`; a.click();
+                            }} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold">Export .JSON</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. 7-STEP TOP-DOWN RE-ENTRANT MDC DESIGN WIZARD */}
+              {screen === "wizard" && (
+                <div className="bg-white rounded-2xl card-shadow border border-slate-200 overflow-hidden">
+                  <div className="navy-bg text-white p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-amber-300">
+                          {wizardMode === "edit" ? "Re-Entrant Design Wizard (Previous Answers Preserved)" : "Guided First-Cut MDC Design Wizard"}
+                        </span>
+                        <h2 className="text-xl font-bold mt-0.5">Step {wizardTab + 1} of 7: {[
+                          "Total IT Load, Location & Non-IT Scope",
+                          "Drill-Down: Individual IT Rack Mix",
+                          "Container Sizing & Hall Topology",
+                          "Drill-Down: Non-IT Cooling, Power & Support",
+                          "Redundancy Tier & Regulatory Compliance",
+                          "Land Parcel & Site Orientation",
+                          "Commercial Framing & First-Cut Review"
+                        ][wizardTab]}</h2>
+                      </div>
+                      <button onClick={() => setScreen("workspace")} className="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold">
+                        Skip to Workspace →
+                      </button>
+                    </div>
+
+                    {/* 7-Step Progress Pills */}
+                    <div className="flex flex-wrap gap-1.5 mt-4">
+                      {[
+                        "1. Macro IT & Location",
+                        "2. IT Rack Mix",
+                        "3. Container & Hall",
+                        "4. Non-IT Equipment",
+                        "5. Redundancy & BIS/IEC",
+                        "6. Land Parcel",
+                        "7. Commercial & Review"
+                      ].map((t, idx) => (
+                        <button
+                          key={t}
+                          onClick={() => setWizardTab(idx)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${wizardTab === idx ? "coral-bg text-white" : idx < wizardTab ? "bg-emerald-600/80 text-white" : "bg-white/10 text-slate-300"}`}
+                        >
+                          {idx < wizardTab ? "✓ " : ""}{t}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <button onClick={startNewProjectWizard} className="touch-btn px-5 py-3 rounded-xl coral-bg text-white font-bold text-sm shadow-sm">
-                    + New Project Wizard
-                  </button>
-                </div>
 
-                {/* Big Rectangular Function Cards (Parameters Placed Last) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  <div onClick={startNewProjectWizard} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border-2 border-[#FF5539] hover:translate-y-[-2px] transition flex flex-col justify-between min-h-[195px]">
-                    <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold coral-bg text-white mb-3">01 • GUIDED BUILDER</span>
-                      <h2 className="text-xl font-bold navy-text">New Project Wizard</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Step-by-step tabbed builder for IT rack mix, 20/40ft ISO vs. custom container length, ganged halls, cooling, Uptime tier & parcel layout.</p>
-                    </div>
-                    <div className="text-xs font-bold coral-text mt-4">Launch 5-Tab Requirement Wizard →</div>
-                  </div>
-
-                  <div onClick={() => setScreen("projects")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[195px]">
-                    <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-blue-100 navy-text mb-3">02 • MULTI-DEAL PORTFOLIO</span>
-                      <h2 className="text-xl font-bold navy-text">Open & Manage Projects</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Switch across concurrent customer deals, clone baseline templates, import/export .JSON files, or sync to Google Drive.</p>
-                    </div>
-                    <div className="text-xs font-bold navy-text mt-4">{projects.length} Saved Configurations →</div>
-                  </div>
-
-                  <div onClick={() => setScreen("workspace")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[195px]">
-                    <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900 mb-3">03 • OPTIMIZER & PRICING</span>
-                      <h2 className="text-xl font-bold navy-text">Cluster Optimizer, Parcel & Costing</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Solve 15 MW+ 2-row bin-packing, fit blocks into irregular land parcels, and apply deal cost overrides, Margin %, Contingency % & GST %.</p>
-                    </div>
-                    <div className="text-xs font-bold text-emerald-700 mt-4">Open Engineering & Deal Workspace →</div>
-                  </div>
-
-                  <div onClick={() => setScreen("studio3d")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[195px]">
-                    <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-100 text-indigo-900 mb-3">04 • INTERACTIVE 3D TWIN</span>
-                      <h2 className="text-xl font-bold navy-text">360° 3D Container & Hall Studio</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Orbit 360° around single containers or Linear/U-Shaped halls. Toggle Empty Shell vs. Loaded 2-Row racks, glass raised floor, SS316 headers & busways.</p>
-                    </div>
-                    <div className="text-xs font-bold text-indigo-700 mt-4">Launch Interactive 3D Viewport →</div>
-                  </div>
-
-                  <div onClick={() => setScreen("outputs")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[195px]">
-                    <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900 mb-3">05 • DELIVERABLES HUB</span>
-                      <h2 className="text-xl font-bold navy-text">Outputs, CAD Blueprints & Exports</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">One-click buttons for Engineering BOM (.CSV), Commercial Price Sheet (.CSV), 2D CAD & SLDs (A-101 to M-301), and Full A3 PDF Pack.</p>
-                    </div>
-                    <div className="text-xs font-bold text-amber-800 mt-4">Open Outputs & Export Center →</div>
-                  </div>
-
-                  <div onClick={() => setScreen("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-2xl p-6 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between min-h-[195px]">
-                    <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-amber-300 mb-3">06 • MASTER STANDARDS</span>
-                      <h2 className="text-xl font-bold">Global Parameters & SKU Library</h2>
-                      <p className="text-sm text-slate-300 mt-1.5">View, edit & add custom Rack SKUs (dimensions, weights, loading factors, top/bottom entries), OEM rate cards & top-left company logo.</p>
-                    </div>
-                    <div className="text-xs font-bold text-amber-300 mt-4">Configure Master Library & Logo →</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. MULTI-PROJECT MANAGER */}
-            {screen === "projects" && (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-xl font-bold navy-text">Concurrent Projects & Deal Portfolio</h2>
-                  <div className="flex gap-2">
-                    <label className="touch-btn px-4 py-2 rounded-lg bg-white border border-slate-300 text-xs font-bold cursor-pointer flex items-center">
-                      Import .JSON Deal
-                      <input type="file" accept=".json" className="hidden" onChange={e => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        const r = new FileReader();
-                        r.onload = ev => {
-                          try {
-                            const obj = JSON.parse(ev.target.result);
-                            const imported = obj.projects ? obj.projects : [obj];
-                            setProjects(prev => [...imported.map(p => ({ ...p, id: "proj-" + Math.random().toString(36).slice(2, 8) })), ...prev]);
-                          } catch (err) { alert("Invalid JSON file"); }
-                        };
-                        r.readAsText(f);
-                      }} />
-                    </label>
-                    <button onClick={startNewProjectWizard} className="touch-btn px-4 py-2 rounded-lg coral-bg text-white text-xs font-bold">
-                      + New Project Wizard
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {projects.map(p => {
-                    const pEng = computeEngineering(p, skus, rateCard);
-                    return (
-                      <div key={p.id} className="bg-white rounded-xl p-5 card-shadow border border-slate-200 space-y-3">
-                        <div className="flex justify-between items-start">
+                  <div className="p-6 space-y-5">
+                    {/* STEP 1: Total IT Load, Location & High-Level Non-IT Scope */}
+                    {wizardTab === 0 && (
+                      <div className="space-y-5">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                           <div>
-                            <h3 className="text-base font-bold navy-text">{p.name}</h3>
-                            <p className="text-xs text-slate-500">Client: {p.client} • Updated: {p.updatedAt}</p>
+                            <label className="block font-bold text-slate-700 mb-1">Project / Deal Name</label>
+                            <input type="text" value={currentProject.name} onChange={e => updateCurrentProject({ name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
                           </div>
-                          <select
-                            value={p.status}
-                            onChange={e => setProjects(prev => prev.map(x => x.id === p.id ? { ...x, status: e.target.value } : x))}
-                            className="text-xs border border-slate-300 rounded px-2 py-1 font-bold"
-                          >
-                            <option>Draft</option>
-                            <option>In Review</option>
-                            <option>Proposal Ready</option>
-                            <option>Won</option>
-                          </select>
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Customer / Organization</label>
+                            <input type="text" value={currentProject.client} onChange={e => updateCurrentProject({ client: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Site Location & Climate Zone</label>
+                            <select value={currentProject.climatePreset} onChange={e => {
+                              const c = climates[e.target.value];
+                              updateCurrentProject({ climatePreset: e.target.value, waterAvailability: c?.defaultWater || currentProject.waterAvailability });
+                            }} className="w-full border border-slate-300 rounded-lg px-3 py-2 font-medium">
+                              {Object.keys(climates).map(c => <option key={c}>{c}</option>)}
+                            </select>
+                          </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 p-3 rounded-lg">
-                          <div><span className="text-slate-400 block">Design IT Load</span><span className="font-bold">{(pEng.totalContKw / 1000).toFixed(2)} MW</span></div>
-                          <div><span className="text-slate-400 block">Pods / Topology</span><span className="font-bold">{pEng.pods.length} ({p.hallTopology})</span></div>
-                          <div><span className="text-slate-400 block">Est. Quote</span><span className="font-bold navy-text">{formatMoney(pEng.totals.sellingPreTax, p.currency)}</span></div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <button onClick={() => { setEditingId(p.id); setScreen("workspace"); }} className="px-3 py-1.5 rounded-lg navy-bg text-white text-xs font-bold">Open Workspace</button>
-                          <button onClick={() => { setEditingId(p.id); setScreen("studio3d"); }} className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-900 border border-indigo-200 text-xs font-bold">3D Studio</button>
-                          <button onClick={() => {
-                            const clone = { ...p, id: "proj-" + Date.now(), name: p.name + " (Copy)" };
-                            setProjects(prev => [clone, ...prev]);
-                          }} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold">Duplicate</button>
-                          <button onClick={() => {
-                            const blob = new Blob([JSON.stringify(p, null, 2)], { type: "application/json" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a"); a.href = url; a.download = `${p.name.replace(/\s+/g, "_")}.json`; a.click();
-                          }} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold">Export .JSON</button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
-            {/* 3. 5-TAB NEW PROJECT REQUIREMENT WIZARD */}
-            {screen === "wizard" && (
-              <div className="bg-white rounded-2xl card-shadow border border-slate-200 overflow-hidden">
-                <div className="navy-bg text-white p-5">
-                  <h2 className="text-xl font-bold">New Project Requirement Wizard</h2>
-                  <p className="text-xs text-slate-300 mt-0.5">Define IT compute mix, container length mode, support modules, cooling & regulatory targets</p>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {[
-                      "1. Basics & Commercials",
-                      "2. IT Racks & Mixed Load",
-                      "3. Container Mode & Support Pods",
-                      "4. Climate & Water Cooling",
-                      "5. Uptime & Regulatory"
-                    ].map((t, idx) => (
-                      <button
-                        key={t}
-                        onClick={() => setWizardTab(idx)}
-                        className={`px-3.5 py-2 rounded-lg text-xs font-bold ${wizardTab === idx ? "coral-bg text-white" : "bg-white/10 text-slate-200"}`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200">
+                            <label className="block font-bold navy-text mb-1">Target Total IT Load (MW)</label>
+                            <input type="number" step="0.2" min="0.2" value={currentProject.targetItMw} onChange={e => updateCurrentProject({ targetItMw: Number(e.target.value) })} className="w-full border border-blue-300 rounded-lg px-3 py-2 text-lg font-black navy-text bg-white" />
+                            <p className="text-[11px] text-slate-600 mt-1">Equals {Math.round((Number(currentProject.targetItMw) || 0) * 1000).toLocaleString()} kW continuous compute target.</p>
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Deployment Archetype</label>
+                            <select value={currentProject.archetype} onChange={e => updateCurrentProject({ archetype: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
+                              <option>Sovereign AI Training Factory</option>
+                              <option>Enterprise AI Inference Cluster</option>
+                              <option>Tactical / Defense Edge Pod</option>
+                              <option>Colocation High-Density Expansion</option>
+                            </select>
+                            <p className="text-[11px] text-slate-500 mt-1">Guides default liquid/air ratios and hall layout recommendations.</p>
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Proposal Currency</label>
+                            <select value={currentProject.currency} onChange={e => updateCurrentProject({ currency: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
+                              <option value="INR">INR (₹ Crores / Lakhs)</option>
+                              <option value="USD">USD ($ Millions)</option>
+                              <option value="EUR">EUR (€ Millions)</option>
+                            </select>
+                          </div>
+                        </div>
 
-                <div className="p-6 space-y-5">
-                  {wizardTab === 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Project / Deal Name</label>
-                        <input type="text" value={currentProject.name} onChange={e => updateCurrentProject({ name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
-                      </div>
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Customer / Organization</label>
-                        <input type="text" value={currentProject.client} onChange={e => updateCurrentProject({ client: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
-                      </div>
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Deal Currency</label>
-                        <select value={currentProject.currency} onChange={e => updateCurrentProject({ currency: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-                          <option value="INR">INR (₹)</option>
-                          <option value="USD">USD ($)</option>
-                          <option value="EUR">EUR (€)</option>
-                        </select>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">Margin %</label>
-                          <input type="number" value={currentProject.marginPct} onChange={e => updateCurrentProject({ marginPct: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
-                        </div>
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">Contingency %</label>
-                          <input type="number" value={currentProject.contingencyPct} onChange={e => updateCurrentProject({ contingencyPct: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
-                        </div>
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">GST %</label>
-                          <input type="number" value={currentProject.gstPct} onChange={e => updateCurrentProject({ gstPct: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                          <div className="font-bold navy-text text-sm">Macro Non-IT Scope Included in Turnkey Bid</div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            <label className="p-3 bg-white rounded-lg border border-slate-200 flex items-start gap-2.5 cursor-pointer">
+                              <input type="checkbox" checked={!!currentProject.includeUpsContainer && !!currentProject.includeDgYard} onChange={e => updateCurrentProject({ includeUpsContainer: e.target.checked, includeBatteryContainer: e.target.checked, includeDgYard: e.target.checked })} className="mt-0.5 w-4 h-4" />
+                              <div>
+                                <div className="font-bold navy-text">Turnkey Power Plant (UPS + BESS + DG)</div>
+                                <div className="text-slate-500 mt-0.5">Choose for greenfield sites without existing substation backup.</div>
+                              </div>
+                            </label>
+                            <label className="p-3 bg-white rounded-lg border border-slate-200 flex items-start gap-2.5 cursor-pointer">
+                              <input type="checkbox" checked={!!currentProject.includeAdminModule} onChange={e => updateCurrentProject({ includeAdminModule: e.target.checked })} className="mt-0.5 w-4 h-4" />
+                              <div>
+                                <div className="font-bold navy-text">Admin, NOC & ESD Spares Module</div>
+                                <div className="text-slate-500 mt-0.5">Recommended for 24/7 manned AI factories & remote sites.</div>
+                              </div>
+                            </label>
+                            <label className="p-3 bg-white rounded-lg border border-slate-200 flex items-start gap-2.5 cursor-pointer">
+                              <input type="checkbox" checked={!!currentProject.includeStagingModule} onChange={e => updateCurrentProject({ includeStagingModule: e.target.checked })} className="mt-0.5 w-4 h-4" />
+                              <div>
+                                <div className="font-bold navy-text">Staging, Unloading & Leak-Test Bay</div>
+                                <div className="text-slate-500 mt-0.5">Essential when rigging heavy 1,800+ kg liquid-cooled racks.</div>
+                              </div>
+                            </label>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {wizardTab === 1 && (
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2 bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <div className="text-xs">
-                          <span className="font-bold navy-text">Live Cluster Summary:</span> {Math.round(eng.totalContKw)} kW Continuous ({(eng.totalContKw/1000).toFixed(2)} MW) • {Math.round(eng.totalLiquidKw)} kW Liquid / {Math.round(eng.totalAirKw)} kW Air
+                    {/* STEP 2: Individual IT Rack Mix Drill-Down */}
+                    {wizardTab === 1 && (
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3 bg-blue-50 p-3.5 rounded-xl border border-blue-200">
+                          <div className="text-xs">
+                            <span className="font-bold navy-text">Step 1 Target:</span> {currentProject.targetItMw} MW ({Math.round((currentProject.targetItMw || 0) * 1000)} kW) •{" "}
+                            <span className="font-bold text-emerald-800">Configured Rack Mix:</span> {(eng.totalContKw / 1000).toFixed(2)} MW ({Math.round(eng.totalContKw)} kW Cont. / {Math.round(eng.totalPeakKw)} kW Peak)
+                          </div>
+                          <button onClick={autoBalanceRacksFromTargetMw} className="px-3.5 py-2 rounded-lg navy-bg text-white text-xs font-bold">
+                            ⚡ Auto-Populate Rack Mix for {currentProject.targetItMw} MW
+                          </button>
                         </div>
-                        <button
-                          onClick={() => updateCurrentProject({ rackQuantities: { "sku-dlc-265": 32, "sku-helios": 12, "sku-nvl72": 16, "sku-rubin144": 0, "sku-air-core": 12 } })}
-                          className="px-3 py-1.5 rounded navy-bg text-white text-xs font-bold"
-                        >
-                          Quick-Fill 15 MW Mixed AI Cluster
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        {skus.map(s => (
-                          <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-3 border border-slate-200 rounded-lg">
-                            <div>
-                              <div className="font-bold text-sm navy-text">{s.name} <span className="text-xs font-normal text-slate-500">({s.standard})</span></div>
-                              <div className="text-xs text-slate-600">
-                                {s.peakKw} kW Peak ({Math.round(s.peakKw * s.continuousFactor)} kW Cont.) • {s.widthMm}×{s.depthMm}×{s.heightMm} mm • {s.liquidSplitPct}% Liquid ({s.cduMode} CDU) • Entry: Pwr {s.powerEntry} / Liq {s.liquidEntry} / Data {s.dataEntry}
+
+                        <div className="space-y-2.5">
+                          {skus.map(s => (
+                            <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-3.5 border border-slate-200 rounded-xl hover:bg-slate-50">
+                              <div>
+                                <div className="font-bold text-sm navy-text">{s.name} <span className="text-xs font-normal text-slate-500">({s.standard})</span></div>
+                                <div className="text-xs text-slate-600 mt-0.5">
+                                  {s.peakKw} kW Peak ({Math.round(s.peakKw * s.continuousFactor)} kW Cont.) • {s.widthMm}×{s.depthMm}×{s.heightMm} mm • {s.liquidSplitPct}% Liquid ({s.cduMode} CDU) • Entry: Pwr {s.powerEntry} / Liq {s.liquidEntry} / Data {s.dataEntry}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-500">Racks:</span>
+                                <input
+                                  type="number" min="0"
+                                  value={currentProject.rackQuantities?.[s.id] || 0}
+                                  onChange={e => updateCurrentProject({ rackQuantities: { ...currentProject.rackQuantities, [s.id]: Number(e.target.value) } })}
+                                  className="w-20 border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-center"
+                                />
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-500">Qty:</span>
-                              <input
-                                type="number" min="0"
-                                value={currentProject.rackQuantities?.[s.id] || 0}
-                                onChange={e => updateCurrentProject({ rackQuantities: { ...currentProject.rackQuantities, [s.id]: Number(e.target.value) } })}
-                                className="w-20 border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-center"
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {wizardTab === 2 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
-                      <div className="space-y-3">
-                        <h3 className="font-bold navy-text">Container Length Mode (Always 2 Facing Rows)</h3>
-                        <select value={currentProject.containerLengthMode} onChange={e => updateCurrentProject({ containerLengthMode: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 font-medium">
-                          <option value="ISO20">Option A1: Standard 20 ft ISO Marine Max (6,058 mm) + Custom Height/Shell</option>
-                          <option value="ISO40">Option A2: Standard 40 ft ISO Marine Max (12,192 mm) + Custom Height/Shell</option>
-                          <option value="CustomOptimum">Option B: Fully Custom Optimum Length (Calculated for Rack Mix)</option>
-                        </select>
-                        {currentProject.containerLengthMode === "CustomOptimum" && (
-                          <div>
-                            <label className="block text-xs font-bold text-slate-600 mb-1">Max Road-Transport Length Cap (mm)</label>
-                            <input type="number" step="250" value={currentProject.maxCustomLengthMm} onChange={e => updateCurrentProject({ maxCustomLengthMm: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-1.5" />
+                    {/* STEP 3: Container Sizing & Hall Topology Advisor */}
+                    {wizardTab === 2 && (
+                      <div className="space-y-5 text-sm">
+                        <div>
+                          <div className="font-bold navy-text mb-2">A. Container Length Strategy (Always 2 Facing Rows of Racks)</div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {[
+                              ["ISO20", "20 ft ISO Marine Max (6,058 mm)", "Best for helicopter/remote tactical edge drops or tight urban courtyards with strict crane limits."],
+                              ["ISO40", "40 ft ISO Marine Max (12,192 mm)", "Best for international sea-freight exports using standard ISO container chassis and twist-locks."],
+                              ["CustomOptimum", "Custom Optimum Length (Recommended)", "Calculated dynamically from your exact 2-row rack widths to maximize kW density and eliminate wasted steel."]
+                            ].map(([val, title, desc]) => (
+                              <div
+                                key={val}
+                                onClick={() => updateCurrentProject({ containerLengthMode: val })}
+                                className={`cursor-pointer p-4 rounded-xl border-2 transition ${currentProject.containerLengthMode === val ? "border-[#002870] bg-blue-50/70" : "border-slate-200 hover:bg-slate-50"}`}
+                              >
+                                <div className="font-bold navy-text text-xs">{title}</div>
+                                <p className="text-xs text-slate-600 mt-1">{desc}</p>
+                              </div>
+                            ))}
                           </div>
-                        )}
-                        <div className="grid grid-cols-2 gap-2">
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {currentProject.containerLengthMode === "CustomOptimum" && (
+                            <div>
+                              <label className="block text-xs font-bold text-slate-600 mb-1">Max Road-Transport Length Cap (mm)</label>
+                              <input type="number" step="250" value={currentProject.maxCustomLengthMm} onChange={e => updateCurrentProject({ maxCustomLengthMm: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                            </div>
+                          )}
                           <div>
                             <label className="block text-xs font-bold text-slate-600 mb-1">Custom Shell Height (mm)</label>
-                            <input type="number" step="100" value={currentProject.containerHeightMm} onChange={e => updateCurrentProject({ containerHeightMm: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-1.5" />
+                            <input type="number" step="100" value={currentProject.containerHeightMm} onChange={e => updateCurrentProject({ containerHeightMm: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
                           </div>
                           <div>
                             <label className="block text-xs font-bold text-slate-600 mb-1">Shell Metallurgy</label>
-                            <select value={currentProject.metallurgy} onChange={e => updateCurrentProject({ metallurgy: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-1.5">
+                            <select value={currentProject.metallurgy} onChange={e => updateCurrentProject({ metallurgy: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
                               <option>Corten-A SPA-H</option>
                               <option>Marine Galvalume</option>
                               <option>SS316L Stainless</option>
@@ -1848,444 +1928,676 @@
                           </div>
                         </div>
 
-                        <h3 className="font-bold navy-text pt-2">Cluster Assembly Topology</h3>
-                        <select value={currentProject.hallTopology} onChange={e => updateCurrentProject({ hallTopology: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 font-medium">
-                          <option value="Isolated">Isolated Standalone Containers (Outdoor Setbacks)</option>
-                          <option value="GangedLinear">Ganged Linear Modular Hall (Cutaway Sidewalls)</option>
-                          <option value="GangedUShaped">Ganged U-Shaped Modular Hall (Core + Wings)</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h3 className="font-bold navy-text">Optional Facility & Power Support Containers</h3>
-                        {[
-                          ["includeAdminModule", "Administrative, NOC & ESD Spares Workshop Container"],
-                          ["includeStagingModule", "Staging, Offloading Dock & Nitrogen Leak-Test Bay"],
-                          ["includeUpsContainer", "Dedicated Modular UPS Power Container(s)"],
-                          ["includeBatteryContainer", "Dedicated Compartmentalized Battery Container(s)"],
-                          ["includeDgYard", "Yard CPCB IV+ Diesel Generator Sets + PESO Fuel Tank"],
-                          ["monsoonCanopy", "Tropical Monsoon Roof Canopy & Pressurized Vestibule Airlock"]
-                        ].map(([k, lbl]) => (
-                          <label key={k} className="flex items-center gap-2.5 text-xs font-medium cursor-pointer">
-                            <input type="checkbox" checked={!!currentProject[k]} onChange={e => updateCurrentProject({ [k]: e.target.checked })} className="w-4 h-4" />
-                            <span>{lbl}</span>
-                          </label>
-                        ))}
-                        {currentProject.includeBatteryContainer && (
-                          <div className="grid grid-cols-2 gap-2 pt-2">
-                            <div>
-                              <label className="block text-xs font-bold text-slate-600">Battery Runtime (min)</label>
-                              <input type="number" value={currentProject.batteryRuntimeMin} onChange={e => updateCurrentProject({ batteryRuntimeMin: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-slate-600">Chemistry</label>
-                              <select value={currentProject.batteryChemistry} onChange={e => updateCurrentProject({ batteryChemistry: e.target.value })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white">
-                                <option>LFP</option>
-                                <option>VRLA</option>
-                              </select>
-                            </div>
+                        <div>
+                          <div className="font-bold navy-text mb-2">B. Cluster Assembly Topology</div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {[
+                              ["Isolated", "Isolated Standalone Pods", "Best for phased rollouts or strict fire compartmentalization with outdoor setbacks."],
+                              ["GangedLinear", "Ganged Linear Hall (Cutaway Walls)", "Joins bays into one wide continuous hall—cuts interior steel CapEx & shortens InfiniBand spine fiber."],
+                              ["GangedUShaped", "Ganged U-Shaped Hall (Core + Wings)", "Places spine/storage in the central bridge bay and DLC GPU pods on two flanking wings."]
+                            ].map(([val, title, desc]) => (
+                              <div
+                                key={val}
+                                onClick={() => updateCurrentProject({ hallTopology: val })}
+                                className={`cursor-pointer p-4 rounded-xl border-2 transition ${currentProject.hallTopology === val ? "border-[#FF5539] bg-orange-50/50" : "border-slate-200 hover:bg-slate-50"}`}
+                              >
+                                <div className="font-bold navy-text text-xs">{title}</div>
+                                <p className="text-xs text-slate-600 mt-1">{desc}</p>
+                              </div>
+                            ))}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {wizardTab === 3 && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Regional Climate Profile</label>
-                        <select value={currentProject.climatePreset} onChange={e => updateCurrentProject({ climatePreset: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-                          {Object.keys(CLIMATE_PRESETS).map(c => <option key={c}>{c}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Site Makeup Water Availability</label>
-                        <select value={currentProject.waterAvailability} onChange={e => updateCurrentProject({ waterAvailability: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-                          <option value="Abundant">Abundant Industrial / Recycled Water</option>
-                          <option value="Constrained">Constrained / Seasonal Water</option>
-                          <option value="Zero">Zero-Water Site (Closed-Loop Only)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Air-Side & Room Cooling Type</label>
-                        <select value={currentProject.airCoolingType} onChange={e => updateCurrentProject({ airCoolingType: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-                          <option value="In-Row">In-Row Precision Coolers</option>
-                          <option value="PAC">Perimeter CRAC / PAC Units</option>
-                          <option value="RDHx">Rear-Door Heat Exchangers (RDHx)</option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-3 p-4 bg-sky-50 border border-sky-200 rounded-xl text-xs">
-                        <span className="font-bold navy-text">Recommended Heat Rejection Architecture:</span> {eng.coolingMode} • Design PUE: <span className="font-bold">{eng.pueDesign}</span> • Annual WUE: <span className="font-bold">{eng.annualWueLPerKwh} L/kWh</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {wizardTab === 4 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Uptime Institute Topology Tier</label>
-                        <select value={currentProject.uptimeTier} onChange={e => updateCurrentProject({ uptimeTier: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-                          <option value="Tier II">Tier II — Redundant Capacity Components (N+1)</option>
-                          <option value="Tier III">Tier III — Concurrently Maintainable Dual A/B Paths</option>
-                          <option value="Tier IV">Tier IV — Fault-Tolerant 2N / 2(N+1) Compartmentalized</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Statutory & Regulatory Rulebook</label>
-                        <select value={currentProject.regulatoryCode} onChange={e => updateCurrentProject({ regulatoryCode: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-                          <option>India BIS / CEA / CPCB IV+ / PESO / NBC</option>
-                          <option>International IEC / ASHRAE / NFPA 855</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between pt-4 border-t border-slate-200">
-                    <button disabled={wizardTab === 0} onClick={() => setWizardTab(w => w - 1)} className="touch-btn px-4 py-2 rounded-lg border border-slate-300 text-xs font-bold disabled:opacity-40">
-                      ← Previous Tab
-                    </button>
-                    {wizardTab < 4 ? (
-                      <button onClick={() => setWizardTab(w => w + 1)} className="touch-btn px-5 py-2 rounded-lg navy-bg text-white text-xs font-bold">
-                        Next Tab →
-                      </button>
-                    ) : (
-                      <button onClick={() => setScreen("workspace")} className="touch-btn px-6 py-2 rounded-lg coral-bg text-white text-xs font-bold shadow">
-                        Generate Configuration & Open Workspace ✓
-                      </button>
                     )}
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* 4. ENGINEERING OPTIMIZER, PARCEL & COMMERCIAL COSTING WORKSPACE */}
-            {screen === "workspace" && (
-              <div className="space-y-6">
-                {/* KPI Strip */}
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                  <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
-                    <div className="text-xs text-slate-500">Continuous IT Load</div>
-                    <div className="text-xl font-black navy-text">{(eng.totalContKw / 1000).toFixed(2)} MW</div>
-                    <div className="text-[11px] text-slate-400">Peak: {Math.round(eng.totalPeakKw)} kW</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
-                    <div className="text-xs text-slate-500">Modular Pods Packed</div>
-                    <div className="text-xl font-black navy-text">{eng.pods.length} Pods</div>
-                    <div className="text-[11px] text-slate-400">{currentProject.hallTopology}</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
-                    <div className="text-xs text-slate-500">Design PUE / Cooling</div>
-                    <div className="text-xl font-black text-emerald-700">{eng.pueDesign}</div>
-                    <div className="text-[11px] text-slate-400 truncate">{eng.coolingMode}</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
-                    <div className="text-xs text-slate-500">Pre-Tax Customer Quote</div>
-                    <div className="text-xl font-black navy-text">{formatMoney(eng.totals.sellingPreTax, currentProject.currency)}</div>
-                    <div className="text-[11px] text-slate-400">Margin {currentProject.marginPct}% + Cont. {currentProject.contingencyPct}%</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
-                    <div className="text-xs text-slate-500">Grand Total (Incl. GST)</div>
-                    <div className="text-xl font-black coral-text">{formatMoney(eng.totals.grandTotal, currentProject.currency)}</div>
-                    <div className="text-[11px] text-slate-400">GST @ {currentProject.gstPct}%</div>
-                  </div>
-                </div>
+                    {/* STEP 4: Non-IT Equipment Drill-Down */}
+                    {wizardTab === 3 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+                        <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          <h3 className="font-bold navy-text">A. Thermal & Water Heat-Rejection Selection</h3>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-600 mb-1">Site Makeup Water Availability</label>
+                            <select value={currentProject.waterAvailability} onChange={e => updateCurrentProject({ waterAvailability: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                              <option value="Abundant">Abundant Water (Maximizes Adiabatic Free-Cooling)</option>
+                              <option value="Constrained">Constrained / Seasonal Water (Hybrid Adiabatic + Trim)</option>
+                              <option value="Zero">Zero-Water Site (Closed-Loop Dry + Trim Chiller)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-600 mb-1">Room-Temperature & Residual Air Cooling</label>
+                            <select value={currentProject.airCoolingType} onChange={e => updateCurrentProject({ airCoolingType: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                              <option value="In-Row">In-Row Precision Coolers (Best for High-Density Pods)</option>
+                              <option value="PAC">Perimeter CRAC / PAC Units</option>
+                              <option value="RDHx">Rear-Door Heat Exchangers (RDHx)</option>
+                            </select>
+                          </div>
+                          <div className="p-3 bg-sky-100/70 rounded-lg text-xs text-slate-800">
+                            <span className="font-bold navy-text">Auto-Selected Plant:</span> {eng.coolingMode} • Design PUE: <span className="font-bold">{eng.pueDesign}</span>
+                          </div>
+                        </div>
 
-                {/* 2-Row Mixed-Rack Packing Solver Results */}
-                <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                    <div>
-                      <h3 className="text-lg font-bold navy-text">2-Row Multi-Constraint Bin-Packing Breakdown</h3>
-                      <p className="text-xs text-slate-500">Balances 2-row usable bay length (mm), kW envelope, wet floor payload (kg), and external CDU ports</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <select value={currentProject.packingStrategy} onChange={e => updateCurrentProject({ packingStrategy: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold">
-                        <option value="MinCapex">Strategy: Min CapEx / Max Density Mix</option>
-                        <option value="UniformPods">Strategy: Standardized Mixed Pods</option>
-                        <option value="Segregated">Strategy: Segregate GPU Models by Pod</option>
-                      </select>
-                      <button onClick={() => setScreen("studio3d")} className="px-3.5 py-1.5 rounded-lg coral-bg text-white text-xs font-bold">
-                        Inspect in 360° 3D Studio →
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {eng.pods.map(p => (
-                      <div key={p.id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1.5">
-                        <div className="flex justify-between font-bold navy-text">
-                          <span>{p.label}</span>
-                          <span>{Math.round(p.contKw)} kW Cont.</span>
-                        </div>
-                        <div className="text-slate-600">
-                          Dimensions: {(p.extLengthMm/1000).toFixed(2)}m L × {(p.extWidthMm/1000).toFixed(2)}m W × {(p.extHeightMm/1000).toFixed(2)}m H
-                        </div>
-                        <div className="text-slate-600">
-                          2-Row Layout: Row A ({p.rowA.length} racks) / Row B ({p.rowB.length} racks) • Bay Fill: {p.bayUtilPct}%
-                        </div>
-                        <div className="text-slate-600">
-                          Tare: {p.emptyTareKg.toLocaleString()} kg • Gross Rigging: {p.grossRiggingKg.toLocaleString()} kg
+                        <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          <h3 className="font-bold navy-text">B. Power Conditioning, BESS & Support Containers</h3>
+                          <label className="flex items-center gap-2 text-xs font-medium">
+                            <input type="checkbox" checked={!!currentProject.includeUpsContainer} onChange={e => updateCurrentProject({ includeUpsContainer: e.target.checked })} className="w-4 h-4" />
+                            <span>Containerized Modular UPS Power Pods ({eng.upsContainersCount} pods sized)</span>
+                          </label>
+                          <label className="flex items-center gap-2 text-xs font-medium">
+                            <input type="checkbox" checked={!!currentProject.includeBatteryContainer} onChange={e => updateCurrentProject({ includeBatteryContainer: e.target.checked })} className="w-4 h-4" />
+                            <span>Compartmentalized Battery Containers ({eng.batteryContainersCount} pods sized)</span>
+                          </label>
+                          {currentProject.includeBatteryContainer && (
+                            <div className="grid grid-cols-2 gap-2 pl-6">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600">Runtime (min)</label>
+                                <input type="number" value={currentProject.batteryRuntimeMin} onChange={e => updateCurrentProject({ batteryRuntimeMin: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white text-xs" />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600">Chemistry</label>
+                                <select value={currentProject.batteryChemistry} onChange={e => updateCurrentProject({ batteryChemistry: e.target.value })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white text-xs">
+                                  <option>LFP</option><option>VRLA</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
+                          <label className="flex items-center gap-2 text-xs font-medium">
+                            <input type="checkbox" checked={!!currentProject.includeDgYard} onChange={e => updateCurrentProject({ includeDgYard: e.target.checked })} className="w-4 h-4" />
+                            <span>CPCB IV+ Diesel Generators ({eng.dgUnitsCount} x 1500 kVA, {currentProject.dgAutonomyHours}h PESO fuel)</span>
+                          </label>
+                          <label className="flex items-center gap-2 text-xs font-medium">
+                            <input type="checkbox" checked={!!currentProject.includeAdminModule} onChange={e => updateCurrentProject({ includeAdminModule: e.target.checked })} className="w-4 h-4" />
+                            <span>Administrative, NOC & ESD Spares Workshop Container</span>
+                          </label>
+                          <label className="flex items-center gap-2 text-xs font-medium">
+                            <input type="checkbox" checked={!!currentProject.includeStagingModule} onChange={e => updateCurrentProject({ includeStagingModule: e.target.checked })} className="w-4 h-4" />
+                            <span>Staging, Unloading Dock & Nitrogen Leak-Test Bay</span>
+                          </label>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    )}
 
-                {/* Irregular Land Parcel & Auto-Site Layout Solver */}
-                <ParcelLayoutPlanner project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
-
-                {/* Commercial Rate Card & Special Deal Override Table */}
-                <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-bold navy-text">Itemized BOM, Special Deal Overrides & Commercial Pricing</h3>
-                      <p className="text-xs text-slate-500">Edit unit cost overrides per line item; Margin ({currentProject.marginPct}%), Contingency ({currentProject.contingencyPct}%), and GST ({currentProject.gstPct}%) roll up automatically</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={exportCommercialPriceCsv} className="px-3.5 py-2 rounded-lg navy-bg text-white text-xs font-bold">Export Price Sheet (.CSV)</button>
-                      <button onClick={exportFullPackPdf} className="px-3.5 py-2 rounded-lg coral-bg text-white text-xs font-bold">Export Full A3 PDF</button>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left border-collapse">
-                      <thead>
-                        <tr className="navy-bg text-white">
-                          <th className="p-2.5">Subsystem / Item</th>
-                          <th className="p-2.5">Make & Model</th>
-                          <th className="p-2.5 text-center">Qty</th>
-                          <th className="p-2.5 text-right">Deal Unit Cost (₹)</th>
-                          <th className="p-2.5 text-right">Pre-Tax Quote</th>
-                          <th className="p-2.5 text-right">Total Incl. GST</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {eng.bomItems.map(it => (
-                          <tr key={it.key} className="border-b border-slate-200 hover:bg-slate-50">
-                            <td className="p-2.5">
-                              <div className="font-bold navy-text">{it.label}</div>
-                              <div className="text-[11px] text-slate-500">{it.specs}</div>
-                            </td>
-                            <td className="p-2.5 text-slate-700">{it.make} — {it.model}</td>
-                            <td className="p-2.5 text-center font-bold">{it.qty}</td>
-                            <td className="p-2.5 text-right">
-                              <input
-                                type="number"
-                                value={it.unitCost}
-                                onChange={e => updateCurrentProject({ rateOverrides: { ...currentProject.rateOverrides, [it.key]: e.target.value } })}
-                                className={`w-28 text-right border rounded px-2 py-1 font-mono ${it.isOverridden ? "border-amber-500 bg-amber-50 font-bold" : "border-slate-300"}`}
-                              />
-                            </td>
-                            <td className="p-2.5 text-right font-bold">{formatMoney(it.sellingPreTax, currentProject.currency)}</td>
-                            <td className="p-2.5 text-right font-bold navy-text">{formatMoney(it.grandTotalInclGst, currentProject.currency)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 5. 360° 3D CONTAINER & HALL STUDIO */}
-            {screen === "studio3d" && (
-              <ThreeDStudio project={currentProject} eng={eng} />
-            )}
-
-            {/* 6. DEDICATED OUTPUTS & EXPORT CENTER */}
-            {screen === "outputs" && (
-              <div className="space-y-6">
-                <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                    <div>
-                      <h2 className="text-xl font-bold navy-text">Outputs, Level 2 CAD Blueprints & Export Center</h2>
-                      <p className="text-xs text-slate-500">Generate individual CSV schedules, inspect scaled CAD & Single Line Diagrams, or download the complete A3 PDF pack</p>
-                    </div>
-                    <button onClick={exportFullPackPdf} className="touch-btn px-5 py-2.5 rounded-xl coral-bg text-white text-sm font-bold shadow">
-                      ⬇ Download Full Engineering & CAD Pack (A3 PDF)
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-4">
-                    <button onClick={exportEngineeringBomCsv} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
-                      <div className="text-xs font-bold text-blue-700">CSV SCHEDULE</div>
-                      <div className="font-bold navy-text mt-1">Engineering BOM (.CSV)</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Make, Model, Specs & Quantities</div>
-                    </button>
-                    <button onClick={exportCommercialPriceCsv} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
-                      <div className="text-xs font-bold text-emerald-700">COMMERCIAL CSV</div>
-                      <div className="font-bold navy-text mt-1">Commercial Price Sheet (.CSV)</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Unit Cost, Margin, Contingency & GST</div>
-                    </button>
-                    <button onClick={() => setScreen("studio3d")} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
-                      <div className="text-xs font-bold text-indigo-700">INTERACTIVE 3D</div>
-                      <div className="font-bold navy-text mt-1">360° 3D Container / Hall Twin</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Empty Shell vs. Loaded MEP Layers</div>
-                    </button>
-                    <button onClick={() => { setSelectedCadSheet("E-201"); }} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
-                      <div className="text-xs font-bold coral-text">SCHEMATICS</div>
-                      <div className="font-bold navy-text mt-1">Electrical & Cooling SLDs</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">IEC 60617 Power & ISO Hydraulic P&ID</div>
-                    </button>
-                  </div>
-                </div>
-
-                <CadBlueprintViewer project={currentProject} eng={eng} logoDataUrl={logoDataUrl} initialSheet={selectedCadSheet} />
-              </div>
-            )}
-
-            {/* 7. GLOBAL PARAMETERS, RACK SKU CATALOG & BRANDING (LAST) */}
-            {screen === "parameters" && (
-              <div className="bg-white rounded-xl card-shadow border border-slate-200 overflow-hidden">
-                <div className="navy-bg text-white p-5 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-bold">Global Parameters, Rack SKU Catalog & Company Branding</h2>
-                    <p className="text-xs text-slate-300">View, edit, or add new Rack SKUs (dimensions, weights, loading factors, top/bottom entries), OEM rates & logo</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {[
-                      ["skus", "Rack SKU Library (Edit / Add)"],
-                      ["branding", "Company Logo & OAuth"]
-                    ].map(([k, lbl]) => (
-                      <button key={k} onClick={() => setParamTab(k)} className={`px-3.5 py-2 rounded-lg text-xs font-bold ${paramTab === k ? "coral-bg text-white" : "bg-white/15 text-slate-200"}`}>
-                        {lbl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {paramTab === "skus" && (
-                  <div className="p-5 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-600">All rack dimensions (mm), dry/coolant weights (kg), loading factors, and entry orientations feed the 2-row packing solver & 3D studio live.</span>
-                      <button
-                        onClick={() => setSkus(prev => [...prev, {
-                          id: "sku-custom-" + Date.now(),
-                          name: "New Custom 2027+ AI Rack",
-                          category: "DLC",
-                          standard: "OCP ORv3 Custom",
-                          heightMm: 2500, widthMm: 900, depthMm: 1200,
-                          dryWeightKg: 1650, coolantWeightKg: 250,
-                          peakKw: 280, continuousFactor: 0.95, operatingUtilFactor: 0.85,
-                          liquidSplitPct: 96, cduMode: "Integrated",
-                          flowLpmPerKw: 1.45, deltaPBar: 1.9,
-                          powerEntry: "Top", liquidEntry: "Bottom", dataEntry: "Top",
-                          unitCostInr: 4500000, vendorMake: "Custom OEM", vendorModel: "AI-RACK-280",
-                          color: "#7C3AED"
-                        }])}
-                        className="px-4 py-2 rounded-lg coral-bg text-white text-xs font-bold"
-                      >
-                        + Add New Rack SKU
-                      </button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {skus.map((s, idx) => {
-                        const updateSku = (patch) => setSkus(prev => prev.map((item, i) => i === idx ? { ...item, ...patch } : item));
-                        return (
-                          <div key={s.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 text-xs">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                              <div>
-                                <label className="font-bold text-slate-600 block">SKU Name</label>
-                                <input type="text" value={s.name} onChange={e => updateSku({ name: e.target.value })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white font-bold" />
-                              </div>
-                              <div>
-                                <label className="font-bold text-slate-600 block">Cooling Category & CDU</label>
-                                <div className="flex gap-1">
-                                  <select value={s.category} onChange={e => updateSku({ category: e.target.value })} className="border border-slate-300 rounded px-2 py-1 bg-white">
-                                    <option value="DLC">DLC</option>
-                                    <option value="AC">AC</option>
-                                  </select>
-                                  <select value={s.cduMode} onChange={e => updateSku({ cduMode: e.target.value })} className="border border-slate-300 rounded px-2 py-1 bg-white flex-1">
-                                    <option value="Integrated">Integrated CDU</option>
-                                    <option value="External">External CDU</option>
-                                    <option value="None">Air Only</option>
-                                  </select>
-                                </div>
-                              </div>
-                              <div>
-                                <label className="font-bold text-slate-600 block">Dimensions W × D × H (mm)</label>
-                                <div className="flex gap-1">
-                                  <input type="number" value={s.widthMm} onChange={e => updateSku({ widthMm: Number(e.target.value) })} className="w-1/3 border border-slate-300 rounded px-1.5 py-1 bg-white" />
-                                  <input type="number" value={s.depthMm} onChange={e => updateSku({ depthMm: Number(e.target.value) })} className="w-1/3 border border-slate-300 rounded px-1.5 py-1 bg-white" />
-                                  <input type="number" value={s.heightMm} onChange={e => updateSku({ heightMm: Number(e.target.value) })} className="w-1/3 border border-slate-300 rounded px-1.5 py-1 bg-white" />
-                                </div>
-                              </div>
-                              <div>
-                                <label className="font-bold text-slate-600 block">Dry / Coolant Wt (kg) & Cost (₹)</label>
-                                <div className="flex gap-1">
-                                  <input type="number" value={s.dryWeightKg} onChange={e => updateSku({ dryWeightKg: Number(e.target.value) })} className="w-1/3 border border-slate-300 rounded px-1.5 py-1 bg-white" />
-                                  <input type="number" value={s.coolantWeightKg} onChange={e => updateSku({ coolantWeightKg: Number(e.target.value) })} className="w-1/3 border border-slate-300 rounded px-1.5 py-1 bg-white" />
-                                  <input type="number" value={s.unitCostInr} onChange={e => updateSku({ unitCostInr: Number(e.target.value) })} className="w-1/3 border border-slate-300 rounded px-1.5 py-1 bg-white" />
-                                </div>
-                              </div>
+                    {/* STEP 5: Redundancy & Statutory Compliance */}
+                    {wizardTab === 4 && (
+                      <div className="space-y-4 text-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {[
+                            ["Tier II", "Uptime Tier II (N+1 Components)", "Single power/cooling distribution path with N+1 redundant pumps, CDUs & UPS modules. Lowest CapEx."],
+                            ["Tier III", "Uptime Tier III (Concurrently Maintainable)", "Dual A/B power busways, N+1 active distribution & isolated maintenance bypass without IT downtime."],
+                            ["Tier IV", "Uptime Tier IV (2N Fault-Tolerant)", "Fully compartmentalized 2N / 2(N+1) power & cooling plants surviving any single equipment or pipe failure."]
+                          ].map(([val, title, desc]) => (
+                            <div
+                              key={val}
+                              onClick={() => updateCurrentProject({ uptimeTier: val })}
+                              className={`cursor-pointer p-4 rounded-xl border-2 transition ${currentProject.uptimeTier === val ? "border-[#002870] bg-blue-50/70" : "border-slate-200 hover:bg-slate-50"}`}
+                            >
+                              <div className="font-bold navy-text text-xs">{title}</div>
+                              <p className="text-xs text-slate-600 mt-1">{desc}</p>
                             </div>
+                          ))}
+                        </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-1">
-                              <div>
-                                <label className="font-bold text-slate-600 block">Peak kW</label>
-                                <input type="number" value={s.peakKw} onChange={e => updateSku({ peakKw: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white" />
-                              </div>
-                              <div>
-                                <label className="font-bold text-slate-600 block">Cont. Load Factor</label>
-                                <input type="number" step="0.01" value={s.continuousFactor} onChange={e => updateSku({ continuousFactor: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white" />
-                              </div>
-                              <div>
-                                <label className="font-bold text-slate-600 block">Operating Util. Factor</label>
-                                <input type="number" step="0.01" value={s.operatingUtilFactor} onChange={e => updateSku({ operatingUtilFactor: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white" />
-                              </div>
-                              <div>
-                                <label className="font-bold text-slate-600 block">Liquid Capture %</label>
-                                <input type="number" value={s.liquidSplitPct} onChange={e => updateSku({ liquidSplitPct: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white" />
-                              </div>
-                              <div>
-                                <label className="font-bold text-slate-600 block">Power / Liq Entry</label>
-                                <div className="flex gap-1">
-                                  <select value={s.powerEntry} onChange={e => updateSku({ powerEntry: e.target.value })} className="w-1/2 border border-slate-300 rounded px-1 py-1 bg-white">
-                                    <option>Top</option><option>Bottom</option>
-                                  </select>
-                                  <select value={s.liquidEntry} onChange={e => updateSku({ liquidEntry: e.target.value })} className="w-1/2 border border-slate-300 rounded px-1 py-1 bg-white">
-                                    <option>Bottom</option><option>Top</option><option>None</option>
-                                  </select>
-                                </div>
-                              </div>
-                              <div>
-                                <label className="font-bold text-slate-600 block">Data Entry & Flow LPM/kW</label>
-                                <div className="flex gap-1">
-                                  <select value={s.dataEntry} onChange={e => updateSku({ dataEntry: e.target.value })} className="w-1/2 border border-slate-300 rounded px-1 py-1 bg-white">
-                                    <option>Top</option><option>Bottom</option>
-                                  </select>
-                                  <input type="number" step="0.05" value={s.flowLpmPerKw} onChange={e => updateSku({ flowLpmPerKw: Number(e.target.value) })} className="w-1/2 border border-slate-300 rounded px-1.5 py-1 bg-white" />
-                                </div>
-                              </div>
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Statutory & Regulatory Rulebook</label>
+                            <select value={currentProject.regulatoryCode} onChange={e => updateCurrentProject({ regulatoryCode: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
+                              <option>India BIS / CEA / CPCB IV+ / PESO / NBC</option>
+                              <option>International IEC / ASHRAE / NFPA 855</option>
+                            </select>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                          <div className="flex flex-col justify-center gap-2 text-xs">
+                            <label className="flex items-center gap-2 font-medium">
+                              <input type="checkbox" checked={!!currentProject.monsoonCanopy} onChange={e => updateCurrentProject({ monsoonCanopy: e.target.checked })} className="w-4 h-4" />
+                              <span>Include Tropical Monsoon Roof Canopy & Elevated Plinth</span>
+                            </label>
+                            <label className="flex items-center gap-2 font-medium">
+                              <input type="checkbox" checked={!!currentProject.airlockVestibule} onChange={e => updateCurrentProject({ airlockVestibule: e.target.checked })} className="w-4 h-4" />
+                              <span>Include Pressurized Dust/Humidity Airlock Vestibule</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                {paramTab === "branding" && (
-                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                    <div className="space-y-3">
-                      <h3 className="font-bold navy-text">Company Logo (Appears Top-Left & on All PDF/CAD Exports)</h3>
-                      <input type="file" accept="image/*" onChange={handleLogoUpload} className="block text-xs" />
-                      {logoDataUrl && (
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                          <img src={logoDataUrl} alt="Logo Preview" className="h-12 w-auto object-contain" />
-                          <button onClick={() => setLogoDataUrl("")} className="text-xs text-red-600 font-bold">Remove Logo</button>
+                    {/* STEP 6: Land Parcel & Orientation */}
+                    {wizardTab === 5 && (
+                      <ParcelLayoutPlanner project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
+                    )}
+
+                    {/* STEP 7: Commercials & First-Cut Review */}
+                    {wizardTab === 6 && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Target Gross Margin (%)</label>
+                            <input type="number" value={currentProject.marginPct} onChange={e => updateCurrentProject({ marginPct: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Engineering Contingency (%)</label>
+                            <input type="number" value={currentProject.contingencyPct} onChange={e => updateCurrentProject({ contingencyPct: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-700 mb-1">Applicable GST (%)</label>
+                            <input type="number" value={currentProject.gstPct} onChange={e => updateCurrentProject({ gstPct: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                          </div>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-slate-900 text-white grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                          <div>
+                            <span className="text-slate-400 block">Configured IT Load</span>
+                            <span className="text-lg font-black text-amber-300">{(eng.totalContKw / 1000).toFixed(2)} MW</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block">Modular Pods & Hall</span>
+                            <span className="text-lg font-black">{eng.pods.length} Pods ({currentProject.hallTopology})</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block">Pre-Tax Turnkey Quote</span>
+                            <span className="text-lg font-black text-emerald-400">{formatMoney(eng.totals.sellingPreTax, currentProject.currency, standards)}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block">Grand Total (Incl. GST)</span>
+                            <span className="text-lg font-black coral-text">{formatMoney(eng.totals.grandTotal, currentProject.currency, standards)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between pt-4 border-t border-slate-200">
+                      <button disabled={wizardTab === 0} onClick={() => setWizardTab(w => w - 1)} className="touch-btn px-4 py-2 rounded-lg border border-slate-300 text-xs font-bold disabled:opacity-40">
+                        ← Previous Step
+                      </button>
+                      {wizardTab < 6 ? (
+                        <button onClick={() => setWizardTab(w => w + 1)} className="touch-btn px-5 py-2 rounded-lg navy-bg text-white text-xs font-bold">
+                          Next Step →
+                        </button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button onClick={() => setScreen("studio3d")} className="touch-btn px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold">
+                            View in 3D Studio
+                          </button>
+                          <button onClick={() => setScreen("workspace")} className="touch-btn px-6 py-2 rounded-lg coral-bg text-white text-xs font-bold shadow">
+                            {wizardMode === "edit" ? "Update Design & Open Workspace ✓" : "Generate Design & Open Workspace ✓"}
+                          </button>
                         </div>
                       )}
                     </div>
-                    <div className="space-y-3">
-                      <h3 className="font-bold navy-text">Google Drive OAuth Client ID (Pre-Configured)</h3>
-                      <p className="text-xs text-slate-500">Already pre-filled so team members only click "Sign in with Google". Override only if migrating Google Cloud projects.</p>
-                      <input type="text" value={clientId} onChange={e => setClientId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono" />
+                  </div>
+                </div>
+              )}
+
+              {/* 4. ENGINEERING OPTIMIZER, PARCEL & COMMERCIAL COSTING WORKSPACE */}
+              {screen === "workspace" && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
+                      <div className="text-xs text-slate-500">Continuous IT Load</div>
+                      <div className="text-xl font-black navy-text">{(eng.totalContKw / 1000).toFixed(2)} MW</div>
+                      <div className="text-[11px] text-slate-400">Peak: {Math.round(eng.totalPeakKw)} kW</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
+                      <div className="text-xs text-slate-500">Modular Pods Packed</div>
+                      <div className="text-xl font-black navy-text">{eng.pods.length} Pods</div>
+                      <div className="text-[11px] text-slate-400">{currentProject.hallTopology}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
+                      <div className="text-xs text-slate-500">Design PUE / Cooling</div>
+                      <div className="text-xl font-black text-emerald-700">{eng.pueDesign}</div>
+                      <div className="text-[11px] text-slate-400 truncate">{eng.coolingMode}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
+                      <div className="text-xs text-slate-500">Pre-Tax Customer Quote</div>
+                      <div className="text-xl font-black navy-text">{formatMoney(eng.totals.sellingPreTax, currentProject.currency, standards)}</div>
+                      <div className="text-[11px] text-slate-400">Margin {currentProject.marginPct}% + Cont. {currentProject.contingencyPct}%</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
+                      <div className="text-xs text-slate-500">Grand Total (Incl. GST)</div>
+                      <div className="text-xl font-black coral-text">{formatMoney(eng.totals.grandTotal, currentProject.currency, standards)}</div>
+                      <div className="text-[11px] text-slate-400">GST @ {currentProject.gstPct}%</div>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* 2-Row Mixed-Rack Packing Solver Results */}
+                  <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                      <div>
+                        <h3 className="text-lg font-bold navy-text">2-Row Multi-Constraint Bin-Packing Breakdown</h3>
+                        <p className="text-xs text-slate-500">Balances 2-row usable bay length (mm), kW envelope, wet floor payload (kg), and external CDU ports</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <select value={currentProject.packingStrategy} onChange={e => updateCurrentProject({ packingStrategy: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold">
+                          <option value="MinCapex">Strategy: Min CapEx / Max Density Mix</option>
+                          <option value="UniformPods">Strategy: Standardized Mixed Pods</option>
+                          <option value="Segregated">Strategy: Segregate GPU Models by Pod</option>
+                        </select>
+                        <button onClick={reRunWizardForCurrent} className="px-3.5 py-1.5 rounded-lg border border-blue-600 navy-text text-xs font-bold">
+                          ✎ Edit via Wizard
+                        </button>
+                        <button onClick={() => setScreen("studio3d")} className="px-3.5 py-1.5 rounded-lg coral-bg text-white text-xs font-bold">
+                          Inspect in 360° 3D Studio →
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {eng.pods.map(p => (
+                        <div key={p.id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1.5">
+                          <div className="flex justify-between font-bold navy-text">
+                            <span>{p.label}</span>
+                            <span>{Math.round(p.contKw)} kW Cont.</span>
+                          </div>
+                          <div className="text-slate-600">
+                            Dimensions: {(p.extLengthMm/1000).toFixed(2)}m L × {(p.extWidthMm/1000).toFixed(2)}m W × {(p.extHeightMm/1000).toFixed(2)}m H
+                          </div>
+                          <div className="text-slate-600">
+                            2-Row Layout: Row A ({p.rowA.length} racks) / Row B ({p.rowB.length} racks) • Bay Fill: {p.bayUtilPct}%
+                          </div>
+                          <div className="text-slate-600">
+                            Tare: {p.emptyTareKg.toLocaleString()} kg • Gross Rigging: {p.grossRiggingKg.toLocaleString()} kg
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Irregular Land Parcel & Auto-Site Layout Solver */}
+                  <ParcelLayoutPlanner project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
+
+                  {/* Commercial Rate Card & Special Deal Override Table */}
+                  <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold navy-text">Itemized BOM, Special Deal Overrides & Commercial Pricing</h3>
+                        <p className="text-xs text-slate-500">Edit unit cost overrides per line item; Margin ({currentProject.marginPct}%), Contingency ({currentProject.contingencyPct}%), and GST ({currentProject.gstPct}%) roll up automatically</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={exportCommercialPriceCsv} className="px-3.5 py-2 rounded-lg navy-bg text-white text-xs font-bold">Export Price Sheet (.CSV)</button>
+                        <button onClick={exportFullPackPdf} className="px-3.5 py-2 rounded-lg coral-bg text-white text-xs font-bold">Export Full A3 PDF</button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left border-collapse">
+                        <thead>
+                          <tr className="navy-bg text-white">
+                            <th className="p-2.5">Subsystem / Item</th>
+                            <th className="p-2.5">Make & Model</th>
+                            <th className="p-2.5 text-center">Qty</th>
+                            <th className="p-2.5 text-right">Deal Unit Cost (₹)</th>
+                            <th className="p-2.5 text-right">Pre-Tax Quote</th>
+                            <th className="p-2.5 text-right">Total Incl. GST</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {eng.bomItems.map(it => (
+                            <tr key={it.key} className="border-b border-slate-200 hover:bg-slate-50">
+                              <td className="p-2.5">
+                                <div className="font-bold navy-text">{it.label}</div>
+                                <div className="text-[11px] text-slate-500">{it.specs}</div>
+                              </td>
+                              <td className="p-2.5 text-slate-700">{it.make} — {it.model}</td>
+                              <td className="p-2.5 text-center font-bold">{it.qty}</td>
+                              <td className="p-2.5 text-right">
+                                <input
+                                  type="number"
+                                  value={it.unitCost}
+                                  onChange={e => updateCurrentProject({ rateOverrides: { ...currentProject.rateOverrides, [it.key]: e.target.value } })}
+                                  className={`w-28 text-right border rounded px-2 py-1 font-mono ${it.isOverridden ? "border-amber-500 bg-amber-50 font-bold" : "border-slate-300"}`}
+                                />
+                              </td>
+                              <td className="p-2.5 text-right font-bold">{formatMoney(it.sellingPreTax, currentProject.currency, standards)}</td>
+                              <td className="p-2.5 text-right font-bold navy-text">{formatMoney(it.grandTotalInclGst, currentProject.currency, standards)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 5. 360° 3D CONTAINER & HALL STUDIO */}
+              {screen === "studio3d" && (
+                <ThreeDStudio project={currentProject} eng={eng} />
+              )}
+
+              {/* 6. DEDICATED OUTPUTS & EXPORT CENTER */}
+              {screen === "outputs" && (
+                <div className="space-y-6">
+                  <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                      <div>
+                        <h2 className="text-xl font-bold navy-text">Outputs, Level 2 CAD Blueprints & Export Center</h2>
+                        <p className="text-xs text-slate-500">Generate individual CSV schedules, inspect scaled CAD & Single Line Diagrams, or download the complete A3 PDF pack</p>
+                      </div>
+                      <button onClick={exportFullPackPdf} className="touch-btn px-5 py-2.5 rounded-xl coral-bg text-white text-sm font-bold shadow">
+                        ⬇ Download Full Engineering & CAD Pack (A3 PDF)
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-4">
+                      <button onClick={exportEngineeringBomCsv} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
+                        <div className="text-xs font-bold text-blue-700">CSV SCHEDULE</div>
+                        <div className="font-bold navy-text mt-1">Engineering BOM (.CSV)</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">Make, Model, Specs & Quantities</div>
+                      </button>
+                      <button onClick={exportCommercialPriceCsv} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
+                        <div className="text-xs font-bold text-emerald-700">COMMERCIAL CSV</div>
+                        <div className="font-bold navy-text mt-1">Commercial Price Sheet (.CSV)</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">Unit Cost, Margin, Contingency & GST</div>
+                      </button>
+                      <button onClick={() => setScreen("studio3d")} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
+                        <div className="text-xs font-bold text-indigo-700">INTERACTIVE 3D</div>
+                        <div className="font-bold navy-text mt-1">360° 3D Container / Hall Twin</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">Empty Shell vs. Loaded MEP Layers</div>
+                      </button>
+                      <button onClick={() => setSelectedCadSheet("E-201")} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
+                        <div className="text-xs font-bold coral-text">SCHEMATICS</div>
+                        <div className="font-bold navy-text mt-1">Electrical & Cooling SLDs</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">IEC 60617 Power & ISO Hydraulic P&ID</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <CadBlueprintViewer project={currentProject} eng={eng} initialSheet={selectedCadSheet} />
+                </div>
+              )}
+
+              {/* 7. ORGANIZED 6-TAB GLOBAL PARAMETERS & STANDARDS SUITE */}
+              {screen === "parameters" && (
+                <div className="bg-white rounded-xl card-shadow border border-slate-200 overflow-hidden">
+                  <div className="navy-bg text-white p-5">
+                    <h2 className="text-xl font-bold">Global Parameters, Engineering Standards & Master Catalogs</h2>
+                    <p className="text-xs text-slate-300 mt-0.5">Clean, structured control over Rack SKUs, Structural Shells, Thermal/Hydraulic Limits, Power/BESS, OEM Rate Card & Branding</p>
+                    <div className="flex flex-wrap gap-1.5 mt-4">
+                      {[
+                        ["skus", "1. Rack SKU Library"],
+                        ["containers", "2. Container & Structural"],
+                        ["cooling", "3. Cooling & Climate"],
+                        ["electrical", "4. Electrical & BESS"],
+                        ["rates", "5. OEM Rate Card & Commercial"],
+                        ["branding", "6. Branding & Drive OAuth"]
+                      ].map(([k, lbl]) => (
+                        <button key={k} onClick={() => setParamTab(k)} className={`px-3.5 py-2 rounded-lg text-xs font-bold ${paramTab === k ? "coral-bg text-white" : "bg-white/15 text-slate-200"}`}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* TAB 1: RACK SKU LIBRARY (Clean Summary Table + Accordion Editor) */}
+                  {paramTab === "skus" && (
+                    <div className="p-5 space-y-4">
+                      <div className="flex flex-wrap justify-between items-center gap-2">
+                        <p className="text-xs text-slate-600">Click <strong>Edit Specs</strong> on any rack row to modify dimensions, weights, loading factors, or top/bottom entry orientations.</p>
+                        <button
+                          onClick={() => {
+                            const newId = "sku-custom-" + Date.now();
+                            setSkus(prev => [...prev, {
+                              id: newId, name: "Custom High-Density AI Rack", category: "DLC", standard: "OCP ORv3",
+                              heightMm: 2500, widthMm: 900, depthMm: 1200, dryWeightKg: 1650, coolantWeightKg: 250,
+                              peakKw: 280, continuousFactor: 0.95, operatingUtilFactor: 0.85, liquidSplitPct: 96,
+                              cduMode: "Integrated", flowLpmPerKw: 1.45, deltaPBar: 1.9,
+                              powerEntry: "Top", liquidEntry: "Bottom", dataEntry: "Top",
+                              unitCostInr: 4500000, vendorMake: "Custom OEM", vendorModel: "AI-280", color: "#7C3AED"
+                            }]);
+                            setEditingSkuId(newId);
+                          }}
+                          className="px-4 py-2 rounded-lg coral-bg text-white text-xs font-bold"
+                        >
+                          + Add New Rack SKU
+                        </button>
+                      </div>
+
+                      <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-700 border-b border-slate-200">
+                              <th className="p-3">Rack SKU & Standard</th>
+                              <th className="p-3">Category / CDU</th>
+                              <th className="p-3">Dimensions (W×D×H)</th>
+                              <th className="p-3">Wet Weight</th>
+                              <th className="p-3">Peak / Cont. kW</th>
+                              <th className="p-3">Liq % & Entry</th>
+                              <th className="p-3 text-right">Base Cost (₹)</th>
+                              <th className="p-3 text-right">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {skus.map((s, idx) => {
+                              const isOpen = editingSkuId === s.id;
+                              const updateSku = (patch) => setSkus(prev => prev.map((item, i) => i === idx ? { ...item, ...patch } : item));
+                              return (
+                                <React.Fragment key={s.id}>
+                                  <tr className="border-b border-slate-200 hover:bg-slate-50">
+                                    <td className="p-3 font-bold navy-text">{s.name}<div className="text-[11px] font-normal text-slate-500">{s.standard}</div></td>
+                                    <td className="p-3">{s.category} • {s.cduMode}</td>
+                                    <td className="p-3 font-mono">{s.widthMm}×{s.depthMm}×{s.heightMm} mm</td>
+                                    <td className="p-3">{(s.dryWeightKg + s.coolantWeightKg).toLocaleString()} kg</td>
+                                    <td className="p-3 font-bold">{s.peakKw} / {Math.round(s.peakKw * s.continuousFactor)} kW</td>
+                                    <td className="p-3">{s.liquidSplitPct}% Liq • P:{s.powerEntry} / L:{s.liquidEntry}</td>
+                                    <td className="p-3 text-right font-mono">₹{s.unitCostInr.toLocaleString("en-IN")}</td>
+                                    <td className="p-3 text-right">
+                                      <button onClick={() => setEditingSkuId(isOpen ? null : s.id)} className="px-3 py-1 rounded bg-blue-50 text-blue-900 border border-blue-200 font-bold">
+                                        {isOpen ? "Close" : "Edit Specs"}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  {isOpen && (
+                                    <tr className="bg-blue-50/40 border-b border-slate-300">
+                                      <td colSpan="8" className="p-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                                          <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                                            <div className="font-bold navy-text uppercase">1. Identity & OEM</div>
+                                            <div><label className="block text-slate-500">SKU Name</label><input type="text" value={s.name} onChange={e => updateSku({ name: e.target.value })} className="w-full border rounded px-2 py-1" /></div>
+                                            <div><label className="block text-slate-500">Standard</label><input type="text" value={s.standard} onChange={e => updateSku({ standard: e.target.value })} className="w-full border rounded px-2 py-1" /></div>
+                                            <div><label className="block text-slate-500">Vendor Make & Model</label><input type="text" value={s.vendorMake} onChange={e => updateSku({ vendorMake: e.target.value })} className="w-full border rounded px-2 py-1" /></div>
+                                            <div><label className="block text-slate-500">Unit Cost (₹)</label><input type="number" value={s.unitCostInr} onChange={e => updateSku({ unitCostInr: Number(e.target.value) })} className="w-full border rounded px-2 py-1" /></div>
+                                          </div>
+
+                                          <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                                            <div className="font-bold navy-text uppercase">2. Dimensions & Weights</div>
+                                            <div className="grid grid-cols-3 gap-1">
+                                              <div><label className="block text-slate-500">Width mm</label><input type="number" value={s.widthMm} onChange={e => updateSku({ widthMm: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1" /></div>
+                                              <div><label className="block text-slate-500">Depth mm</label><input type="number" value={s.depthMm} onChange={e => updateSku({ depthMm: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1" /></div>
+                                              <div><label className="block text-slate-500">Height mm</label><input type="number" value={s.heightMm} onChange={e => updateSku({ heightMm: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1" /></div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <div><label className="block text-slate-500">Dry Weight (kg)</label><input type="number" value={s.dryWeightKg} onChange={e => updateSku({ dryWeightKg: Number(e.target.value) })} className="w-full border rounded px-2 py-1" /></div>
+                                              <div><label className="block text-slate-500">Coolant Fill (kg)</label><input type="number" value={s.coolantWeightKg} onChange={e => updateSku({ coolantWeightKg: Number(e.target.value) })} className="w-full border rounded px-2 py-1" /></div>
+                                            </div>
+                                          </div>
+
+                                          <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                                            <div className="font-bold navy-text uppercase">3. Loading & Thermal Factors</div>
+                                            <div className="grid grid-cols-3 gap-1">
+                                              <div><label className="block text-slate-500">Peak kW</label><input type="number" value={s.peakKw} onChange={e => updateSku({ peakKw: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1" /></div>
+                                              <div><label className="block text-slate-500">Cont. Factor</label><input type="number" step="0.01" value={s.continuousFactor} onChange={e => updateSku({ continuousFactor: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1" /></div>
+                                              <div><label className="block text-slate-500">Util. Factor</label><input type="number" step="0.01" value={s.operatingUtilFactor} onChange={e => updateSku({ operatingUtilFactor: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1" /></div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <div><label className="block text-slate-500">Liquid Split (%)</label><input type="number" value={s.liquidSplitPct} onChange={e => updateSku({ liquidSplitPct: Number(e.target.value) })} className="w-full border rounded px-2 py-1" /></div>
+                                              <div><label className="block text-slate-500">Flow (LPM/kW)</label><input type="number" step="0.05" value={s.flowLpmPerKw} onChange={e => updateSku({ flowLpmPerKw: Number(e.target.value) })} className="w-full border rounded px-2 py-1" /></div>
+                                            </div>
+                                          </div>
+
+                                          <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                                            <div className="font-bold navy-text uppercase">4. CDU & Service Entries</div>
+                                            <div>
+                                              <label className="block text-slate-500">CDU Architecture</label>
+                                              <select value={s.cduMode} onChange={e => updateSku({ cduMode: e.target.value })} className="w-full border rounded px-2 py-1">
+                                                <option value="Integrated">Integrated In-Rack CDU</option>
+                                                <option value="External">External Row/Side CDU</option>
+                                                <option value="None">Air-Cooled Only</option>
+                                              </select>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-1">
+                                              <div><label className="block text-slate-500">Power</label><select value={s.powerEntry} onChange={e => updateSku({ powerEntry: e.target.value })} className="w-full border rounded px-1 py-1"><option>Top</option><option>Bottom</option></select></div>
+                                              <div><label className="block text-slate-500">Liquid</label><select value={s.liquidEntry} onChange={e => updateSku({ liquidEntry: e.target.value })} className="w-full border rounded px-1 py-1"><option>Bottom</option><option>Top</option><option>None</option></select></div>
+                                              <div><label className="block text-slate-500">Data</label><select value={s.dataEntry} onChange={e => updateSku({ dataEntry: e.target.value })} className="w-full border rounded px-1 py-1"><option>Top</option><option>Bottom</option></select></div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: CONTAINER & STRUCTURAL STANDARDS */}
+                  {paramTab === "containers" && (
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <div className="font-bold navy-text uppercase">Shell Envelope Dimensions (mm)</div>
+                        <div><label className="block text-slate-600 mb-1">20 ft ISO Marine Standard Length (mm)</label><input type="number" value={standards.iso20LengthMm} onChange={e => setStandards(s => ({ ...s, iso20LengthMm: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                        <div><label className="block text-slate-600 mb-1">40 ft ISO Marine Standard Length (mm)</label><input type="number" value={standards.iso40LengthMm} onChange={e => setStandards(s => ({ ...s, iso40LengthMm: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                        <div><label className="block text-slate-600 mb-1">Default Custom Transport Max Length (mm)</label><input type="number" value={standards.defaultCustomMaxLenMm} onChange={e => setStandards(s => ({ ...s, defaultCustomMaxLenMm: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div><label className="block text-slate-600 mb-1">Default Height (mm)</label><input type="number" value={standards.defaultHeightMm} onChange={e => setStandards(s => ({ ...s, defaultHeightMm: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                          <div><label className="block text-slate-600 mb-1">Default Width (mm)</label><input type="number" value={standards.defaultWidthMm} onChange={e => setStandards(s => ({ ...s, defaultWidthMm: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <div className="font-bold navy-text uppercase">Metallurgy & Plate Thicknesses (mm)</div>
+                        <div>
+                          <label className="block text-slate-600 mb-1">Default Structural Metallurgy</label>
+                          <select value={standards.defaultMetallurgy} onChange={e => setStandards(s => ({ ...s, defaultMetallurgy: e.target.value }))} className="w-full border rounded px-2.5 py-1.5 bg-white">
+                            <option>Corten-A SPA-H</option><option>Marine Galvalume</option><option>SS316L Stainless</option>
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div><label className="block text-slate-600 mb-1">Wall (mm)</label><input type="number" step="0.5" value={standards.wallThicknessMm} onChange={e => setStandards(s => ({ ...s, wallThicknessMm: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                          <div><label className="block text-slate-600 mb-1">Roof (mm)</label><input type="number" step="0.5" value={standards.roofThicknessMm} onChange={e => setStandards(s => ({ ...s, roofThicknessMm: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                          <div><label className="block text-slate-600 mb-1">Floor (mm)</label><input type="number" step="0.5" value={standards.floorThicknessMm} onChange={e => setStandards(s => ({ ...s, floorThicknessMm: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div><label className="block text-slate-600 mb-1">Raised Floor Plenum (mm)</label><input type="number" value={standards.plenumHeightMm} onChange={e => setStandards(s => ({ ...s, plenumHeightMm: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                          <div><label className="block text-slate-600 mb-1">Overhead Clearance (mm)</label><input type="number" value={standards.topClearanceMm} onChange={e => setStandards(s => ({ ...s, topClearanceMm: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <div className="font-bold navy-text uppercase">Pod Capacity & Structural Limits</div>
+                        <div><label className="block text-slate-600 mb-1">Max Wet IT Payload per Pod (kg)</label><input type="number" value={standards.maxPodPayloadKg} onChange={e => setStandards(s => ({ ...s, maxPodPayloadKg: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                        <div><label className="block text-slate-600 mb-1">Max DLC Thermal/Power Envelope per Pod (kW)</label><input type="number" value={standards.maxDlcKwPerPod} onChange={e => setStandards(s => ({ ...s, maxDlcKwPerPod: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                        <div><label className="block text-slate-600 mb-1">Max Air-Cooled Envelope per Pod (kW)</label><input type="number" value={standards.maxAcKwPerPod} onChange={e => setStandards(s => ({ ...s, maxAcKwPerPod: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: COOLING & CLIMATE STANDARDS */}
+                  {paramTab === "cooling" && (
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <div className="font-bold navy-text uppercase">Hydraulic & Fluid Loop Standards</div>
+                        <div><label className="block text-slate-600 mb-1">Secondary Coolant Chemistry</label><input type="text" value={standards.coolantType} onChange={e => setStandards(s => ({ ...s, coolantType: e.target.value }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div><label className="block text-slate-600 mb-1">Supply Temp (°C)</label><input type="number" value={standards.supplyTempC} onChange={e => setStandards(s => ({ ...s, supplyTempC: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                          <div><label className="block text-slate-600 mb-1">Return Temp (°C)</label><input type="number" value={standards.returnTempC} onChange={e => setStandards(s => ({ ...s, returnTempC: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                          <div><label className="block text-slate-600 mb-1">Trim Chiller WB (°C)</label><input type="number" step="0.5" value={standards.wetBulbSwitchoverC} onChange={e => setStandards(s => ({ ...s, wetBulbSwitchoverC: Number(e.target.value) }))} className="w-full border rounded px-2 py-1.5 bg-white" /></div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                        <div className="font-bold navy-text uppercase">Regional Climate Profiles (Peak Dry / Wet Bulb °C)</div>
+                        {Object.entries(climates).map(([cName, cVal]) => (
+                          <div key={cName} className="flex items-center justify-between gap-2 bg-white p-2 rounded border border-slate-200">
+                            <span className="font-bold text-slate-700">{cName}</span>
+                            <div className="flex items-center gap-2">
+                              <span>DB:</span>
+                              <input type="number" value={cVal.peakDryBulb} onChange={e => setClimates(prev => ({ ...prev, [cName]: { ...cVal, peakDryBulb: Number(e.target.value) } }))} className="w-14 border rounded px-1.5 py-0.5" />
+                              <span>WB:</span>
+                              <input type="number" step="0.5" value={cVal.peakWetBulb} onChange={e => setClimates(prev => ({ ...prev, [cName]: { ...cVal, peakWetBulb: Number(e.target.value) } }))} className="w-14 border rounded px-1.5 py-0.5" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 4: ELECTRICAL, UPS & BESS STANDARDS */}
+                  {paramTab === "electrical" && (
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <div className="font-bold navy-text uppercase">Distribution & Busway Standards</div>
+                        <div><label className="block text-slate-600 mb-1">Overhead Busway Rating (Amperes)</label><input type="number" value={standards.buswayAmperageA} onChange={e => setStandards(s => ({ ...s, buswayAmperageA: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                        <div><label className="block text-slate-600 mb-1">DG Specific Fuel Consumption (Litres / kWh)</label><input type="number" step="0.01" value={standards.dgFuelLitresPerKwh} onChange={e => setStandards(s => ({ ...s, dgFuelLitresPerKwh: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <div className="font-bold navy-text uppercase">Battery Energy Storage (BESS) Depth of Discharge</div>
+                        <div><label className="block text-slate-600 mb-1">LFP Usable Depth of Discharge (%)</label><input type="number" value={standards.lfpDoDPct} onChange={e => setStandards(s => ({ ...s, lfpDoDPct: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                        <div><label className="block text-slate-600 mb-1">VRLA Usable Depth of Discharge (%)</label><input type="number" value={standards.vrlaDoDPct} onChange={e => setStandards(s => ({ ...s, vrlaDoDPct: Number(e.target.value) }))} className="w-full border rounded px-2.5 py-1.5 bg-white" /></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 5: MASTER OEM RATE CARD & COMMERCIAL DEFAULTS */}
+                  {paramTab === "rates" && (
+                    <div className="p-5 space-y-4 text-xs">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div><label className="block font-bold text-slate-600">Default Margin %</label><input type="number" value={standards.defaultMarginPct} onChange={e => setStandards(s => ({ ...s, defaultMarginPct: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
+                        <div><label className="block font-bold text-slate-600">Default Contingency %</label><input type="number" value={standards.defaultContingencyPct} onChange={e => setStandards(s => ({ ...s, defaultContingencyPct: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
+                        <div><label className="block font-bold text-slate-600">Default GST %</label><input type="number" value={standards.defaultGstPct} onChange={e => setStandards(s => ({ ...s, defaultGstPct: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
+                        <div><label className="block font-bold text-slate-600">INR / USD Rate</label><input type="number" value={standards.usdRate} onChange={e => setStandards(s => ({ ...s, usdRate: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
+                        <div><label className="block font-bold text-slate-600">INR / EUR Rate</label><input type="number" value={standards.eurRate} onChange={e => setStandards(s => ({ ...s, eurRate: Number(e.target.value) }))} className="w-full border rounded px-2 py-1 bg-white mt-1" /></div>
+                      </div>
+
+                      <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-700 border-b border-slate-200">
+                              <th className="p-2.5">Infrastructure Subsystem</th>
+                              <th className="p-2.5">OEM Make</th>
+                              <th className="p-2.5">Model / Spec</th>
+                              <th className="p-2.5">Unit Basis</th>
+                              <th className="p-2.5 text-right">Master Base Cost (₹)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(rateCard).map(([k, item]) => (
+                              <tr key={k} className="border-b border-slate-200">
+                                <td className="p-2.5 font-bold navy-text">{item.label}</td>
+                                <td className="p-2.5"><input type="text" value={item.make} onChange={e => setRateCard(rc => ({ ...rc, [k]: { ...item, make: e.target.value } }))} className="border rounded px-2 py-1 w-36" /></td>
+                                <td className="p-2.5"><input type="text" value={item.model} onChange={e => setRateCard(rc => ({ ...rc, [k]: { ...item, model: e.target.value } }))} className="border rounded px-2 py-1 w-40" /></td>
+                                <td className="p-2.5 text-slate-500">{item.unit}</td>
+                                <td className="p-2.5 text-right"><input type="number" value={item.cost} onChange={e => setRateCard(rc => ({ ...rc, [k]: { ...item, cost: Number(e.target.value) } }))} className="border rounded px-2 py-1 w-32 text-right font-mono" /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 6: BRANDING & GOOGLE DRIVE OAUTH */}
+                  {paramTab === "branding" && (
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                      <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <h3 className="font-bold navy-text">Company Logo (Top-Left Header & All PDF/CAD Exports)</h3>
+                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="block text-xs" />
+                        {logoDataUrl && (
+                          <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200">
+                            <img src={logoDataUrl} alt="Logo Preview" className="h-12 w-auto object-contain" />
+                            <button onClick={() => setLogoDataUrl("")} className="text-xs text-red-600 font-bold">Remove Logo</button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <h3 className="font-bold navy-text">Google Drive OAuth Client ID (Pre-Configured)</h3>
+                        <p className="text-xs text-slate-500">Pre-configured so team members simply click "Sign in with Google". Override only if migrating Google Cloud projects.</p>
+                        <input type="text" value={clientId} onChange={e => setClientId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono bg-white" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </main>
         </div>
       );
