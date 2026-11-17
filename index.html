@@ -1530,13 +1530,9 @@
         addSlideHeader(s2, "Executive Mandate & Solution Architecture Summary", `${project.client || "Customer"} • ${(eng.totalDesignContKw/1000).toFixed(2)} MW ${project.archetype}`, "01");
 
         s2.addText([
-          { text: "1. Project Mandate & Compute Workload Split
-", options: { fontFace: "Roboto", fontSize: 11.5, bold: true, color: C_ORANGE } },
-          { text: `Engineered for ${project.client || "the customer"} at ${project.cityQuery}, this facility supports ${(eng.totalDesignContKw/1000).toFixed(2)} MW continuous IT load (${(eng.dlcDesignKw/1000).toFixed(2)} MW DLC across ${eng.dlcRacks.length} racks + ${(eng.acDesignKw/1000).toFixed(2)} MW AC across ${eng.acRacks.length} racks) under a ${project.deploymentMode} execution model.
-
-`, options: { fontFace: "Roboto", fontSize: 10.5, color: C_CHARCOAL } },
-          { text: "2. Spatial Separation & Lifecycle Efficiency
-", options: { fontFace: "Roboto", fontSize: 11.5, bold: true, color: C_ORANGE } },
+          { text: "1. Project Mandate & Compute Workload Split\n", options: { fontFace: "Roboto", fontSize: 11.5, bold: true, color: C_ORANGE } },
+          { text: `Engineered for ${project.client || "the customer"} at ${project.cityQuery}, this facility supports ${(eng.totalDesignContKw/1000).toFixed(2)} MW continuous IT load (${(eng.dlcDesignKw/1000).toFixed(2)} MW DLC across ${eng.dlcRacks.length} racks + ${(eng.acDesignKw/1000).toFixed(2)} MW AC across ${eng.acRacks.length} racks) under a ${project.deploymentMode} execution model.\n\n`, options: { fontFace: "Roboto", fontSize: 10.5, color: C_CHARCOAL } },
+          { text: "2. Spatial Separation & Lifecycle Efficiency\n", options: { fontFace: "Roboto", fontSize: 11.5, bold: true, color: C_ORANGE } },
           { text: `IT compute pods (${eng.dlcPods.length} DLC + ${eng.acPods.length} AC pods = ${Math.round(eng.totalItWhiteSpaceSqm)} m² white-space with ${project.futureGrowthReservePct}% growth reserve) are strictly separated from the ${eng.totalNonItYardSqm} m² Non-IT technical yard, achieving an annualized PUE of ${eng.pueAnnualized}.`, options: { fontFace: "Roboto", fontSize: 10.5, color: C_CHARCOAL } }
         ], {
           x: 0.55, y: 1.25, w: 6.1, h: 3.05,
@@ -2985,8 +2981,7 @@
       };
 
       const downloadCsv = (filename, rows) => {
-        const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("
-");
+        const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
