@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ai-mdc-configurator-v1.4';
+const CACHE_NAME = 'ai-mdc-configurator-v3.0';
 const CORE_ASSETS = [
   '/',
   '/index.html',
