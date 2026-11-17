@@ -40,7 +40,7 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v4_data";
+    const STORAGE_KEY = "ai_mdc_studio_v5_phaseA";
 
     const INITIAL_SKUS = [
       {
@@ -121,11 +121,13 @@
       adiabaticCooler1Mw: { label: "Yard Adiabatic / Dry Fluid Cooler", cost: 5200000, unit: "per 1MW unit", make: "Guntner / Kelvion", model: "GFD-Adiabatic-1000" },
       trimChiller500Kw: { label: "Peak Monsoon Trim Chiller", cost: 4400000, unit: "per 500kW unit", make: "Trane / Climaveneta", model: "RTAF-500-VFD" },
       roomDehumPac40Kw: { label: "Room Dehumidification & PAC Unit", cost: 850000, unit: "per 40kW unit", make: "Stulz / Vertiv", model: "MiniSpace-EC-40" },
+      transformer2000Kva: { label: "MV/LV Cast-Resin Dry Transformer (11/33kV)", cost: 4200000, unit: "per 2000kVA", make: "ABB / Voltamp", model: "Resibloc-2000kVA" },
+      lvSwitchgearPanel: { label: "Main LV ACB Switchgear & Auto-Changeover", cost: 2800000, unit: "per 3200A lineup", make: "L&T / Schneider", model: "U-Power-3200A" },
       buswayPerMeter: { label: "Overhead Dual A/B Power Busway", cost: 62000, unit: "per meter", make: "Schneider / Zucchini", model: "Canalis-KT-1600A" },
       ss316HeaderPerMeter: { label: "Underfloor SS316L Coolant Header", cost: 38000, unit: "per meter", make: "Jindal / Victaulic", model: "SS316L-DN150-Grooved" },
-      upsContainer1Mw: { label: "Containerized Modular UPS Pod", cost: 9200000, unit: "per 1MW pod", make: "Eaton / ABB", model: "93PM-1000kVA-Pod" },
+      upsContainer1Mw: { label: "Containerized Modular UPS Pod", cost: 9200000, unit: "per 1000kVA pod", make: "Eaton / Vertiv", model: "93PM-1000kVA-Pod" },
       batteryContainer15Min: { label: "Containerized Battery Pod (BESS)", cost: 7800000, unit: "per 1.2MWh pod", make: "Exide / Amara Raja", model: "LFP-Rack-BESS" },
-      dgSet1500Kva: { label: "CPCB IV+ Acoustic DG Set + PESO Tank", cost: 11500000, unit: "per 1500kVA", make: "Cummins / Cat", model: "C1500D5P-CPCB4+" },
+      dgSet1500Kva: { label: "CPCB IV+ Acoustic DG Set + PESO Tank", cost: 11500000, unit: "per 1500kVA", make: "Cummins / KOEL", model: "C1500D5P-CPCB4+" },
       adminSparesModule: { label: "Admin, NOC & ESD Spares Container", cost: 4600000, unit: "per module", make: "Modular Prefab", model: "NOC-Workshop-40ft" },
       stagingDockModule: { label: "Staging, Unloading & Leak-Test Bay", cost: 3900000, unit: "per module", make: "Modular Prefab", model: "Unpack-BurnIn-Dock" },
       civilPlinthPerSqm: { label: "Elevated RCC Monsoon Plinth & Canopy", cost: 14500, unit: "per m²", make: "RCC M35 Grade", model: "IS456-Monsoon-Plinth" }
@@ -169,7 +171,7 @@
       "Hyderabad / Pune (Dry Deccan)": { peakDryBulb: 42, peakWetBulb: 25.0, monsoonMonths: 3, defaultWater: "Constrained" }
     };
 
-    const makeDefaultProject = (id, name, client, status = "In Review", std = INITIAL_STANDARDS) => ({
+    const makeSampleProject = (id, name, client, status = "Proposal Ready", std = INITIAL_STANDARDS) => ({
       id,
       name,
       client,
@@ -200,15 +202,82 @@
       topClearanceMm: std.topClearanceMm,
       hallTopology: "GangedLinear",
       packingStrategy: "MinCapex",
-      includeAdminModule: true,
-      includeStagingModule: true,
+      includeTransformer: true,
+      transformerType: "Cast-Resin Dry Type",
+      includeLvSwitchgear: true,
       includeUpsContainer: true,
+      upsFrameKva: 1000,
       includeBatteryContainer: true,
       batteryRuntimeMin: 15,
       batteryChemistry: "LFP",
       includeDgYard: true,
       dgAutonomyHours: 24,
-      includeTransformer: true,
+      includeAdminModule: true,
+      includeStagingModule: true,
+      coolingOverrideMode: "Auto",
+      includeLiquidLoop: true,
+      includeExtCdu: true,
+      includeRoomDehum: true,
+      climatePreset: "Mumbai (Coastal Monsoon)",
+      waterAvailability: "Constrained",
+      airCoolingType: "In-Row",
+      uptimeTier: "Tier III",
+      regulatoryCode: "India BIS / CEA / CPCB IV+ / PESO / NBC",
+      monsoonCanopy: true,
+      airlockVestibule: true,
+      parcelShape: "IrregularTrapezoid",
+      parcelVertices: [
+        { x: 0, y: 0 },
+        { x: 92, y: 0 },
+        { x: 108, y: 64 },
+        { x: 14, y: 78 }
+      ],
+      setbackMeters: 6.0,
+      hallRotationDeg: 0,
+      rateOverrides: {}
+    });
+
+    const makeBlankProject = (id, indexNum, std = INITIAL_STANDARDS) => ({
+      id,
+      name: `New AI MDC Project #${indexNum}`,
+      client: "",
+      status: "Draft",
+      updatedAt: new Date().toISOString().slice(0, 10),
+      archetype: "Sovereign AI Training Factory",
+      targetItMw: 0,
+      currency: "INR",
+      marginPct: std.defaultMarginPct,
+      contingencyPct: std.defaultContingencyPct,
+      gstPct: std.defaultGstPct,
+      rackQuantities: {},
+      containerLengthMode: "CustomOptimum",
+      maxCustomLengthMm: std.defaultCustomMaxLenMm,
+      containerHeightMm: std.defaultHeightMm,
+      containerWidthMm: std.defaultWidthMm,
+      metallurgy: std.defaultMetallurgy,
+      wallThicknessMm: std.wallThicknessMm,
+      roofThicknessMm: std.roofThicknessMm,
+      floorThicknessMm: std.floorThicknessMm,
+      plenumHeightMm: std.plenumHeightMm,
+      topClearanceMm: std.topClearanceMm,
+      hallTopology: "GangedLinear",
+      packingStrategy: "MinCapex",
+      includeTransformer: false,
+      transformerType: "Cast-Resin Dry Type",
+      includeLvSwitchgear: false,
+      includeUpsContainer: false,
+      upsFrameKva: 1000,
+      includeBatteryContainer: false,
+      batteryRuntimeMin: 15,
+      batteryChemistry: "LFP",
+      includeDgYard: false,
+      dgAutonomyHours: 24,
+      includeAdminModule: false,
+      includeStagingModule: false,
+      coolingOverrideMode: "Auto",
+      includeLiquidLoop: false,
+      includeExtCdu: false,
+      includeRoomDehum: false,
       climatePreset: "Mumbai (Coastal Monsoon)",
       waterAvailability: "Constrained",
       airCoolingType: "In-Row",
@@ -229,14 +298,8 @@
     });
 
     const INITIAL_PROJECTS = [
-      makeDefaultProject("proj-15mw-ai", "15 MW Sovereign AI Cluster — Navi Mumbai", "National HPC Authority", "Proposal Ready"),
-      makeDefaultProject("proj-2mw-edge", "2.0 MW Defense Geospatial Edge Pod", "Strategic Command C3", "Draft")
+      makeSampleProject("proj-15mw-sample", "Sample: 15 MW Sovereign AI Cluster — Navi Mumbai", "National HPC Authority", "Proposal Ready")
     ];
-    INITIAL_PROJECTS[1].targetItMw = 2.0;
-    INITIAL_PROJECTS[1].archetype = "Tactical / Defense Edge Pod";
-    INITIAL_PROJECTS[1].rackQuantities = { "sku-dlc-265": 8, "sku-helios": 0, "sku-nvl72": 0, "sku-rubin144": 0, "sku-air-core": 4 };
-    INITIAL_PROJECTS[1].hallTopology = "Isolated";
-    INITIAL_PROJECTS[1].containerLengthMode = "ISO40";
 
     function computeEngineering(project, skus, rateCard, standards, climates) {
       const skuMap = Object.fromEntries(skus.map(s => [s.id, s]));
@@ -248,6 +311,8 @@
       let totalAirKw = 0;
       let totalFlowLpm = 0;
       let extCduRequiredKw = 0;
+      let hasDlcRacks = false;
+      let hasExtCduRacks = false;
 
       Object.entries(project.rackQuantities || {}).forEach(([skuId, qty]) => {
         const q = Number(qty) || 0;
@@ -263,7 +328,11 @@
         totalLiquidKw += liqKw * q;
         totalAirKw += airKw * q;
         totalFlowLpm += liqKw * sku.flowLpmPerKw * q;
-        if (sku.cduMode === "External") extCduRequiredKw += liqKw * q;
+        if (sku.category === "DLC" || sku.liquidSplitPct > 0) hasDlcRacks = true;
+        if (sku.cduMode === "External") {
+          extCduRequiredKw += liqKw * q;
+          hasExtCduRacks = true;
+        }
         for (let i = 0; i < q; i++) {
           activeRacks.push({
             ...sku,
@@ -371,35 +440,61 @@
         : 0;
 
       const climate = climates[project.climatePreset] || Object.values(climates)[0];
-      let coolingMode = "Adiabatic Spray-Assisted Fluid Coolers";
-      let annualWueLPerKwh = 0.28;
+      let recommendedCoolingMode = "Air-Side Precision Cooling (PAC / In-Row)";
+      let annualWueLPerKwh = 0.0;
       let trimChillerKw = 0;
-      if (project.waterAvailability === "Zero") {
-        coolingMode = "Zero-Water Dry Coolers + Mechanical Trim Chillers";
-        annualWueLPerKwh = 0.0;
-        trimChillerKw = Math.round(totalContKw * 0.45);
-      } else if (climate.peakWetBulb >= standards.wetBulbSwitchoverC) {
-        coolingMode = "Hybrid Adiabatic Coolers + Peak Monsoon Trim Chillers";
-        annualWueLPerKwh = 0.35;
-        trimChillerKw = Math.round(totalContKw * 0.30);
-      } else if (project.waterAvailability === "Abundant") {
-        coolingMode = "High-Efficiency Adiabatic Fluid Coolers (Free-Cooling Optimized)";
-        annualWueLPerKwh = 0.42;
+
+      if (hasDlcRacks) {
+        if (project.waterAvailability === "Zero") {
+          recommendedCoolingMode = "Zero-Water Dry Coolers + Mechanical Trim Chillers";
+          annualWueLPerKwh = 0.0;
+          trimChillerKw = Math.round(totalContKw * 0.45);
+        } else if (climate.peakWetBulb >= standards.wetBulbSwitchoverC) {
+          recommendedCoolingMode = "Hybrid Adiabatic Coolers + Peak Monsoon Trim Chillers";
+          annualWueLPerKwh = 0.35;
+          trimChillerKw = Math.round(totalContKw * 0.30);
+        } else {
+          recommendedCoolingMode = "Adiabatic Spray-Assisted Fluid Coolers (Free-Cooling)";
+          annualWueLPerKwh = 0.38;
+        }
+      } else if (totalContKw > 0) {
+        recommendedCoolingMode = `100% Air-Cooled (${project.airCoolingType} Precision DX / Chilled Water)`;
       }
 
-      const tierMult = project.uptimeTier === "Tier IV" ? 2.0 : project.uptimeTier === "Tier III" ? 1.35 : 1.15;
-      const extCduUnits = Math.ceil((extCduRequiredKw / 1350) * tierMult);
-      const adiabaticUnits = Math.ceil((totalLiquidKw / 1000) * tierMult);
-      const trimChillerUnits = trimChillerKw > 0 ? Math.ceil((trimChillerKw / 500) * tierMult) : 0;
-      const roomDehumUnits = Math.max(pods.length, Math.ceil((totalAirKw / 40) * tierMult));
+      const coolingMode = project.coolingOverrideMode === "Auto" || !project.coolingOverrideMode
+        ? recommendedCoolingMode
+        : project.coolingOverrideMode;
 
-      const pueDesign = Number((1.09 + (trimChillerKw > 0 ? 0.045 : 0.02) + (totalAirKw / Math.max(1, totalContKw)) * 0.14).toFixed(3));
+      const tierMult = project.uptimeTier === "Tier IV" ? 2.0 : project.uptimeTier === "Tier III" ? 1.35 : 1.15;
+      const extCduUnits = (hasExtCduRacks && project.includeExtCdu) ? Math.max(1, Math.ceil((extCduRequiredKw / 1350) * tierMult)) : 0;
+      const adiabaticUnits = (hasDlcRacks && project.includeLiquidLoop) ? Math.max(1, Math.ceil((totalLiquidKw / 1000) * tierMult)) : 0;
+      const trimChillerUnits = (hasDlcRacks && project.includeLiquidLoop && trimChillerKw > 0) ? Math.max(1, Math.ceil((trimChillerKw / 500) * tierMult)) : 0;
+      const roomDehumUnits = (totalContKw > 0 && project.includeRoomDehum) ? Math.max(pods.length, Math.ceil((totalAirKw / 40) * tierMult)) : 0;
+
+      const pueDesign = totalContKw > 0
+        ? Number((1.09 + (trimChillerKw > 0 ? 0.045 : 0.02) + (totalAirKw / Math.max(1, totalContKw)) * 0.14).toFixed(3))
+        : 1.15;
       const totalFacilityPeakKw = Math.round(totalPeakKw * pueDesign);
-      const upsContainersCount = project.includeUpsContainer ? Math.max(1, Math.ceil((totalFacilityPeakKw / 1000) * (project.uptimeTier === "Tier IV" ? 2 : 1))) : 0;
+      const totalFacilityPeakKva = Math.round(totalFacilityPeakKw / 0.9);
+
+      const transformerUnits = (project.includeTransformer && totalContKw > 0)
+        ? Math.max(project.uptimeTier === "Tier IV" ? 2 : 1, Math.ceil((totalFacilityPeakKva / 2000) * (project.uptimeTier === "Tier IV" ? 2 : 1.25)))
+        : 0;
+      const lvSwitchgearUnits = (project.includeLvSwitchgear && totalContKw > 0)
+        ? Math.max(1, transformerUnits)
+        : 0;
+      const upsFrameKva = project.upsFrameKva || 1000;
+      const upsContainersCount = (project.includeUpsContainer && totalContKw > 0)
+        ? Math.max(project.uptimeTier === "Tier IV" ? 2 : 1, Math.ceil((totalFacilityPeakKva / upsFrameKva) * (project.uptimeTier === "Tier IV" ? 2 : 1.25)))
+        : 0;
       const dodFactor = project.batteryChemistry === "LFP" ? (standards.lfpDoDPct / 100) : (standards.vrlaDoDPct / 100);
       const batteryKwhReq = (totalFacilityPeakKw * (project.batteryRuntimeMin / 60)) / Math.max(0.5, dodFactor);
-      const batteryContainersCount = project.includeBatteryContainer ? Math.max(1, Math.ceil(batteryKwhReq / 1200)) : 0;
-      const dgUnitsCount = project.includeDgYard ? Math.max(2, Math.ceil((totalFacilityPeakKw / 1200) * tierMult)) : 0;
+      const batteryContainersCount = (project.includeBatteryContainer && totalContKw > 0)
+        ? Math.max(1, Math.ceil(batteryKwhReq / 1200))
+        : 0;
+      const dgUnitsCount = (project.includeDgYard && totalContKw > 0)
+        ? Math.max(2, Math.ceil((totalFacilityPeakKva / 1500) * tierMult))
+        : 0;
 
       const getItemPrice = (key, qty, label, category, specs) => {
         const base = rateCard[key] || { cost: 500000, make: "Standard OEM", model: "GEN-1" };
@@ -442,25 +537,35 @@
         }
       });
 
-      const netShellSqm = Math.max(40, Math.round(pods.reduce((s, p) => s + p.shellAreaSqm, 0) - sharedWallSavingsSqm));
-      bomItems.push(getItemPrice("shellPerSqm", netShellSqm, `Custom Modular Enclosures (${pods.length} Pods, ${project.metallurgy})`, "Structural & Shell", `${project.hallTopology} | Wall ${project.wallThicknessMm}mm / Floor ${project.floorThicknessMm}mm`));
-      if (extCduUnits > 0) bomItems.push(getItemPrice("extCdu1500Kw", extCduUnits, "External Row/Side-Car Liquid CDUs (FWS-to-TCS)", "Liquid Cooling", `Supports ${Math.round(extCduRequiredKw)} kW external-CDU racks`));
+      if (pods.length > 0) {
+        const netShellSqm = Math.max(40, Math.round(pods.reduce((s, p) => s + p.shellAreaSqm, 0) - sharedWallSavingsSqm));
+        bomItems.push(getItemPrice("shellPerSqm", netShellSqm, `Custom Modular Enclosures (${pods.length} Pods, ${project.metallurgy})`, "Structural & Shell", `${project.hallTopology} | Wall ${project.wallThicknessMm}mm / Floor ${project.floorThicknessMm}mm`));
+        const totalMeters = pods.reduce((s, p) => s + (p.extLengthMm / 1000) * 2, 0);
+        bomItems.push(getItemPrice("buswayPerMeter", Math.round(totalMeters * (project.uptimeTier === "Tier IV" ? 2 : 1.5)), `Overhead Dual A/B Power Busways (${standards.buswayAmperageA}A)`, "Electrical Distribution", `${project.uptimeTier} Redundant Overhead Busways`));
+        if (hasDlcRacks) {
+          bomItems.push(getItemPrice("ss316HeaderPerMeter", Math.round(totalMeters * 2.2), "Underfloor SS316L Supply/Return Coolant Headers", "Liquid Cooling & Piping", `${standards.coolantType} (${Math.round(totalFlowLpm)} LPM)`));
+        }
+      }
+
+      if (extCduUnits > 0) bomItems.push(getItemPrice("extCdu1500Kw", extCduUnits, "External Row/Side-Car Liquid CDUs (FWS-to-TCS)", "Liquid Cooling & Piping", `Supports ${Math.round(extCduRequiredKw)} kW external-CDU racks`));
       if (adiabaticUnits > 0) bomItems.push(getItemPrice("adiabaticCooler1Mw", adiabaticUnits, "Yard Adiabatic / Dry Fluid Coolers", "Heat Rejection", `${coolingMode}`));
       if (trimChillerUnits > 0) bomItems.push(getItemPrice("trimChiller500Kw", trimChillerUnits, "Peak Monsoon Mechanical Trim Chillers", "Heat Rejection", `500 kW VFD Air-Cooled Chiller Modules`));
       if (roomDehumUnits > 0) bomItems.push(getItemPrice("roomDehumPac40Kw", roomDehumUnits, `Room Dehumidification & ${project.airCoolingType} Units`, "Air & Room Control", `Handles ${Math.round(totalAirKw)} kW residual radiant & AC load`));
 
-      const totalMeters = pods.reduce((s, p) => s + (p.extLengthMm / 1000) * 2, 0);
-      bomItems.push(getItemPrice("buswayPerMeter", Math.round(totalMeters * (project.uptimeTier === "Tier IV" ? 2 : 1.5)), `Overhead Dual A/B Power Busways (${standards.buswayAmperageA}A)`, "Electrical", `${project.uptimeTier} Redundant Overhead Distribution`));
-      bomItems.push(getItemPrice("ss316HeaderPerMeter", Math.round(totalMeters * 2.2), "Underfloor SS316L Supply/Return Coolant Headers", "Piping & Headers", `${standards.coolantType} (${Math.round(totalFlowLpm)} LPM)`));
-
-      if (upsContainersCount > 0) bomItems.push(getItemPrice("upsContainer1Mw", upsContainersCount, "Containerized Modular UPS Power Pods", "Power Containers", `${project.uptimeTier} Modular UPS + LV Switchgear`));
-      if (batteryContainersCount > 0) bomItems.push(getItemPrice("batteryContainer15Min", batteryContainersCount, `Containerized ${project.batteryChemistry} Battery Pods (${project.batteryRuntimeMin} min)`, "Power Containers", `${Math.round(batteryKwhReq)} kWh + Gas Venting & Suppression`));
+      if (transformerUnits > 0) bomItems.push(getItemPrice("transformer2000Kva", transformerUnits, `MV/LV Step-Down Transformers (${project.transformerType})`, "Substation & Switchgear", `${transformerUnits} x 2000 kVA (${totalFacilityPeakKva} kVA facility peak)`));
+      if (lvSwitchgearUnits > 0) bomItems.push(getItemPrice("lvSwitchgearPanel", lvSwitchgearUnits, "Main LV ACB Switchgear & Auto-Transfer Lineup", "Substation & Switchgear", `3200A Form-4B Drawout Switchboard`));
+      if (upsContainersCount > 0) bomItems.push(getItemPrice("upsContainer1Mw", upsContainersCount, `Containerized Modular UPS Pods (${upsFrameKva} kVA each)`, "UPS & BESS Power", `${project.uptimeTier} Modular Online Double-Conversion`));
+      if (batteryContainersCount > 0) bomItems.push(getItemPrice("batteryContainer15Min", batteryContainersCount, `Containerized ${project.batteryChemistry} Battery Pods (${project.batteryRuntimeMin} min)`, "UPS & BESS Power", `${Math.round(batteryKwhReq)} kWh + Gas Venting & Suppression`));
       if (dgUnitsCount > 0) bomItems.push(getItemPrice("dgSet1500Kva", dgUnitsCount, "CPCB IV+ Acoustic Diesel Generator Sets + PESO Tank", "Prime/Backup Power", `${dgUnitsCount} x 1500 kVA (${project.dgAutonomyHours}h fuel)`));
       if (project.includeAdminModule) bomItems.push(getItemPrice("adminSparesModule", 1, "Operations NOC, Admin & ESD Spares Workshop Container", "Support Modules", "Operator consoles, diagnostic bench & spare manifolds"));
       if (project.includeStagingModule) bomItems.push(getItemPrice("stagingDockModule", 1, "Staging, Unloading Dock & Nitrogen Leak-Test Bay", "Support Modules", "Hydraulic lift + heavy rack de-crating zone"));
 
-      const plinthSqm = Math.round(pods.length * 65 + (upsContainersCount + batteryContainersCount) * 35 + (project.includeAdminModule ? 45 : 0));
-      bomItems.push(getItemPrice("civilPlinthPerSqm", plinthSqm, "Elevated RCC Monsoon Plinths, Trenches & Canopy", "Civil & Site", `${project.regulatoryCode}`));
+      const plinthSqm = pods.length > 0
+        ? Math.round(pods.length * 65 + (upsContainersCount + batteryContainersCount) * 35 + (project.includeAdminModule ? 45 : 0))
+        : 0;
+      if (plinthSqm > 0) {
+        bomItems.push(getItemPrice("civilPlinthPerSqm", plinthSqm, "Elevated RCC Monsoon Plinths, Trenches & Canopy", "Civil & Site", `${project.regulatoryCode}`));
+      }
 
       const totals = bomItems.reduce((acc, it) => ({
         rawCost: acc.rawCost + it.rawCostTotal,
@@ -481,12 +586,76 @@
       const requiredFootprintSqm = plinthSqm * 1.45;
       const plotUtilizationPct = Math.min(100, Math.round((requiredFootprintSqm / Math.max(1, netBuildableSqm)) * 100));
 
+      const validations = [];
+      if (activeRacks.length === 0) {
+        validations.push({ status: "FAIL", code: "VAL-00", title: "No IT Racks Configured", msg: "Add IT racks in Step 2 (or click Auto-Populate) to generate containers, cooling, and power equipment." });
+      } else {
+        validations.push({ status: "PASS", code: "VAL-00", title: "IT Compute Load Defined", msg: `${activeRacks.length} racks configured (${(totalContKw/1000).toFixed(2)} MW continuous / ${(totalPeakKw/1000).toFixed(2)} MW peak).` });
+      }
+
+      if (hasDlcRacks && !project.includeLiquidLoop) {
+        validations.push({ status: "FAIL", code: "VAL-01", title: "Missing Liquid Heat-Rejection Loop", msg: "DLC racks are present, but Liquid Cooling Yard Loop is disabled. Enable Liquid Heat Rejection in Step 4." });
+      } else if (hasExtCduRacks && !project.includeExtCdu) {
+        validations.push({ status: "FAIL", code: "VAL-02", title: "Missing External Row/Side CDUs", msg: "Selected racks (e.g. AMD Helios / NVIDIA MGX) require External CDUs. Enable External CDUs in Step 4." });
+      } else if (activeRacks.length > 0 && !project.includeRoomDehum) {
+        validations.push({ status: "WARNING", code: "VAL-03", title: "Room Dehumidification / Air Cooling Disabled", msg: "Residual radiant metal heat & air-cooled racks require Room Dehumidification / PAC units to prevent condensation." });
+      } else if (activeRacks.length > 0) {
+        validations.push({ status: "PASS", code: "VAL-01", title: "Thermal & Cooling Stack Matched", msg: `${coolingMode} properly coupled to ${Math.round(totalLiquidKw)} kW liquid & ${Math.round(totalAirKw)} kW air loads.` });
+      }
+
+      if (activeRacks.length > 0 && !project.includeTransformer) {
+        validations.push({ status: "WARNING", code: "VAL-04", title: "MV/LV Step-Down Transformer Excluded", msg: `Facility peak demand is ${totalFacilityPeakKva.toLocaleString()} kVA. Ensure client provides dedicated 415V LT feeder if transformer is out of scope.` });
+      } else if (transformerUnits > 0) {
+        validations.push({ status: "PASS", code: "VAL-04", title: "MV/LV Substation Sized", msg: `${transformerUnits} × 2000 kVA (${(transformerUnits * 2000).toLocaleString()} kVA installed vs. ${totalFacilityPeakKva.toLocaleString()} kVA peak).` });
+      }
+
+      if (activeRacks.length > 0 && !project.includeUpsContainer) {
+        validations.push({ status: "WARNING", code: "VAL-05", title: "Uninterruptible Power (UPS) Excluded", msg: `No Modular UPS configured for ${project.uptimeTier} facility. Critical AI GPUs risk hard shutdown on grid dip.` });
+      } else if (upsContainersCount > 0) {
+        const installedUpsKva = upsContainersCount * upsFrameKva;
+        const nPlus1Kva = Math.max(0, (upsContainersCount - 1) * upsFrameKva);
+        if (project.uptimeTier !== "Tier II" && nPlus1Kva < totalFacilityPeakKva) {
+          validations.push({ status: "WARNING", code: "VAL-05", title: "UPS N+1 Headroom Tight", msg: `Installed ${installedUpsKva} kVA (${nPlus1Kva} kVA N+1) vs ${totalFacilityPeakKva} kVA peak facility demand.` });
+        } else {
+          validations.push({ status: "PASS", code: "VAL-05", title: "Modular UPS Redundancy Verified", msg: `${upsContainersCount} × ${upsFrameKva} kVA (${nPlus1Kva.toLocaleString()} kVA N+1 capacity) covers ${totalFacilityPeakKva.toLocaleString()} kVA peak.` });
+        }
+      }
+
+      if (project.includeUpsContainer && !project.includeBatteryContainer) {
+        validations.push({ status: "FAIL", code: "VAL-06", title: "UPS Enabled Without Battery Bank", msg: "Modular UPS requires an LFP or VRLA Battery Pod for ride-through autonomy." });
+      } else if (project.uptimeTier === "Tier IV" && (!project.includeDgYard || dgUnitsCount < 2)) {
+        validations.push({ status: "FAIL", code: "VAL-07", title: "Tier IV Requires 2N Prime/Backup Generation", msg: "Uptime Tier IV requires redundant N+1/2N generator sets. Enable Yard DG Sets in Step 4." });
+      } else if (activeRacks.length > 0) {
+        validations.push({ status: "PASS", code: "VAL-06", title: `${project.uptimeTier} Topology & Compartmentalization`, msg: "Dual A/B busways and isolated battery pods satisfy Uptime maintainability rules." });
+      }
+
+      const maxPodWt = Math.max(...pods.map(p => p.grossRiggingKg), 0);
+      if (maxPodWt > 36000) {
+        validations.push({ status: "WARNING", code: "VAL-08", title: "Heavy Multi-Axle Crane Rigging Required", msg: `Heaviest pod is ${(maxPodWt/1000).toFixed(1)} tonnes (>36T standard trailer). Multi-axle hydraulic trailer & 100T crane required.` });
+      } else if (pods.length > 0) {
+        validations.push({ status: "PASS", code: "VAL-08", title: "Pod Rigging Weight Within Envelope", msg: `Max pod gross weight is ${(maxPodWt/1000).toFixed(1)} tonnes (within standard heavy-haul & crane limits).` });
+      }
+
+      if (project.setbackMeters < 6.0) {
+        validations.push({ status: "FAIL", code: "VAL-09", title: "NBC Fire-Tender Driveway Violation", msg: `Perimeter setback is ${project.setbackMeters}m. Indian NBC Part 4 requires minimum 6.0m clear fire-tender access around industrial/DC blocks.` });
+      } else if (plotUtilizationPct > 92) {
+        validations.push({ status: "WARNING", code: "VAL-10", title: "Land Parcel Tight for Expansion", msg: `Plot utilization is ${plotUtilizationPct}%. Minimal space left for Phase 2 expansion.` });
+      } else {
+        validations.push({ status: "PASS", code: "VAL-09", title: "Statutory Setback & Parcel Fit Verified", msg: `${project.setbackMeters}m fire lane preserved; ${plotUtilizationPct}% net buildable plot utilized.` });
+      }
+
+      const failCount = validations.filter(v => v.status === "FAIL").length;
+      const warnCount = validations.filter(v => v.status === "WARNING").length;
+
       return {
         pods, totalPeakKw, totalContKw, totalActualKw, totalLiquidKw, totalAirKw,
-        totalFlowLpm, extCduRequiredKw, coolingMode, annualWueLPerKwh, trimChillerKw,
-        pueDesign, totalFacilityPeakKw, upsContainersCount, batteryContainersCount, dgUnitsCount,
+        totalFlowLpm, extCduRequiredKw, hasDlcRacks, hasExtCduRacks,
+        recommendedCoolingMode, coolingMode, annualWueLPerKwh, trimChillerKw,
+        pueDesign, totalFacilityPeakKw, totalFacilityPeakKva,
+        transformerUnits, lvSwitchgearUnits, upsContainersCount, batteryContainersCount, dgUnitsCount,
         sharedWallSavingsSqm, bomItems, totals,
-        grossPlotSqm, netBuildableSqm, requiredFootprintSqm, plotUtilizationPct
+        grossPlotSqm, netBuildableSqm, requiredFootprintSqm, plotUtilizationPct,
+        validations, failCount, warnCount
       };
     }
 
@@ -504,7 +673,41 @@
       return "₹" + Math.round(valInr).toLocaleString("en-IN");
     }
 
-    // 360° 3D Container & Hall Studio Component
+    function ValidatorCard({ eng, compact = false }) {
+      const badgeColor = eng.failCount > 0 ? "bg-red-600 text-white" : eng.warnCount > 0 ? "bg-amber-500 text-slate-950" : "bg-emerald-600 text-white";
+      const badgeLabel = eng.failCount > 0 ? `${eng.failCount} FAIL • ${eng.warnCount} WARN` : eng.warnCount > 0 ? `PASS WITH ${eng.warnCount} WARNING(S)` : "ALL CHECKS PASSED ✓";
+
+      return (
+        <div className="bg-white rounded-xl card-shadow border border-slate-200 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold navy-text">Automated Engineering & Compliance Design Validator</h3>
+              <p className="text-xs text-slate-500">Live audit of IT-to-Cooling coupling, Transformer/UPS N+1 capacity, Uptime Tier, Rigging Weight & BIS/NBC rules</p>
+            </div>
+            <span className={`px-3 py-1 rounded-full text-xs font-black tracking-wide ${badgeColor}`}>{badgeLabel}</span>
+          </div>
+
+          {!compact && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+              {eng.validations.map((v, i) => (
+                <div key={i} className={`p-3 rounded-lg border flex items-start gap-2.5 ${
+                  v.status === "FAIL" ? "bg-red-50 border-red-300" : v.status === "WARNING" ? "bg-amber-50 border-amber-300" : "bg-emerald-50/60 border-emerald-200"
+                }`}>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-black flex-shrink-0 ${
+                    v.status === "FAIL" ? "bg-red-600 text-white" : v.status === "WARNING" ? "bg-amber-500 text-slate-950" : "bg-emerald-600 text-white"
+                  }`}>{v.status}</span>
+                  <div>
+                    <div className="font-bold text-slate-900">{v.code}: {v.title}</div>
+                    <div className="text-slate-600 mt-0.5">{v.msg}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function ThreeDStudio({ project, eng }) {
       const mountRef = useRef(null);
       const [viewScope, setViewScope] = useState("Hall");
@@ -528,7 +731,7 @@
         const el = mountRef.current;
         if (!el || !window.THREE) return;
         const width = el.clientWidth || 800;
-        const height = el.clientHeight || 500;
+        const height = el.clientHeight || 480;
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0B1528);
@@ -687,7 +890,7 @@
             });
           }
 
-          if (layers.roomCooling) {
+          if (layers.roomCooling && project.includeRoomDehum) {
             const acBox = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.1, 0.65), matAcUnit);
             acBox.position.set(0, plinthH + plenumH + 1.05, -L / 2 + 0.55);
             podGroup.add(acBox);
@@ -735,7 +938,7 @@
             renderRow(pod.rowA || [], -1);
             renderRow(pod.rowB || [], 1);
 
-            if (pod.needsExtCdu) {
+            if (pod.needsExtCdu && project.includeExtCdu) {
               const extCdu = new THREE.Mesh(
                 new THREE.BoxGeometry(1.1, 2.2, 0.9),
                 new THREE.MeshStandardMaterial({ color: 0x0284C7, roughness: 0.3, metalness: 0.5 })
@@ -810,7 +1013,7 @@
                   Single Container
                 </button>
               </div>
-              {viewScope === "SinglePod" && (
+              {viewScope === "SinglePod" && eng.pods.length > 0 && (
                 <select value={selectedPodIdx} onChange={e => setSelectedPodIdx(Number(e.target.value))} className="bg-slate-800 text-white text-xs rounded-lg px-2.5 py-1.5 border border-slate-600">
                   {eng.pods.map((p, idx) => (
                     <option key={p.id} value={idx}>{p.label} ({Math.round(p.contKw)} kW | {(p.extLengthMm/1000).toFixed(2)}m)</option>
@@ -855,7 +1058,14 @@
             </div>
           </div>
 
-          <div ref={mountRef} className="w-full h-[490px] bg-slate-950 cursor-grab active:cursor-grabbing" />
+          {eng.pods.length === 0 ? (
+            <div className="h-[420px] bg-slate-950 text-slate-300 flex flex-col items-center justify-center p-6 text-center">
+              <p className="text-base font-bold text-white">No IT Racks Placed Yet</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-md">Open the Design Wizard (Step 2) to add IT compute racks—the 3D container & hall geometry will generate automatically.</p>
+            </div>
+          ) : (
+            <div ref={mountRef} className="w-full h-[480px] bg-slate-950 cursor-grab active:cursor-grabbing" />
+          )}
 
           <div className="bg-slate-900 text-slate-200 px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-4">
@@ -867,14 +1077,13 @@
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm inline-block bg-emerald-500"></span> Room Dehum / PAC</span>
             </div>
             <div className="font-mono text-slate-400">
-              Topology: {project.hallTopology} • Pods: {eng.pods.length} • Max Gross Pod Wt: {Math.max(...eng.pods.map(p => p.grossRiggingKg), 0).toLocaleString()} kg
+              Topology: {project.hallTopology} • Pods: {eng.pods.length}
             </div>
           </div>
         </div>
       );
     }
 
-    // Irregular Land Parcel & Auto-Layout Component
     function ParcelLayoutPlanner({ project, eng, onUpdateProject }) {
       const [statusMsg, setStatusMsg] = useState("");
       const verts = project.parcelVertices || [];
@@ -1006,7 +1215,7 @@
             </div>
 
             <div className="lg:col-span-2 bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col items-center justify-center">
-              <svg viewBox={`${minX - 12} ${minY - 12} ${maxX - minX + 24} ${maxY - minY + 24}`} className="w-full h-[360px]">
+              <svg viewBox={`${minX - 12} ${minY - 12} ${maxX - minX + 24} ${maxY - minY + 24}`} className="w-full h-[350px]">
                 <defs>
                   <pattern id="siteGrid" width="10" height="10" patternUnits="userSpaceOnUse">
                     <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#1E293B" strokeWidth="0.3" />
@@ -1063,10 +1272,12 @@
                       <text x={2.1} y={14} fill="#FFF" fontSize="1.7" textAnchor="middle">BESS PODS ({eng.batteryContainersCount})</text>
                     </g>
                   )}
-                  <g>
-                    <rect x={10} y={12} width={14} height={5.5} fill="#0284C7" stroke="#7DD3FC" strokeWidth="0.3" />
-                    <text x={17} y={15.2} fill="#FFF" fontSize="1.8" textAnchor="middle">ADIABATIC / CHILLER YARD</text>
-                  </g>
+                  {eng.hasDlcRacks && project.includeLiquidLoop && (
+                    <g>
+                      <rect x={10} y={12} width={14} height={5.5} fill="#0284C7" stroke="#7DD3FC" strokeWidth="0.3" />
+                      <text x={17} y={15.2} fill="#FFF" fontSize="1.8" textAnchor="middle">ADIABATIC / CHILLER YARD</text>
+                    </g>
+                  )}
                 </g>
               </svg>
             </div>
@@ -1075,7 +1286,6 @@
       );
     }
 
-    // Level 2 CAD Blueprints Viewer
     function CadBlueprintViewer({ project, eng, initialSheet = "A-101" }) {
       const [sheet, setSheet] = useState(initialSheet);
       const [paperMode, setPaperMode] = useState(false);
@@ -1161,7 +1371,7 @@
                   </g>
                   <g transform="translate(480, 385)">
                     <rect x="0" y="0" width="170" height="50" fill="none" stroke="#38BDF8" strokeWidth="1.5" />
-                    <text x="85" y="30" fill="#38BDF8" fontSize="11" textAnchor="middle">ADIABATIC / CHILLER YARD</text>
+                    <text x="85" y="30" fill="#38BDF8" fontSize="11" textAnchor="middle">COOLING YARD ({eng.adiabaticUnits})</text>
                   </g>
                 </g>
               )}
@@ -1220,8 +1430,8 @@
                 <g>
                   <text x="40" y="52" fill={accent} fontSize="16" fontWeight="bold">E-201: ELECTRICAL SINGLE LINE DIAGRAM (IEC 60617 — {project.uptimeTier})</text>
                   {[
-                    [110, "MV UTILITY / TRAFO", `${Math.round(eng.totalFacilityPeakKw * 1.15)} kVA`],
-                    [310, "DG / PRIME PLANT", `${eng.dgUnitsCount} x 1500 kVA`],
+                    [110, "MV UTILITY / TRAFO", `${eng.transformerUnits} × 2000 kVA`],
+                    [310, "DG / PRIME PLANT", `${eng.dgUnitsCount} × 1500 kVA`],
                     [510, "MODULAR UPS + BESS", `${eng.upsContainersCount} UPS / ${eng.batteryContainersCount} BESS`],
                     [740, "A/B BUSWAYS & rPDUs", `${Math.round(eng.totalContKw)} kW IT Load`]
                   ].map(([x, title, sub], idx) => (
@@ -1260,7 +1470,7 @@
     }
 
     function App() {
-      const [screen, setScreen] = useState("home"); // "home" | "projects" | "wizard" | "workspace" | "studio3d" | "outputs" | "parameters"
+      const [screen, setScreen] = useState("home");
       const [projects, setProjects] = useState(INITIAL_PROJECTS);
       const [editingId, setEditingId] = useState(INITIAL_PROJECTS[0].id);
       const [skus, setSkus] = useState(INITIAL_SKUS);
@@ -1273,7 +1483,7 @@
       const [driveStatus, setDriveStatus] = useState("Local Ready");
 
       const [wizardTab, setWizardTab] = useState(0);
-      const [wizardMode, setWizardMode] = useState("create"); // "create" | "edit"
+      const [wizardMode, setWizardMode] = useState("create");
       const [paramTab, setParamTab] = useState("skus");
       const [editingSkuId, setEditingSkuId] = useState(null);
       const [selectedCadSheet, setSelectedCadSheet] = useState("A-101");
@@ -1313,6 +1523,28 @@
 
       const updateCurrentProject = (patch) => {
         setProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, ...patch, updatedAt: new Date().toISOString().slice(0, 10) } : p));
+      };
+
+      const updateRackQuantitiesWithAutoCooling = (nextQuantities) => {
+        const skuMap = Object.fromEntries(skus.map(s => [s.id, s]));
+        let anyRacks = false;
+        let anyDlc = false;
+        let anyExtCdu = false;
+        Object.entries(nextQuantities).forEach(([id, q]) => {
+          const qty = Number(q) || 0;
+          const s = skuMap[id];
+          if (s && qty > 0) {
+            anyRacks = true;
+            if (s.category === "DLC" || s.liquidSplitPct > 0) anyDlc = true;
+            if (s.cduMode === "External") anyExtCdu = true;
+          }
+        });
+        updateCurrentProject({
+          rackQuantities: nextQuantities,
+          includeLiquidLoop: anyDlc,
+          includeExtCdu: anyExtCdu,
+          includeRoomDehum: anyRacks
+        });
       };
 
       const handleGoogleSignIn = () => {
@@ -1357,9 +1589,9 @@
         }
       };
 
-      const startNewProjectWizard = () => {
+      const startBlankProjectWizard = () => {
         const newId = "proj-" + Date.now();
-        const np = makeDefaultProject(newId, `AI MDC Proposal #${projects.length + 1}`, "Enterprise Client", "Draft", standards);
+        const np = makeBlankProject(newId, projects.length + 1, standards);
         setProjects(prev => [np, ...prev]);
         setEditingId(newId);
         setWizardMode("create");
@@ -1374,7 +1606,7 @@
       };
 
       const autoBalanceRacksFromTargetMw = () => {
-        const targetKw = (Number(currentProject.targetItMw) || 2.0) * 1000;
+        const targetKw = (Number(currentProject.targetItMw) || 1.5) * 1000;
         const primaryDlc = skus.find(s => s.id === "sku-dlc-265") || skus.find(s => s.category === "DLC");
         const secondaryDlc = skus.find(s => s.id === "sku-helios");
         const acSku = skus.find(s => s.category === "AC");
@@ -1397,7 +1629,7 @@
           const aKw = acSku.peakKw * acSku.continuousFactor;
           nextQty[acSku.id] = Math.max(2, Math.round(acShareKw / aKw));
         }
-        updateCurrentProject({ rackQuantities: nextQty });
+        updateRackQuantitiesWithAutoCooling(nextQty);
       };
 
       const downloadCsv = (filename, rows) => {
@@ -1450,14 +1682,14 @@
         doc.setFontSize(18);
         doc.text("AI MODULAR DATA CENTER — ENGINEERING & COMMERCIAL PACK", logoDataUrl ? 56 : 16, 16);
         doc.setFontSize(10);
-        doc.text(`Project: ${currentProject.name}  |  Client: ${currentProject.client}  |  Uptime: ${currentProject.uptimeTier}`, logoDataUrl ? 56 : 16, 25);
+        doc.text(`Project: ${currentProject.name}  |  Client: ${currentProject.client || "TBD"}  |  Uptime: ${currentProject.uptimeTier}`, logoDataUrl ? 56 : 16, 25);
 
         doc.setTextColor(15, 23, 42);
         doc.setFontSize(11);
         let y = 46;
         const kpis = [
-          `Design IT Load: ${Math.round(eng.totalContKw)} kW (${(eng.totalContKw/1000).toFixed(2)} MW)`,
-          `Container Pods: ${eng.pods.length} (${currentProject.hallTopology})`,
+          `Design IT Load: ${Math.round(eng.totalContKw)} kW (${(eng.totalContKw/1000).toFixed(2)} MW) | Facility Peak: ${eng.totalFacilityPeakKva} kVA`,
+          `Container Pods: ${eng.pods.length} (${currentProject.hallTopology}) | Validator Status: ${eng.failCount} Fail, ${eng.warnCount} Warnings`,
           `Design PUE: ${eng.pueDesign} | Cooling: ${eng.coolingMode}`,
           `Pre-Tax Quote: ${formatMoney(eng.totals.sellingPreTax, currentProject.currency, standards)} | Incl. GST: ${formatMoney(eng.totals.grandTotal, currentProject.currency, standards)}`
         ];
@@ -1497,10 +1729,8 @@
 
       return (
         <div className="h-screen flex flex-col overflow-hidden">
-          {/* PINNED PERSISTENT TOP HEADER (Always visible on every screen & device) */}
           <header className="navy-bg text-white px-4 py-2.5 shadow-md flex-shrink-0 z-50 border-b border-blue-900">
             <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-              {/* Brand Logo & App Title */}
               <div className="flex items-center gap-3 cursor-pointer" onClick={() => setScreen("home")}>
                 {logoDataUrl ? (
                   <img src={logoDataUrl} alt="Company Logo" className="h-9 w-auto bg-white rounded px-1.5 py-0.5 object-contain" />
@@ -1513,20 +1743,29 @@
                 </div>
               </div>
 
-              {/* Persistent Active Deal Switcher & Global Actions */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center bg-slate-900/80 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
                   <span className="text-slate-400 mr-1.5 hidden md:inline">Currently Editing:</span>
                   <select
                     value={editingId}
                     onChange={e => setEditingId(e.target.value)}
-                    className="bg-transparent text-white font-bold focus:outline-none max-w-[180px] sm:max-w-[240px]"
+                    className="bg-transparent text-white font-bold focus:outline-none max-w-[180px] sm:max-w-[230px]"
                   >
                     {projects.map(p => (
                       <option key={p.id} value={p.id} className="text-slate-900">{p.name}</option>
                     ))}
                   </select>
                 </div>
+
+                <button
+                  onClick={() => setScreen("workspace")}
+                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black ${
+                    eng.failCount > 0 ? "bg-red-600 text-white" : eng.warnCount > 0 ? "bg-amber-400 text-slate-950" : "bg-emerald-500 text-slate-950"
+                  }`}
+                  title="Click to inspect Design Validator checks"
+                >
+                  {eng.failCount > 0 ? `⚠ ${eng.failCount} Fail` : eng.warnCount > 0 ? `⚡ ${eng.warnCount} Warn` : "✓ Validated"}
+                </button>
 
                 <button onClick={reRunWizardForCurrent} className="touch-btn px-3 py-1.5 rounded-lg bg-blue-800 hover:bg-blue-700 border border-blue-600 text-xs font-bold">
                   ✎ Design Wizard
@@ -1551,14 +1790,11 @@
             </div>
           </header>
 
-          {/* SCROLLABLE MAIN WORKSPACE */}
           <main className="flex-1 overflow-y-auto">
             <div className="max-w-7xl w-full mx-auto p-4 sm:p-6">
 
-              {/* 1. HUB-AND-SPOKE HOME DASHBOARD */}
               {screen === "home" && (
                 <div className="space-y-6">
-                  {/* Concurrent Deals Quick-Switch Strip */}
                   <div className="bg-white rounded-xl p-4 card-shadow border border-slate-200 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Concurrent Customer Deals & Workspaces</div>
@@ -1571,7 +1807,7 @@
                           >
                             <div className="font-bold navy-text">{p.name}</div>
                             <div className="text-slate-500 flex items-center gap-2 mt-0.5">
-                              <span>{p.client}</span>
+                              <span>{p.client || "Unassigned Client"}</span>
                               <span className="px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">{p.status}</span>
                             </div>
                           </button>
@@ -1582,21 +1818,20 @@
                       <button onClick={reRunWizardForCurrent} className="touch-btn px-4 py-2.5 rounded-xl border-2 border-[#002870] navy-text font-bold text-xs">
                         ✎ Re-Run Wizard on Current Deal
                       </button>
-                      <button onClick={startNewProjectWizard} className="touch-btn px-5 py-2.5 rounded-xl coral-bg text-white font-bold text-sm shadow-sm">
-                        + Start New Project Wizard
+                      <button onClick={startBlankProjectWizard} className="touch-btn px-5 py-2.5 rounded-xl coral-bg text-white font-bold text-sm shadow-sm">
+                        + Start Blank Project Wizard
                       </button>
                     </div>
                   </div>
 
-                  {/* Big Rectangular Function Cards (Parameters Placed Last) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <div onClick={startNewProjectWizard} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border-2 border-[#FF5539] hover:translate-y-[-2px] transition flex flex-col justify-between min-h-[190px]">
+                    <div onClick={startBlankProjectWizard} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border-2 border-[#FF5539] hover:translate-y-[-2px] transition flex flex-col justify-between min-h-[190px]">
                       <div>
-                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold coral-bg text-white mb-3">01 • GUIDED CONSULTANT</span>
-                        <h2 className="text-xl font-bold navy-text">MDC Design Wizard</h2>
-                        <p className="text-sm text-slate-600 mt-1.5">7-step top-down guided questionnaire: Total IT MW & Location → IT Rack Mix → Container & Hall Topology → Non-IT & Redundancy → Parcel Fit.</p>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold coral-bg text-white mb-3">01 • CLEAN-SLATE WIZARD</span>
+                        <h2 className="text-xl font-bold navy-text">New Blank MDC Design Wizard</h2>
+                        <p className="text-sm text-slate-600 mt-1.5">Starts 100% blank. Guides you step-by-step from Total IT Load & Location → IT Racks → Coupled Cooling, Transformers, UPS & Redundancy.</p>
                       </div>
-                      <div className="text-xs font-bold coral-text mt-4">Start New or Re-Run Guided Wizard →</div>
+                      <div className="text-xs font-bold coral-text mt-4">Start Blank Guided Wizard →</div>
                     </div>
 
                     <div onClick={() => setScreen("projects")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[190px]">
@@ -1610,11 +1845,11 @@
 
                     <div onClick={() => setScreen("workspace")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[190px]">
                       <div>
-                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900 mb-3">03 • OPTIMIZER & PRICING</span>
-                        <h2 className="text-xl font-bold navy-text">Cluster Optimizer, Parcel & Costing</h2>
-                        <p className="text-sm text-slate-600 mt-1.5">Fine-tune individual requirements, 2-row bin-packing, irregular land parcel layout, and special deal unit cost overrides.</p>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900 mb-3">03 • OPTIMIZER & VALIDATOR</span>
+                        <h2 className="text-xl font-bold navy-text">Cluster Optimizer, Validator & Costing</h2>
+                        <p className="text-sm text-slate-600 mt-1.5">Inspect the 6-rule PASS/WARNING/FAIL Design Validator, 2-row packing, irregular parcel layout, and special deal cost overrides.</p>
                       </div>
-                      <div className="text-xs font-bold text-emerald-700 mt-4">Open Engineering & Deal Workspace →</div>
+                      <div className="text-xs font-bold text-emerald-700 mt-4">Open Engineering & Validator Workspace →</div>
                     </div>
 
                     <div onClick={() => setScreen("studio3d")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[190px]">
@@ -1635,19 +1870,29 @@
                       <div className="text-xs font-bold text-amber-800 mt-4">Open Outputs & Export Center →</div>
                     </div>
 
-                    <div onClick={() => setScreen("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-2xl p-6 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between min-h-[190px]">
+                    <div onClick={() => setScreen("supply_intel")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-dashed border-blue-400 hover:border-blue-700 transition flex flex-col justify-between min-h-[190px]">
                       <div>
-                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-amber-300 mb-3">06 • MASTER STANDARDS</span>
-                        <h2 className="text-xl font-bold">Global Parameters & Standards</h2>
-                        <p className="text-sm text-slate-300 mt-1.5">Organized 6-tab master library: Rack SKUs, Container & Structural Standards, Cooling/Climate, Electrical/BESS, OEM Rate Card & Logo.</p>
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-sky-100 text-sky-900 mb-3">06 • PHASE B ROADMAP</span>
+                        <h2 className="text-xl font-bold navy-text">India Supply Chain Intelligence</h2>
+                        <p className="text-sm text-slate-600 mt-1.5">Upcoming Indian OEM equipment & budgetary price index (Cummins, ABB, Vertiv, Eaton, Schneider, Stulz) with 6-monthly refresh & N+1 best-fit scoring.</p>
                       </div>
-                      <div className="text-xs font-bold text-amber-300 mt-4">Configure Master Parameters →</div>
+                      <div className="text-xs font-bold text-sky-700 mt-4">View Phase B Architecture & Placeholder →</div>
+                    </div>
+
+                    <div onClick={() => setScreen("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-2xl p-6 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between min-h-[190px] md:col-span-2 lg:col-span-3">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                          <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-amber-300 mb-2">07 • MASTER STANDARDS & CATALOGS</span>
+                          <h2 className="text-xl font-bold">Global Parameters, Rack SKUs, OEM Rate Card & Company Logo</h2>
+                          <p className="text-sm text-slate-300 mt-1">Organized 6-tab master library: Rack SKUs, Container & Structural Standards, Cooling/Climate, Electrical/BESS, OEM Rate Card & Branding.</p>
+                        </div>
+                        <span className="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 text-xs font-black">Open Master Parameters →</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* 2. MULTI-PROJECT MANAGER */}
               {screen === "projects" && (
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1669,8 +1914,8 @@
                           r.readAsText(f);
                         }} />
                       </label>
-                      <button onClick={startNewProjectWizard} className="touch-btn px-4 py-2 rounded-lg coral-bg text-white text-xs font-bold">
-                        + New Project Wizard
+                      <button onClick={startBlankProjectWizard} className="touch-btn px-4 py-2 rounded-lg coral-bg text-white text-xs font-bold">
+                        + Start Blank Project Wizard
                       </button>
                     </div>
                   </div>
@@ -1683,7 +1928,7 @@
                           <div className="flex justify-between items-start">
                             <div>
                               <h3 className="text-base font-bold navy-text">{p.name}</h3>
-                              <p className="text-xs text-slate-500">Client: {p.client} • {p.climatePreset} • Updated: {p.updatedAt}</p>
+                              <p className="text-xs text-slate-500">Client: {p.client || "TBD"} • {p.climatePreset} • Updated: {p.updatedAt}</p>
                             </div>
                             <select
                               value={p.status}
@@ -1709,11 +1954,6 @@
                               const clone = { ...p, id: "proj-" + Date.now(), name: p.name + " (Copy)" };
                               setProjects(prev => [clone, ...prev]);
                             }} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold">Duplicate</button>
-                            <button onClick={() => {
-                              const blob = new Blob([JSON.stringify(p, null, 2)], { type: "application/json" });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a"); a.href = url; a.download = `${p.name.replace(/\s+/g, "_")}.json`; a.click();
-                            }} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold">Export .JSON</button>
                           </div>
                         </div>
                       );
@@ -1722,40 +1962,38 @@
                 </div>
               )}
 
-              {/* 3. 7-STEP TOP-DOWN RE-ENTRANT MDC DESIGN WIZARD */}
               {screen === "wizard" && (
                 <div className="bg-white rounded-2xl card-shadow border border-slate-200 overflow-hidden">
                   <div className="navy-bg text-white p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <span className="text-[11px] uppercase tracking-wider font-bold text-amber-300">
-                          {wizardMode === "edit" ? "Re-Entrant Design Wizard (Previous Answers Preserved)" : "Guided First-Cut MDC Design Wizard"}
+                          {wizardMode === "edit" ? "Re-Entrant Design Wizard (Previous Answers Preserved)" : "Clean-Slate Guided MDC Design Wizard"}
                         </span>
                         <h2 className="text-xl font-bold mt-0.5">Step {wizardTab + 1} of 7: {[
-                          "Total IT Load, Location & Non-IT Scope",
-                          "Drill-Down: Individual IT Rack Mix",
-                          "Container Sizing & Hall Topology",
-                          "Drill-Down: Non-IT Cooling, Power & Support",
-                          "Redundancy Tier & Regulatory Compliance",
+                          "Macro Scope: Total IT Load, Location & Non-IT Facility",
+                          "Drill-Down: Individual IT Racks & Compute Profile",
+                          "Container Sizing & Hall Architecture",
+                          "Drill-Down: Coupled Cooling, Transformers, UPS & Non-IT",
+                          "Redundancy Tier & Statutory Compliance",
                           "Land Parcel & Site Orientation",
-                          "Commercial Framing & First-Cut Review"
+                          "Commercial Framing, Validator Audit & Review"
                         ][wizardTab]}</h2>
                       </div>
                       <button onClick={() => setScreen("workspace")} className="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold">
-                        Skip to Workspace →
+                        Open Workspace →
                       </button>
                     </div>
 
-                    {/* 7-Step Progress Pills */}
                     <div className="flex flex-wrap gap-1.5 mt-4">
                       {[
                         "1. Macro IT & Location",
                         "2. IT Rack Mix",
                         "3. Container & Hall",
-                        "4. Non-IT Equipment",
-                        "5. Redundancy & BIS/IEC",
+                        "4. Non-IT & Cooling",
+                        "5. Redundancy & BIS",
                         "6. Land Parcel",
-                        "7. Commercial & Review"
+                        "7. Review & Validate"
                       ].map((t, idx) => (
                         <button
                           key={t}
@@ -1769,17 +2007,16 @@
                   </div>
 
                   <div className="p-6 space-y-5">
-                    {/* STEP 1: Total IT Load, Location & High-Level Non-IT Scope */}
                     {wizardTab === 0 && (
                       <div className="space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                           <div>
                             <label className="block font-bold text-slate-700 mb-1">Project / Deal Name</label>
-                            <input type="text" value={currentProject.name} onChange={e => updateCurrentProject({ name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                            <input type="text" placeholder="e.g., 1.5 MW Sovereign AI Edge Pod" value={currentProject.name} onChange={e => updateCurrentProject({ name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
                           </div>
                           <div>
                             <label className="block font-bold text-slate-700 mb-1">Customer / Organization</label>
-                            <input type="text" value={currentProject.client} onChange={e => updateCurrentProject({ client: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                            <input type="text" placeholder="Enter customer name" value={currentProject.client} onChange={e => updateCurrentProject({ client: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
                           </div>
                           <div>
                             <label className="block font-bold text-slate-700 mb-1">Site Location & Climate Zone</label>
@@ -1795,7 +2032,7 @@
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                           <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200">
                             <label className="block font-bold navy-text mb-1">Target Total IT Load (MW)</label>
-                            <input type="number" step="0.2" min="0.2" value={currentProject.targetItMw} onChange={e => updateCurrentProject({ targetItMw: Number(e.target.value) })} className="w-full border border-blue-300 rounded-lg px-3 py-2 text-lg font-black navy-text bg-white" />
+                            <input type="number" step="0.1" min="0" placeholder="e.g., 1.5" value={currentProject.targetItMw || ""} onChange={e => updateCurrentProject({ targetItMw: Number(e.target.value) })} className="w-full border border-blue-300 rounded-lg px-3 py-2 text-lg font-black navy-text bg-white" />
                             <p className="text-[11px] text-slate-600 mt-1">Equals {Math.round((Number(currentProject.targetItMw) || 0) * 1000).toLocaleString()} kW continuous compute target.</p>
                           </div>
                           <div>
@@ -1806,7 +2043,6 @@
                               <option>Tactical / Defense Edge Pod</option>
                               <option>Colocation High-Density Expansion</option>
                             </select>
-                            <p className="text-[11px] text-slate-500 mt-1">Guides default liquid/air ratios and hall layout recommendations.</p>
                           </div>
                           <div>
                             <label className="block font-bold text-slate-700 mb-1">Proposal Currency</label>
@@ -1819,27 +2055,33 @@
                         </div>
 
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                          <div className="font-bold navy-text text-sm">Macro Non-IT Scope Included in Turnkey Bid</div>
+                          <div className="font-bold navy-text text-sm">Macro Non-IT Scope Included in Turnkey Bid (Select What Is Required)</div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                             <label className="p-3 bg-white rounded-lg border border-slate-200 flex items-start gap-2.5 cursor-pointer">
-                              <input type="checkbox" checked={!!currentProject.includeUpsContainer && !!currentProject.includeDgYard} onChange={e => updateCurrentProject({ includeUpsContainer: e.target.checked, includeBatteryContainer: e.target.checked, includeDgYard: e.target.checked })} className="mt-0.5 w-4 h-4" />
+                              <input type="checkbox" checked={!!currentProject.includeTransformer && !!currentProject.includeUpsContainer} onChange={e => updateCurrentProject({
+                                includeTransformer: e.target.checked,
+                                includeLvSwitchgear: e.target.checked,
+                                includeUpsContainer: e.target.checked,
+                                includeBatteryContainer: e.target.checked,
+                                includeDgYard: e.target.checked
+                              })} className="mt-0.5 w-4 h-4" />
                               <div>
-                                <div className="font-bold navy-text">Turnkey Power Plant (UPS + BESS + DG)</div>
-                                <div className="text-slate-500 mt-0.5">Choose for greenfield sites without existing substation backup.</div>
+                                <div className="font-bold navy-text">Full Electrical & Backup Plant</div>
+                                <div className="text-slate-500 mt-0.5">Includes MV/LV Transformers, LV Switchgear, Modular UPS, BESS & DG Sets.</div>
                               </div>
                             </label>
                             <label className="p-3 bg-white rounded-lg border border-slate-200 flex items-start gap-2.5 cursor-pointer">
                               <input type="checkbox" checked={!!currentProject.includeAdminModule} onChange={e => updateCurrentProject({ includeAdminModule: e.target.checked })} className="mt-0.5 w-4 h-4" />
                               <div>
                                 <div className="font-bold navy-text">Admin, NOC & ESD Spares Module</div>
-                                <div className="text-slate-500 mt-0.5">Recommended for 24/7 manned AI factories & remote sites.</div>
+                                <div className="text-slate-500 mt-0.5">Recommended for 24/7 manned AI factories & remote greenfield sites.</div>
                               </div>
                             </label>
                             <label className="p-3 bg-white rounded-lg border border-slate-200 flex items-start gap-2.5 cursor-pointer">
                               <input type="checkbox" checked={!!currentProject.includeStagingModule} onChange={e => updateCurrentProject({ includeStagingModule: e.target.checked })} className="mt-0.5 w-4 h-4" />
                               <div>
                                 <div className="font-bold navy-text">Staging, Unloading & Leak-Test Bay</div>
-                                <div className="text-slate-500 mt-0.5">Essential when rigging heavy 1,800+ kg liquid-cooled racks.</div>
+                                <div className="text-slate-500 mt-0.5">Essential when rigging heavy 1,800+ kg liquid-cooled GPU racks.</div>
                               </div>
                             </label>
                           </div>
@@ -1847,16 +2089,19 @@
                       </div>
                     )}
 
-                    {/* STEP 2: Individual IT Rack Mix Drill-Down */}
                     {wizardTab === 1 && (
                       <div className="space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3 bg-blue-50 p-3.5 rounded-xl border border-blue-200">
                           <div className="text-xs">
-                            <span className="font-bold navy-text">Step 1 Target:</span> {currentProject.targetItMw} MW ({Math.round((currentProject.targetItMw || 0) * 1000)} kW) •{" "}
-                            <span className="font-bold text-emerald-800">Configured Rack Mix:</span> {(eng.totalContKw / 1000).toFixed(2)} MW ({Math.round(eng.totalContKw)} kW Cont. / {Math.round(eng.totalPeakKw)} kW Peak)
+                            <span className="font-bold navy-text">Step 1 Target:</span> {currentProject.targetItMw || 0} MW ({Math.round((currentProject.targetItMw || 0) * 1000)} kW) •{" "}
+                            <span className="font-bold text-emerald-800">Configured Rack Mix:</span> {(eng.totalContKw / 1000).toFixed(2)} MW ({Math.round(eng.totalContKw)} kW Cont.)
                           </div>
-                          <button onClick={autoBalanceRacksFromTargetMw} className="px-3.5 py-2 rounded-lg navy-bg text-white text-xs font-bold">
-                            ⚡ Auto-Populate Rack Mix for {currentProject.targetItMw} MW
+                          <button
+                            disabled={!currentProject.targetItMw || currentProject.targetItMw <= 0}
+                            onClick={autoBalanceRacksFromTargetMw}
+                            className="px-3.5 py-2 rounded-lg navy-bg text-white text-xs font-bold disabled:opacity-40"
+                          >
+                            ⚡ Auto-Populate Rack Mix for {currentProject.targetItMw || 0} MW
                           </button>
                         </div>
 
@@ -1866,7 +2111,7 @@
                               <div>
                                 <div className="font-bold text-sm navy-text">{s.name} <span className="text-xs font-normal text-slate-500">({s.standard})</span></div>
                                 <div className="text-xs text-slate-600 mt-0.5">
-                                  {s.peakKw} kW Peak ({Math.round(s.peakKw * s.continuousFactor)} kW Cont.) • {s.widthMm}×{s.depthMm}×{s.heightMm} mm • {s.liquidSplitPct}% Liquid ({s.cduMode} CDU) • Entry: Pwr {s.powerEntry} / Liq {s.liquidEntry} / Data {s.dataEntry}
+                                  {s.peakKw} kW Peak ({Math.round(s.peakKw * s.continuousFactor)} kW Cont.) • {s.widthMm}×{s.depthMm}×{s.heightMm} mm • {s.liquidSplitPct}% Liquid ({s.cduMode} CDU)
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1874,7 +2119,7 @@
                                 <input
                                   type="number" min="0"
                                   value={currentProject.rackQuantities?.[s.id] || 0}
-                                  onChange={e => updateCurrentProject({ rackQuantities: { ...currentProject.rackQuantities, [s.id]: Number(e.target.value) } })}
+                                  onChange={e => updateRackQuantitiesWithAutoCooling({ ...currentProject.rackQuantities, [s.id]: Number(e.target.value) })}
                                   className="w-20 border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-center"
                                 />
                               </div>
@@ -1884,16 +2129,15 @@
                       </div>
                     )}
 
-                    {/* STEP 3: Container Sizing & Hall Topology Advisor */}
                     {wizardTab === 2 && (
                       <div className="space-y-5 text-sm">
                         <div>
                           <div className="font-bold navy-text mb-2">A. Container Length Strategy (Always 2 Facing Rows of Racks)</div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {[
-                              ["ISO20", "20 ft ISO Marine Max (6,058 mm)", "Best for helicopter/remote tactical edge drops or tight urban courtyards with strict crane limits."],
-                              ["ISO40", "40 ft ISO Marine Max (12,192 mm)", "Best for international sea-freight exports using standard ISO container chassis and twist-locks."],
-                              ["CustomOptimum", "Custom Optimum Length (Recommended)", "Calculated dynamically from your exact 2-row rack widths to maximize kW density and eliminate wasted steel."]
+                              ["ISO20", "20 ft ISO Marine Max (6,058 mm)", "Best for tactical edge drops or tight urban courtyards with strict crane limits."],
+                              ["ISO40", "40 ft ISO Marine Max (12,192 mm)", "Best for international sea-freight exports using standard ISO container chassis."],
+                              ["CustomOptimum", "Custom Optimum Length (Recommended)", "Calculated dynamically from your exact 2-row rack widths to maximize kW density."]
                             ].map(([val, title, desc]) => (
                               <div
                                 key={val}
@@ -1907,33 +2151,12 @@
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          {currentProject.containerLengthMode === "CustomOptimum" && (
-                            <div>
-                              <label className="block text-xs font-bold text-slate-600 mb-1">Max Road-Transport Length Cap (mm)</label>
-                              <input type="number" step="250" value={currentProject.maxCustomLengthMm} onChange={e => updateCurrentProject({ maxCustomLengthMm: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
-                            </div>
-                          )}
-                          <div>
-                            <label className="block text-xs font-bold text-slate-600 mb-1">Custom Shell Height (mm)</label>
-                            <input type="number" step="100" value={currentProject.containerHeightMm} onChange={e => updateCurrentProject({ containerHeightMm: Number(e.target.value) })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-600 mb-1">Shell Metallurgy</label>
-                            <select value={currentProject.metallurgy} onChange={e => updateCurrentProject({ metallurgy: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-                              <option>Corten-A SPA-H</option>
-                              <option>Marine Galvalume</option>
-                              <option>SS316L Stainless</option>
-                            </select>
-                          </div>
-                        </div>
-
                         <div>
                           <div className="font-bold navy-text mb-2">B. Cluster Assembly Topology</div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {[
                               ["Isolated", "Isolated Standalone Pods", "Best for phased rollouts or strict fire compartmentalization with outdoor setbacks."],
-                              ["GangedLinear", "Ganged Linear Hall (Cutaway Walls)", "Joins bays into one wide continuous hall—cuts interior steel CapEx & shortens InfiniBand spine fiber."],
+                              ["GangedLinear", "Ganged Linear Hall (Cutaway Walls)", "Joins bays into one wide continuous hall—cuts interior steel CapEx & shortens InfiniBand fiber."],
                               ["GangedUShaped", "Ganged U-Shaped Hall (Core + Wings)", "Places spine/storage in the central bridge bay and DLC GPU pods on two flanking wings."]
                             ].map(([val, title, desc]) => (
                               <div
@@ -1950,80 +2173,125 @@
                       </div>
                     )}
 
-                    {/* STEP 4: Non-IT Equipment Drill-Down */}
                     {wizardTab === 3 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
                         <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                          <h3 className="font-bold navy-text">A. Thermal & Water Heat-Rejection Selection</h3>
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-bold navy-text">A. Thermal & Cooling Stack (Auto-Coupled to IT)</h3>
+                            <span className="px-2 py-0.5 rounded bg-blue-100 navy-text text-[10px] font-bold">
+                              {eng.hasDlcRacks ? "DLC + Air Hybrid Detected" : eng.totalContKw > 0 ? "100% Air IT Detected" : "Awaiting IT Racks"}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-sky-100/80 rounded-lg text-xs text-slate-800 border border-sky-200">
+                            <span className="font-bold navy-text">System Guidance:</span> Based on your Step 2 IT mix ({Math.round(eng.totalLiquidKw)} kW liquid / {Math.round(eng.totalAirKw)} kW air) and {currentProject.waterAvailability} water, the recommended plant is <strong>{eng.recommendedCoolingMode}</strong>.
+                          </div>
+
                           <div>
                             <label className="block text-xs font-bold text-slate-600 mb-1">Site Makeup Water Availability</label>
-                            <select value={currentProject.waterAvailability} onChange={e => updateCurrentProject({ waterAvailability: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                            <select value={currentProject.waterAvailability} onChange={e => updateCurrentProject({ waterAvailability: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-xs">
                               <option value="Abundant">Abundant Water (Maximizes Adiabatic Free-Cooling)</option>
                               <option value="Constrained">Constrained / Seasonal Water (Hybrid Adiabatic + Trim)</option>
                               <option value="Zero">Zero-Water Site (Closed-Loop Dry + Trim Chiller)</option>
                             </select>
                           </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-600 mb-1">Room-Temperature & Residual Air Cooling</label>
-                            <select value={currentProject.airCoolingType} onChange={e => updateCurrentProject({ airCoolingType: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
-                              <option value="In-Row">In-Row Precision Coolers (Best for High-Density Pods)</option>
-                              <option value="PAC">Perimeter CRAC / PAC Units</option>
-                              <option value="RDHx">Rear-Door Heat Exchangers (RDHx)</option>
-                            </select>
-                          </div>
-                          <div className="p-3 bg-sky-100/70 rounded-lg text-xs text-slate-800">
-                            <span className="font-bold navy-text">Auto-Selected Plant:</span> {eng.coolingMode} • Design PUE: <span className="font-bold">{eng.pueDesign}</span>
+
+                          <div className="space-y-2 pt-1 text-xs">
+                            <label className="flex items-center gap-2 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeLiquidLoop} onChange={e => updateCurrentProject({ includeLiquidLoop: e.target.checked })} className="w-4 h-4" />
+                              <span>Primary Liquid Heat Rejection Yard ({eng.adiabaticUnits} Adiabatic/Dry + {eng.trimChillerUnits} Trim Chillers)</span>
+                            </label>
+                            <label className="flex items-center gap-2 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeExtCdu} onChange={e => updateCurrentProject({ includeExtCdu: e.target.checked })} className="w-4 h-4" />
+                              <span>External Row/Side-Car CDUs ({eng.extCduUnits} units for external-CDU racks)</span>
+                            </label>
+                            <label className="flex items-center gap-2 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeRoomDehum} onChange={e => updateCurrentProject({ includeRoomDehum: e.target.checked })} className="w-4 h-4" />
+                              <span>Room Dehumidification & {currentProject.airCoolingType} Units ({eng.roomDehumUnits} units)</span>
+                            </label>
                           </div>
                         </div>
 
-                        <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                          <h3 className="font-bold navy-text">B. Power Conditioning, BESS & Support Containers</h3>
-                          <label className="flex items-center gap-2 text-xs font-medium">
-                            <input type="checkbox" checked={!!currentProject.includeUpsContainer} onChange={e => updateCurrentProject({ includeUpsContainer: e.target.checked })} className="w-4 h-4" />
-                            <span>Containerized Modular UPS Power Pods ({eng.upsContainersCount} pods sized)</span>
+                        <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                          <h3 className="font-bold navy-text text-sm">B. Complete Non-IT Electrical, Power & Support Equipment</h3>
+
+                          <label className="flex items-center justify-between gap-2 p-2 bg-white rounded border border-slate-200">
+                            <span className="flex items-center gap-2 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeTransformer} onChange={e => updateCurrentProject({ includeTransformer: e.target.checked })} className="w-4 h-4" />
+                              <span>MV/LV Step-Down Transformers ({eng.transformerUnits} × 2000 kVA)</span>
+                            </span>
+                            <select value={currentProject.transformerType} onChange={e => updateCurrentProject({ transformerType: e.target.value })} className="border rounded px-1.5 py-0.5">
+                              <option>Cast-Resin Dry Type</option>
+                              <option>ONAN Oil-Filled</option>
+                            </select>
                           </label>
-                          <label className="flex items-center gap-2 text-xs font-medium">
-                            <input type="checkbox" checked={!!currentProject.includeBatteryContainer} onChange={e => updateCurrentProject({ includeBatteryContainer: e.target.checked })} className="w-4 h-4" />
-                            <span>Compartmentalized Battery Containers ({eng.batteryContainersCount} pods sized)</span>
+
+                          <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                            <input type="checkbox" checked={!!currentProject.includeLvSwitchgear} onChange={e => updateCurrentProject({ includeLvSwitchgear: e.target.checked })} className="w-4 h-4" />
+                            <span>Main LV ACB Switchgear & Auto-Changeover Lineup ({eng.lvSwitchgearUnits} panels)</span>
                           </label>
-                          {currentProject.includeBatteryContainer && (
-                            <div className="grid grid-cols-2 gap-2 pl-6">
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-600">Runtime (min)</label>
-                                <input type="number" value={currentProject.batteryRuntimeMin} onChange={e => updateCurrentProject({ batteryRuntimeMin: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white text-xs" />
+
+                          <div className="p-2 bg-white rounded border border-slate-200 space-y-1.5">
+                            <label className="flex items-center justify-between font-medium">
+                              <span className="flex items-center gap-2">
+                                <input type="checkbox" checked={!!currentProject.includeUpsContainer} onChange={e => updateCurrentProject({ includeUpsContainer: e.target.checked })} className="w-4 h-4" />
+                                <span>Containerized Modular UPS ({eng.upsContainersCount} pods)</span>
+                              </span>
+                              <select value={currentProject.upsFrameKva} onChange={e => updateCurrentProject({ upsFrameKva: Number(e.target.value) })} className="border rounded px-1.5 py-0.5">
+                                <option value={500}>500 kVA Frame</option>
+                                <option value={1000}>1000 kVA Frame</option>
+                                <option value={1500}>1500 kVA Frame</option>
+                              </select>
+                            </label>
+                          </div>
+
+                          <div className="p-2 bg-white rounded border border-slate-200 space-y-1.5">
+                            <label className="flex items-center gap-2 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeBatteryContainer} onChange={e => updateCurrentProject({ includeBatteryContainer: e.target.checked })} className="w-4 h-4" />
+                              <span>Compartmentalized Battery Pods ({eng.batteryContainersCount} pods)</span>
+                            </label>
+                            {currentProject.includeBatteryContainer && (
+                              <div className="grid grid-cols-2 gap-2 pl-6">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500">Backup Runtime (min)</label>
+                                  <input type="number" value={currentProject.batteryRuntimeMin} onChange={e => updateCurrentProject({ batteryRuntimeMin: Number(e.target.value) })} className="w-full border rounded px-2 py-0.5" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500">Chemistry</label>
+                                  <select value={currentProject.batteryChemistry} onChange={e => updateCurrentProject({ batteryChemistry: e.target.value })} className="w-full border rounded px-2 py-0.5">
+                                    <option>LFP</option><option>VRLA</option>
+                                  </select>
+                                </div>
                               </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-600">Chemistry</label>
-                                <select value={currentProject.batteryChemistry} onChange={e => updateCurrentProject({ batteryChemistry: e.target.value })} className="w-full border border-slate-300 rounded px-2 py-1 bg-white text-xs">
-                                  <option>LFP</option><option>VRLA</option>
-                                </select>
-                              </div>
-                            </div>
-                          )}
-                          <label className="flex items-center gap-2 text-xs font-medium">
+                            )}
+                          </div>
+
+                          <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
                             <input type="checkbox" checked={!!currentProject.includeDgYard} onChange={e => updateCurrentProject({ includeDgYard: e.target.checked })} className="w-4 h-4" />
-                            <span>CPCB IV+ Diesel Generators ({eng.dgUnitsCount} x 1500 kVA, {currentProject.dgAutonomyHours}h PESO fuel)</span>
+                            <span>CPCB IV+ Diesel Generators ({eng.dgUnitsCount} × 1500 kVA + PESO Fuel Tank)</span>
                           </label>
-                          <label className="flex items-center gap-2 text-xs font-medium">
-                            <input type="checkbox" checked={!!currentProject.includeAdminModule} onChange={e => updateCurrentProject({ includeAdminModule: e.target.checked })} className="w-4 h-4" />
-                            <span>Administrative, NOC & ESD Spares Workshop Container</span>
-                          </label>
-                          <label className="flex items-center gap-2 text-xs font-medium">
-                            <input type="checkbox" checked={!!currentProject.includeStagingModule} onChange={e => updateCurrentProject({ includeStagingModule: e.target.checked })} className="w-4 h-4" />
-                            <span>Staging, Unloading Dock & Nitrogen Leak-Test Bay</span>
-                          </label>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeAdminModule} onChange={e => updateCurrentProject({ includeAdminModule: e.target.checked })} className="w-4 h-4" />
+                              <span>Admin / NOC & Spares</span>
+                            </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeStagingModule} onChange={e => updateCurrentProject({ includeStagingModule: e.target.checked })} className="w-4 h-4" />
+                              <span>Staging & Leak-Test Bay</span>
+                            </label>
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {/* STEP 5: Redundancy & Statutory Compliance */}
                     {wizardTab === 4 && (
                       <div className="space-y-4 text-sm">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {[
-                            ["Tier II", "Uptime Tier II (N+1 Components)", "Single power/cooling distribution path with N+1 redundant pumps, CDUs & UPS modules. Lowest CapEx."],
-                            ["Tier III", "Uptime Tier III (Concurrently Maintainable)", "Dual A/B power busways, N+1 active distribution & isolated maintenance bypass without IT downtime."],
-                            ["Tier IV", "Uptime Tier IV (2N Fault-Tolerant)", "Fully compartmentalized 2N / 2(N+1) power & cooling plants surviving any single equipment or pipe failure."]
+                            ["Tier II", "Uptime Tier II (N+1 Components)", "Single power/cooling distribution path with N+1 redundant pumps, CDUs & UPS modules."],
+                            ["Tier III", "Uptime Tier III (Concurrently Maintainable)", "Dual A/B power busways, N+1 active distribution & isolated maintenance bypass."],
+                            ["Tier IV", "Uptime Tier IV (2N Fault-Tolerant)", "Fully compartmentalized 2N / 2(N+1) power & cooling plants surviving any single failure."]
                           ].map(([val, title, desc]) => (
                             <div
                               key={val}
@@ -2058,12 +2326,10 @@
                       </div>
                     )}
 
-                    {/* STEP 6: Land Parcel & Orientation */}
                     {wizardTab === 5 && (
                       <ParcelLayoutPlanner project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
                     )}
 
-                    {/* STEP 7: Commercials & First-Cut Review */}
                     {wizardTab === 6 && (
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -2081,24 +2347,7 @@
                           </div>
                         </div>
 
-                        <div className="p-4 rounded-xl bg-slate-900 text-white grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                          <div>
-                            <span className="text-slate-400 block">Configured IT Load</span>
-                            <span className="text-lg font-black text-amber-300">{(eng.totalContKw / 1000).toFixed(2)} MW</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block">Modular Pods & Hall</span>
-                            <span className="text-lg font-black">{eng.pods.length} Pods ({currentProject.hallTopology})</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block">Pre-Tax Turnkey Quote</span>
-                            <span className="text-lg font-black text-emerald-400">{formatMoney(eng.totals.sellingPreTax, currentProject.currency, standards)}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block">Grand Total (Incl. GST)</span>
-                            <span className="text-lg font-black coral-text">{formatMoney(eng.totals.grandTotal, currentProject.currency, standards)}</span>
-                          </div>
-                        </div>
+                        <ValidatorCard eng={eng} compact={false} />
                       </div>
                     )}
 
@@ -2111,28 +2360,24 @@
                           Next Step →
                         </button>
                       ) : (
-                        <div className="flex gap-2">
-                          <button onClick={() => setScreen("studio3d")} className="touch-btn px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold">
-                            View in 3D Studio
-                          </button>
-                          <button onClick={() => setScreen("workspace")} className="touch-btn px-6 py-2 rounded-lg coral-bg text-white text-xs font-bold shadow">
-                            {wizardMode === "edit" ? "Update Design & Open Workspace ✓" : "Generate Design & Open Workspace ✓"}
-                          </button>
-                        </div>
+                        <button onClick={() => setScreen("workspace")} className="touch-btn px-6 py-2 rounded-lg coral-bg text-white text-xs font-bold shadow">
+                          {wizardMode === "edit" ? "Update Design & Open Workspace ✓" : "Generate Design & Open Workspace ✓"}
+                        </button>
                       )}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* 4. ENGINEERING OPTIMIZER, PARCEL & COMMERCIAL COSTING WORKSPACE */}
               {screen === "workspace" && (
                 <div className="space-y-6">
+                  <ValidatorCard eng={eng} compact={false} />
+
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                     <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
                       <div className="text-xs text-slate-500">Continuous IT Load</div>
                       <div className="text-xl font-black navy-text">{(eng.totalContKw / 1000).toFixed(2)} MW</div>
-                      <div className="text-[11px] text-slate-400">Peak: {Math.round(eng.totalPeakKw)} kW</div>
+                      <div className="text-[11px] text-slate-400">Facility Peak: {eng.totalFacilityPeakKva} kVA</div>
                     </div>
                     <div className="bg-white p-4 rounded-xl card-shadow border border-slate-200">
                       <div className="text-xs text-slate-500">Modular Pods Packed</div>
@@ -2156,7 +2401,6 @@
                     </div>
                   </div>
 
-                  {/* 2-Row Mixed-Rack Packing Solver Results */}
                   <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
                       <div>
@@ -2178,31 +2422,35 @@
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {eng.pods.map(p => (
-                        <div key={p.id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1.5">
-                          <div className="flex justify-between font-bold navy-text">
-                            <span>{p.label}</span>
-                            <span>{Math.round(p.contKw)} kW Cont.</span>
+                    {eng.pods.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                        No IT racks added to this project yet. Click <strong>✎ Edit via Wizard</strong> to configure IT racks and Non-IT subsystems.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {eng.pods.map(p => (
+                          <div key={p.id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1.5">
+                            <div className="flex justify-between font-bold navy-text">
+                              <span>{p.label}</span>
+                              <span>{Math.round(p.contKw)} kW Cont.</span>
+                            </div>
+                            <div className="text-slate-600">
+                              Dimensions: {(p.extLengthMm/1000).toFixed(2)}m L × {(p.extWidthMm/1000).toFixed(2)}m W × {(p.extHeightMm/1000).toFixed(2)}m H
+                            </div>
+                            <div className="text-slate-600">
+                              2-Row Layout: Row A ({p.rowA.length} racks) / Row B ({p.rowB.length} racks) • Bay Fill: {p.bayUtilPct}%
+                            </div>
+                            <div className="text-slate-600">
+                              Tare: {p.emptyTareKg.toLocaleString()} kg • Gross Rigging: {p.grossRiggingKg.toLocaleString()} kg
+                            </div>
                           </div>
-                          <div className="text-slate-600">
-                            Dimensions: {(p.extLengthMm/1000).toFixed(2)}m L × {(p.extWidthMm/1000).toFixed(2)}m W × {(p.extHeightMm/1000).toFixed(2)}m H
-                          </div>
-                          <div className="text-slate-600">
-                            2-Row Layout: Row A ({p.rowA.length} racks) / Row B ({p.rowB.length} racks) • Bay Fill: {p.bayUtilPct}%
-                          </div>
-                          <div className="text-slate-600">
-                            Tare: {p.emptyTareKg.toLocaleString()} kg • Gross Rigging: {p.grossRiggingKg.toLocaleString()} kg
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Irregular Land Parcel & Auto-Site Layout Solver */}
                   <ParcelLayoutPlanner project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
 
-                  {/* Commercial Rate Card & Special Deal Override Table */}
                   <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
@@ -2228,7 +2476,9 @@
                           </tr>
                         </thead>
                         <tbody>
-                          {eng.bomItems.map(it => (
+                          {eng.bomItems.length === 0 ? (
+                            <tr><td colSpan="6" className="p-4 text-center text-slate-400">No BOM items yet — configure IT & Non-IT scope in the Design Wizard.</td></tr>
+                          ) : eng.bomItems.map(it => (
                             <tr key={it.key} className="border-b border-slate-200 hover:bg-slate-50">
                               <td className="p-2.5">
                                 <div className="font-bold navy-text">{it.label}</div>
@@ -2255,12 +2505,10 @@
                 </div>
               )}
 
-              {/* 5. 360° 3D CONTAINER & HALL STUDIO */}
               {screen === "studio3d" && (
                 <ThreeDStudio project={currentProject} eng={eng} />
               )}
 
-              {/* 6. DEDICATED OUTPUTS & EXPORT CENTER */}
               {screen === "outputs" && (
                 <div className="space-y-6">
                   <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5">
@@ -2302,7 +2550,69 @@
                 </div>
               )}
 
-              {/* 7. ORGANIZED 6-TAB GLOBAL PARAMETERS & STANDARDS SUITE */}
+              {screen === "supply_intel" && (
+                <div className="bg-white rounded-2xl card-shadow border border-slate-200 overflow-hidden">
+                  <div className="navy-bg text-white p-6 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <span className="px-2.5 py-1 rounded bg-amber-400 text-slate-950 text-[11px] font-black uppercase">Phase B Architecture Placeholder</span>
+                      <h2 className="text-2xl font-bold mt-2">India Non-IT Supply Chain & OEM Intelligence Engine</h2>
+                      <p className="text-xs text-slate-300 mt-1">Automated 6-monthly & on-demand catalog of Indian OEM power, cooling, transformer & BESS equipment with N+1 Best-Fit scoring</p>
+                    </div>
+                    <button disabled className="px-4 py-2.5 rounded-xl bg-white/15 text-slate-300 text-xs font-bold cursor-not-allowed">
+                      ↻ Refresh India OEM Catalog (Coming in Phase B)
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-6 text-xs">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                        <div className="font-bold navy-text uppercase">1. Canonical India OEM Database</div>
+                        <p className="text-slate-600">Tracks commercial equipment models available in India across <strong>Modular UPS</strong> (Eaton, Vertiv, Schneider, ABB, Delta), <strong>Dry/ONAN Transformers</strong> (ABB, Siemens, Voltamp, Bharat Bijlee), <strong>CPCB IV+ DGs</strong> (Cummins, KOEL, Cat), and <strong>Liquid CDUs / Adiabatic Coolers</strong> (Vertiv, CoolIT, Stulz, Kelvion).</p>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                        <div className="font-bold navy-text uppercase">2. 6-Monthly & On-Demand Refresh</div>
+                        <p className="text-slate-600">Updates via a scheduled 6-month GitHub Action workflow + in-app vendor quote ingestion, stamping each OEM entry with a <code>Last Verified Date</code> and budgetary INR rate without altering active customer bids.</p>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                        <div className="font-bold navy-text uppercase">3. Validator Best-Fit Matcher</div>
+                        <p className="text-slate-600">Evaluates N+1 / 2N capacity, container fit, and Make-in-India compliance—tagging candidate OEM configurations as <strong>PASS (Optimal Fit)</strong> or <strong>WARNING (Tight Headroom)</strong>.</p>
+                      </div>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <div className="bg-slate-100 px-4 py-2.5 font-bold navy-text">Preview: How Best-Fit Matcher Evaluates a 1.5 MW DC (N+1 UPS Requirement)</div>
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-slate-500">
+                            <th className="p-3">Candidate OEM Configuration</th>
+                            <th className="p-3">N+1 Capacity</th>
+                            <th className="p-3">Indicative India Price</th>
+                            <th className="p-3">Lead Time</th>
+                            <th className="p-3">Validator Verdict</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-slate-200 bg-amber-50/50">
+                            <td className="p-3 font-bold">4 × 500 kVA Modular UPS Frame (2,000 kVA Installed)</td>
+                            <td className="p-3">1,500 kVA N+1</td>
+                            <td className="p-3 font-mono">₹1.85 Cr</td>
+                            <td className="p-3">6–8 Weeks</td>
+                            <td className="p-3"><span className="px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-bold">WARNING: Marginal at Peak PUE</span></td>
+                          </tr>
+                          <tr className="bg-emerald-50/50">
+                            <td className="p-3 font-bold navy-text">5 × 500 kVA Modular UPS Frame (2,500 kVA Installed)</td>
+                            <td className="p-3 font-bold text-emerald-800">2,000 kVA N+1</td>
+                            <td className="p-3 font-mono">₹2.28 Cr</td>
+                            <td className="p-3">6–8 Weeks</td>
+                            <td className="p-3"><span className="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold">PASS: Optimal N+1 Fit</span></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {screen === "parameters" && (
                 <div className="bg-white rounded-xl card-shadow border border-slate-200 overflow-hidden">
                   <div className="navy-bg text-white p-5">
@@ -2324,7 +2634,6 @@
                     </div>
                   </div>
 
-                  {/* TAB 1: RACK SKU LIBRARY (Clean Summary Table + Accordion Editor) */}
                   {paramTab === "skus" && (
                     <div className="p-5 space-y-4">
                       <div className="flex flex-wrap justify-between items-center gap-2">
@@ -2449,7 +2758,6 @@
                     </div>
                   )}
 
-                  {/* TAB 2: CONTAINER & STRUCTURAL STANDARDS */}
                   {paramTab === "containers" && (
                     <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
                       <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
@@ -2491,7 +2799,6 @@
                     </div>
                   )}
 
-                  {/* TAB 3: COOLING & CLIMATE STANDARDS */}
                   {paramTab === "cooling" && (
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
                       <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
@@ -2521,7 +2828,6 @@
                     </div>
                   )}
 
-                  {/* TAB 4: ELECTRICAL, UPS & BESS STANDARDS */}
                   {paramTab === "electrical" && (
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
                       <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
@@ -2537,7 +2843,6 @@
                     </div>
                   )}
 
-                  {/* TAB 5: MASTER OEM RATE CARD & COMMERCIAL DEFAULTS */}
                   {paramTab === "rates" && (
                     <div className="p-5 space-y-4 text-xs">
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -2575,7 +2880,6 @@
                     </div>
                   )}
 
-                  {/* TAB 6: BRANDING & GOOGLE DRIVE OAUTH */}
                   {paramTab === "branding" && (
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                       <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
