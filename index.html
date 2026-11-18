@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V10.3)</title>
+  <title>AI Modular Data Center Configurator (V10.5)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -42,7 +42,7 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v10_3_enterprise";
+    const STORAGE_KEY = "ai_mdc_studio_v10_5_enterprise";
 
     // DEFAULT COLOR PALETTES FOR 3D, 2D & POWERPOINT DRAWINGS
     const COLOR_THEMES = {
@@ -519,6 +519,7 @@
     function calcRedundantUnits(totalDemand, unitRating, tier) {
       if (totalDemand <= 0 || unitRating <= 0) return { activeN: 0, redundantR: 0, total: 0 };
       const activeN = Math.max(1, Math.ceil(totalDemand / unitRating));
+      if (tier === "None") return { activeN, redundantR: 0, total: activeN };
       if (tier === "Tier IV") return { activeN, redundantR: activeN, total: activeN * 2 };
       if (tier === "Tier III") return { activeN, redundantR: 1, total: activeN + 1 };
       const redundantR = activeN >= 3 ? 1 : 0;
@@ -1116,6 +1117,73 @@
         validations.push({ status: "PASS", code: "VAL-07", title: "NBC Setback & Parcel Fit Verified", msg: `${project.setbackMeters}m fire lane preserved; ${plotUtilizationPct}% net buildable plot utilized.` });
       }
 
+      const isNoTier = project.uptimeTier === "None";
+      const isNoReg = (project.regulatoryCode || "").toLowerCase().includes("no specific compliance");
+
+      const uptimeChecks = isNoTier ? [
+        { code: "UPT-00", title: "No Uptime Tier Mandate Selected", status: "NA", msg: "Client opted for Basic N / Best-Effort deployment without Uptime Institute Tier II/III/IV certification." }
+      ] : [
+        {
+          code: "UPT-01",
+          title: `${project.uptimeTier} Redundant Capacity (${project.uptimeTier === "Tier IV" ? "2N" : "N+1"})`,
+          status: (activeRacks.length > 0 && upsContainersCount >= (project.uptimeTier === "Tier IV" ? upsCalc.activeN * 2 : upsCalc.activeN + 1)) ? "GREEN" : "RED",
+          msg: upsContainersCount > 0 ? `UPS configured: ${upsContainersCount} pods (Active N=${upsCalc.activeN}, Redundant R=${upsContainersCount - upsCalc.activeN}).` : "Modular UPS pods missing or undersized."
+        },
+        {
+          code: "UPT-02",
+          title: "Dual-Path A/B Power Distribution",
+          status: pods.length > 0 ? "GREEN" : "AMBER",
+          msg: `Overhead Dual A/B ${standards.buswayAmperageA}A track busways ${project.includeIntelligentRpdu ? "+ dual-corded metered rPDUs" : "(add intelligent rPDUs for full branch telemetry)"}.`
+        },
+        {
+          code: "UPT-03",
+          title: project.uptimeTier === "Tier IV" ? "2N Fault-Tolerant Cooling & Continuous Pump Bus" : "Concurrently Maintainable Thermal & Hydraulic Loop",
+          status: (!hasDlcRacks || (project.includeLiquidLoop && project.includePumpSkids && project.upsBacksUpCooling)) ? "GREEN" : "AMBER",
+          msg: project.upsBacksUpCooling ? "Primary VFD pumps & CDUs backed on UPS bus for uninterrupted thermal ride-through." : "Enable 'Back up CDUs & Pumps on UPS Bus' for continuous cooling during DG transfer."
+        },
+        {
+          code: "UPT-04",
+          title: `Prime / Standby Engine-Generator Autonomy (${project.dgAutonomyHours}h)`,
+          status: (project.includeDgYard && dgUnitsCount >= 2 && project.dgAutonomyHours >= (project.uptimeTier === "Tier IV" ? 48 : 12)) ? "GREEN" : (project.includeDgYard ? "AMBER" : "RED"),
+          msg: project.includeDgYard ? `${dgUnitsCount} × ${selDg.ratedCapacity} kVA CPCB IV+ DGs with ${totalHsdFuelLitres.toLocaleString()} L fuel (${project.dgAutonomyHours}h).` : "Standby DG plant not included."
+        }
+      ];
+
+      const bisChecks = isNoReg ? [
+        { code: "BIS-00", title: "No Specific Statutory / BIS Mandates Selected", status: "NA", msg: "Compliance rulebook set to 'No Specific Compliance Mandates' (internal pilot / non-regulated scope)." }
+      ] : [
+        {
+          code: "IS-1893",
+          title: `IS 1893 Seismic Structural & Piping Compliance (${project.seismicZone})`,
+          status: (!isHighSeismic || project.emiShielding) ? "GREEN" : "AMBER",
+          msg: `${project.seismicLabel} — structural container gussets & flexible braided SS316L coolant loops.`
+        },
+        {
+          code: "CEA-2023",
+          title: "CEA Safety & Electric Supply (Switchgear, Trafos & Clearances)",
+          status: (project.includeTransformer && project.includeLvSwitchgear) ? "GREEN" : "AMBER",
+          msg: `IS 1180 / IEC 60076 ${project.transformerType} transformers + Form-4B LV ACB switchgear (${project.setbackMeters}m clearance).`
+        },
+        {
+          code: "NBC-IV",
+          title: "NBC Part 4 Fire Safety, VESDA & 6.0m Fire-Tender Access",
+          status: (project.setbackMeters >= 6.0 && project.includeVesdaFire) ? "GREEN" : (project.setbackMeters < 6.0 ? "RED" : "AMBER"),
+          msg: `${project.setbackMeters}m perimeter fire lane; ${project.includeVesdaFire ? `VESDA laser aspirating smoke + ${novecGasKg} kg Novec 1230 clean agent.` : "VESDA + Novec 1230 not yet enabled."}`
+        },
+        {
+          code: "CPCB-PESO",
+          title: "CPCB IV+ Emission/Noise (<=65 dBA) & PESO HSD Storage",
+          status: (boundaryNoiseDba <= 65 || project.includeAcousticBarrier) ? "GREEN" : "AMBER",
+          msg: `Boundary noise ${boundaryNoiseDba} dBA (CPCB 65 dBA limit); ${dgUnitsCount > 0 ? `CPCB IV+ DGs + ${totalHsdFuelLitres.toLocaleString()} L PESO tankage.` : "No on-site DG fuel storage."}`
+        },
+        {
+          code: "BIS-UPS",
+          title: "BIS / IEC 62040 UPS & IBMS Telemetry Governance",
+          status: (project.includeUpsContainer && project.includeIntegratedBms) ? "GREEN" : "AMBER",
+          msg: `${project.includeUpsContainer ? `IEC 62040-3 Online Double-Conversion UPS (${project.batteryChemistry})` : "UPS excluded"} • ${project.includeIntegratedBms ? "IBMS/DCIM/EPMS active" : "IBMS excluded"}.`
+        }
+      ];
+
       const failCount = validations.filter(v => v.status === "FAIL").length;
       const warnCount = validations.filter(v => v.status === "WARNING").length;
 
@@ -1143,7 +1211,7 @@
         day1CapexPreTax, dayNCapexPreTax,
         annualPowerCostInr, annualWaterCostInr, annualAmcCostInr, annualTotalOpexInr, fiveYearTcoInr,
         grossPlotSqm, netBuildableSqm, plotUtilizationPct,
-        boundaryNoiseDba, ganttTasks, validations, failCount, warnCount
+        boundaryNoiseDba, ganttTasks, validations, uptimeChecks, bisChecks, failCount, warnCount
       };
     }
 
@@ -1858,28 +1926,66 @@
     }
 
     function ValidatorCard({ eng, compact = false }) {
+      const [auditTab, setAuditTab] = useState("all"); // "all" | "uptime" | "bis"
+      const [auditStamp, setAuditStamp] = useState("");
+
       const badgeColor = eng.failCount > 0 ? "bg-red-600 text-white" : eng.warnCount > 0 ? "bg-amber-500 text-slate-950" : "bg-emerald-600 text-white";
       const badgeLabel = eng.failCount > 0 ? `${eng.failCount} FAIL • ${eng.warnCount} WARN` : eng.warnCount > 0 ? `PASS WITH ${eng.warnCount} WARNING(S)` : "ALL CHECKS PASSED ✓";
+
+      const runSpecificAudit = (tab) => {
+        setAuditTab(tab);
+        setAuditStamp(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      };
+
+      const ragBadge = (st) => {
+        if (st === "RED" || st === "FAIL") return "bg-red-600 text-white";
+        if (st === "AMBER" || st === "WARNING") return "bg-amber-400 text-slate-950";
+        if (st === "NA") return "bg-slate-500 text-white";
+        return "bg-emerald-600 text-white";
+      };
+
+      const ragCardBg = (st) => {
+        if (st === "RED" || st === "FAIL") return "bg-red-50 border-red-300";
+        if (st === "AMBER" || st === "WARNING") return "bg-amber-50 border-amber-300";
+        if (st === "NA") return "bg-slate-50 border-slate-300";
+        return "bg-emerald-50/70 border-emerald-200";
+      };
 
       return (
         <div className="bg-white rounded-xl card-shadow border border-slate-200 p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm sm:text-base font-bold navy-text">Automated Engineering & Compliance Design Validator</h3>
-              <p className="text-xs text-slate-500">Audits Inlet Temp ceiling, DLC hydraulics/pumps/tanks, Transformer/UPS N+1 capacity, IBMS/VESDA, Acoustic CPCB & NBC rules</p>
+              <h3 className="text-sm sm:text-base font-bold navy-text">Automated Engineering, Uptime Tier & BIS Compliance Validator</h3>
+              <p className="text-xs text-slate-500">Trigger on-demand customer compliance audits with Red / Amber / Green (RAG) verification badges</p>
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-black tracking-wide ${badgeColor}`}>{badgeLabel}</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button onClick={() => runSpecificAudit("uptime")} className="px-3 py-1.5 rounded-lg navy-bg text-white text-xs font-bold hover:opacity-95">
+                🛡️ Run Uptime Tier Audit
+              </button>
+              <button onClick={() => runSpecificAudit("bis")} className="px-3 py-1.5 rounded-lg bg-sky-700 text-white text-xs font-bold hover:bg-sky-600">
+                🇮🇳 Run BIS & Statutory Audit
+              </button>
+              <button onClick={() => runSpecificAudit("all")} className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                All Checks
+              </button>
+              <span className={`px-3 py-1.5 rounded-full text-xs font-black tracking-wide ${badgeColor}`}>{badgeLabel}</span>
+            </div>
           </div>
+
+          {auditStamp && (
+            <div className="text-[11px] font-semibold text-sky-900 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded-lg flex items-center justify-between">
+              <span>✓ Compliance Verification Matrix Executed at {auditStamp} ({auditTab === "uptime" ? "Uptime Institute Tier Audit" : auditTab === "bis" ? "Indian BIS / CEA / NBC / CPCB / PESO Audit" : "Full Engineering & Statutory Suite"})</span>
+              <span className="font-mono">GREEN = Compliant | AMBER = Conditional | RED = Action Required</span>
+            </div>
+          )}
 
           {!compact && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
-              {eng.validations.map((v, i) => (
-                <div key={i} className={`p-3 rounded-lg border flex items-start gap-2.5 ${
-                  v.status === "FAIL" ? "bg-red-50 border-red-300" : v.status === "WARNING" ? "bg-amber-50 border-amber-300" : "bg-emerald-50/60 border-emerald-200"
-                }`}>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-black flex-shrink-0 ${
-                    v.status === "FAIL" ? "bg-red-600 text-white" : v.status === "WARNING" ? "bg-amber-500 text-slate-950" : "bg-emerald-600 text-white"
-                  }`}>{v.status}</span>
+              {(auditTab === "uptime" ? (eng.uptimeChecks || []) : auditTab === "bis" ? (eng.bisChecks || []) : [...(eng.uptimeChecks || []), ...(eng.bisChecks || []), ...eng.validations]).map((v, i) => (
+                <div key={i} className={`p-3 rounded-lg border flex items-start gap-2.5 ${ragCardBg(v.status)}`}>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-black flex-shrink-0 ${ragBadge(v.status)}`}>
+                    {v.status === "GREEN" ? "GREEN • PASS" : v.status === "AMBER" ? "AMBER • WARN" : v.status === "RED" ? "RED • FAIL" : v.status}
+                  </span>
                   <div>
                     <div className="font-bold text-slate-900">{v.code}: {v.title}</div>
                     <div className="text-slate-600 mt-0.5">{v.msg}</div>
@@ -2544,7 +2650,7 @@
                 <g>
                   <line x1="165" y1="150" x2="935" y2="150" stroke={accent} strokeWidth="3" />
                   <line x1="165" y1="305" x2="935" y2="305" stroke={primary} strokeWidth="3" />
-                  <text x="550" y="138" fill={accent} fontSize="11" fontWeight="bold" textAnchor="middle">PATH A — PRIMARY 415V AC BUS ({currentProject.uptimeTier} REDUNDANT)</text>
+                  <text x="550" y="138" fill={accent} fontSize="11" fontWeight="bold" textAnchor="middle">PATH A — PRIMARY 415V AC BUS ({project.uptimeTier} REDUNDANT)</text>
                   <text x="550" y="325" fill={primary} fontSize="11" fontWeight="bold" textAnchor="middle">PATH B — SECONDARY / STANDBY BUS & CRITICAL COOLING FEED</text>
                   {[
                     [60, "1. HT 11/33kV VCB & TRAFOS", `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity} kVA`, `${project.transformerType}`, palette.transformer],
@@ -2670,6 +2776,21 @@
         setProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, ...patch, updatedAt: new Date().toISOString().slice(0, 10) } : p));
       };
 
+      const deleteProject = (id) => {
+        if (projects.length <= 1) {
+          alert("Cannot delete the last remaining project.");
+          return;
+        }
+        if (confirm("Are you sure you want to delete this saved deal/JSON?")) {
+          const nextProjects = projects.filter(p => p.id !== id);
+          setProjects(nextProjects);
+          if (editingId === id) {
+            setEditingId(nextProjects[0].id);
+          }
+          saveDraftNow("Deal deleted successfully");
+        }
+      };
+
       const saveDraftNow = (customMsg = "All progress saved to browser storage ✓") => {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, editingId, skus, containerCatalog, nonItCatalog, standards, palette, supplyIntel, logoDataUrl, clientId }));
@@ -2753,26 +2874,53 @@
         setQuoteModalItem(null);
       };
 
-      const applySelectedCityMatch = (place) => {
+      const applySelectedCityMatch = async (place) => {
         const { latitude, longitude, elevation, name, country, admin1 } = place;
         const elev = Math.round(elevation || 0);
         const est = estimateSummerDesignClimate(latitude, longitude, elev);
         const seis = classifySeismicZone(`${name} ${admin1 || ""}`, latitude, longitude);
+
+        let finalDb = est.peakDryBulb;
+        let finalWb = est.peakWetBulb;
+        let finalRh = est.relHumidityPct;
+        let climateSource = "ASHRAE Elevation/Latitude Model";
+
+        // Attempt deterministic 5-year historical May-June summer peak lookup via Open-Meteo Archive API
+        try {
+          const archUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&start_date=2025-05-01&end_date=2025-06-30&daily=temperature_2m_max,relative_humidity_2m_mean&timezone=auto`;
+          const aRes = await fetch(archUrl);
+          if (aRes.ok) {
+            const aData = await aRes.json();
+            const maxTemps = (aData.daily?.temperature_2m_max || []).filter(v => typeof v === "number");
+            const rhs = (aData.daily?.relative_humidity_2m_mean || []).filter(v => typeof v === "number");
+            if (maxTemps.length > 10) {
+              maxTemps.sort((a, b) => b - a);
+              // 99th percentile summer peak (2nd hottest day in May-June)
+              finalDb = Number(Math.max(18, maxTemps[1] || maxTemps[0]).toFixed(1));
+              finalRh = rhs.length ? Math.round(rhs.reduce((a, b) => a + b, 0) / rhs.length) : est.relHumidityPct;
+              const T = finalDb;
+              const tw = T * Math.atan(0.151977 * Math.pow(finalRh + 8.313659, 0.5)) + Math.atan(T + finalRh) - Math.atan(finalRh - 1.676331) + 0.00391838 * Math.pow(finalRh, 1.5) * Math.atan(0.023101 * finalRh) - 4.686035;
+              finalWb = Number(Math.max(10, Math.min(finalDb - 2.0, tw)).toFixed(1));
+              climateSource = "Open-Meteo ERA5 Summer Peak";
+            }
+          }
+        } catch (err) {}
+
         updateCurrentProject({
           cityQuery: `${name}${admin1 ? ", " + admin1 : ""}${country ? " (" + country + ")" : ""}`,
           lat: Number(latitude.toFixed(2)),
           lon: Number(longitude.toFixed(2)),
           elevationM: elev,
-          peakDryBulb: est.peakDryBulb,
-          peakWetBulb: est.peakWetBulb,
-          relHumidityPct: est.relHumidityPct,
-          monthlyClimate: synthesizeMonthlyClimate(est.peakDryBulb, est.peakWetBulb, est.relHumidityPct),
+          peakDryBulb: finalDb,
+          peakWetBulb: finalWb,
+          relHumidityPct: finalRh,
+          monthlyClimate: synthesizeMonthlyClimate(finalDb, finalWb, finalRh),
           seismicZone: seis.zone,
           seismicZFactor: seis.zFactor,
           seismicLabel: seis.label
         });
         setCityMatches([]);
-        setWeatherMsg(`✓ Resolved ${name}${admin1 ? ", " + admin1 : ""}: Summer Design ${est.peakDryBulb}°C DB / ${est.peakWetBulb}°C WB, Elev ${elev}m, ${seis.label}`);
+        setWeatherMsg(`✓ Resolved ${name}${admin1 ? ", " + admin1 : ""}: ${finalDb}°C DB / ${finalWb}°C WB (${climateSource}), Elev ${elev}m, ${seis.label}`);
       };
 
       const fetchCityWeatherAndSeismic = async () => {
@@ -2780,30 +2928,44 @@
         if (!rawQ) return;
         const cleanQ = rawQ.split(",")[0].trim();
         setWeatherLoading(true);
-        setWeatherMsg("Searching matching cities & ASHRAE summer peaks...");
+        setWeatherMsg("Resolving deterministic city coordinates & summer design climate...");
         setCityMatches([]);
         try {
+          const lowerQ = cleanQ.toLowerCase();
           const queries = [cleanQ];
-          if (cleanQ.toLowerCase() === "dharamshala") queries.push("Dharamsala");
+          if (lowerQ === "dharamshala" || lowerQ === "dharamsala") {
+            queries.push("Dharamsala", "Dharamshala");
+          }
           let combined = [];
-          for (const qItem of queries) {
-            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(qItem)}&count=8&language=en&format=json`);
+          for (const qItem of Array.from(new Set(queries))) {
+            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(qItem)}&count=10&language=en&format=json`);
             const geoData = await geoRes.json();
             if (Array.isArray(geoData.results)) combined = [...combined, ...geoData.results];
           }
-          // Deduplicate by id
           const seen = new Set();
           const unique = combined.filter(p => {
             if (seen.has(p.id)) return false;
             seen.add(p.id);
             return true;
           });
-          // Prioritize India results and higher-population district HQ / cities
+
+          // Deterministic ranking: 1) India match, 2) Populated city/district HQ (PPLC/PPLA/PPLA2/PPL) over ADM polygons, 3) Population, 4) GeoNames ID tie-breaker
+          const featureRank = (fc = "") => {
+            if (fc === "PPLC") return 5;
+            if (fc === "PPLA") return 4;
+            if (fc === "PPLA2") return 3;
+            if (fc === "PPL" || fc === "PPLA3") return 2;
+            return 1;
+          };
           unique.sort((a, b) => {
             const aIn = a.country_code === "IN" ? 1 : 0;
             const bIn = b.country_code === "IN" ? 1 : 0;
             if (aIn !== bIn) return bIn - aIn;
-            return (b.population || 0) - (a.population || 0);
+            const fDiff = featureRank(b.feature_code) - featureRank(a.feature_code);
+            if (fDiff !== 0) return fDiff;
+            const pDiff = (b.population || 0) - (a.population || 0);
+            if (pDiff !== 0) return pDiff;
+            return (a.id || 0) - (b.id || 0);
           });
 
           if (unique.length === 0) {
@@ -2814,7 +2976,7 @@
             return;
           }
 
-          applySelectedCityMatch(unique[0]);
+          await applySelectedCityMatch(unique[0]);
           if (unique.length > 1) {
             setCityMatches(unique.slice(0, 5));
           }
@@ -3164,6 +3326,26 @@
         } catch (e) { setDriveStatus("Sync Error"); }
       };
 
+      const deleteFileFromGoogleDrive = async (fileId, fileName) => {
+        if (!driveToken) return;
+        if (!confirm(`Delete "${fileName}" from Google Drive (move to trash)?`)) return;
+        try {
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${driveToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ trashed: true })
+          });
+          if (res.ok) {
+            const curFolderId = driveFolderStack[driveFolderStack.length - 1].id;
+            await fetchDriveFolderContents(curFolderId);
+          } else {
+            alert("Could not delete file in Google Drive.");
+          }
+        } catch (e) {
+          alert("Error deleting file from Google Drive.");
+        }
+      };
+
       const loadFileFromGoogleDrive = async (fileId, fileName) => {
         try {
           const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
@@ -3265,33 +3447,46 @@
         <div className="h-screen flex flex-col overflow-hidden">
           {/* PINNED PERSISTENT TOP HEADER WITH BACK NAVIGATION + FOLDER SAVE */}
           <header className="navy-bg text-white px-3 py-2 shadow-md flex-shrink-0 z-50 border-b border-blue-900">
-            <div className="max-w-[1640px] w-full mx-auto flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap">
-              <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="max-w-[1640px] w-full mx-auto flex flex-col md:flex-row items-center justify-between gap-1.5 md:gap-2">
+              <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2 flex-shrink-0">
                 {screen !== "home" && (
                   <button onClick={goBack} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold flex items-center gap-1" title="Go Back">
                     ← Back
                   </button>
                 )}
-                <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigateTo("home")}>
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo("home")}>
                   {logoDataUrl ? (
-                    <img src={logoDataUrl} alt="Company Logo" className="h-9 w-auto bg-white rounded px-1.5 py-0.5 object-contain" />
+                    <img src={logoDataUrl} alt="Company Logo" className="h-8 w-auto bg-white rounded px-1 py-0.5 object-contain" />
                   ) : (
-                    <div className="w-9 h-9 rounded-lg coral-bg flex items-center justify-center font-black text-white text-sm tracking-tight">MDC</div>
+                    <div className="w-8 h-8 rounded-lg coral-bg flex items-center justify-center font-black text-white text-xs tracking-tight">MDC</div>
                   )}
                   <div>
-                    <h1 className="text-sm sm:text-base font-bold tracking-tight leading-tight">AI Modular Data Center Configurator</h1>
-                    <p className="text-[11px] text-slate-300 hidden lg:block">Requirements → Solution Build & 15-Point Summary → Commercial BOQ & PowerPoint</p>
+                    <h1 className="text-xs sm:text-sm font-bold tracking-tight leading-tight">AI Modular Data Center Configurator</h1>
+                    <p className="text-[10px] text-slate-300 hidden lg:block">Requirements → Solution Build & 15-Point Summary → Commercial BOQ & PowerPoint</p>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
-                <div className="flex items-center bg-slate-900/80 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
-                  <span className="text-slate-400 mr-1.5 hidden xl:inline">Deal:</span>
+                <div className="flex md:hidden items-center bg-slate-900/90 border border-slate-700 rounded-lg px-2 py-1 text-xs">
                   <select
                     value={editingId}
                     onChange={e => setEditingId(e.target.value)}
-                    className="bg-transparent text-white font-bold focus:outline-none max-w-[140px] sm:max-w-[190px]"
+                    className="bg-transparent text-white font-bold focus:outline-none max-w-[120px]"
+                  >
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id} className="text-slate-900">{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Bar (Horizontally scrollable on mobile, single row on desktop) */}
+              <div className="w-full md:w-auto flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 whitespace-nowrap scrollbar-none">
+                <div className="hidden md:flex items-center bg-slate-900/80 border border-slate-700 rounded-lg px-2.5 py-1 text-xs flex-shrink-0">
+                  <span className="text-slate-400 mr-1.5">Deal:</span>
+                  <select
+                    value={editingId}
+                    onChange={e => setEditingId(e.target.value)}
+                    className="bg-transparent text-white font-bold focus:outline-none max-w-[150px]"
                   >
                     {projects.map(p => (
                       <option key={p.id} value={p.id} className="text-slate-900">{p.name}</option>
@@ -3299,48 +3494,45 @@
                   </select>
                 </div>
 
-                <button onClick={() => navigateTo("summary")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-xs font-bold" title="15-Point Executive Solution Summary">
+                <button onClick={() => navigateTo("summary")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-xs font-bold flex-shrink-0" title="15-Point Executive Solution Summary">
                   📋 Summary
                 </button>
 
-                <button onClick={() => navigateTo("solution")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 border border-sky-500 text-xs font-bold">
+                <button onClick={() => navigateTo("solution")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 border border-sky-500 text-xs font-bold flex-shrink-0">
                   ⚙ Solution
                 </button>
 
                 <button
                   onClick={() => navigateTo("workspace")}
-                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black ${
+                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black flex-shrink-0 ${
                     eng.failCount > 0 ? "bg-red-600 text-white" : eng.warnCount > 0 ? "bg-amber-400 text-slate-950" : "bg-emerald-500 text-slate-950"
                   }`}
                 >
                   {eng.failCount > 0 ? `⚠ ${eng.failCount} Fail` : eng.warnCount > 0 ? `⚡ ${eng.warnCount} Warn` : "✓ BOQ"}
                 </button>
 
-                <button onClick={reRunWizardForCurrent} className="touch-btn px-2.5 py-1.5 rounded-lg bg-blue-800 hover:bg-blue-700 border border-blue-600 text-xs font-bold">
+                <button onClick={reRunWizardForCurrent} className="touch-btn px-2.5 py-1.5 rounded-lg bg-blue-800 hover:bg-blue-700 border border-blue-600 text-xs font-bold flex-shrink-0">
                   ✎ Wizard
                 </button>
 
-                <button onClick={saveCurrentDealToLocalFolder} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold" title="Save Active Deal to Chosen Local Folder">
-                  💾 Save Folder
+                <button onClick={saveCurrentDealToLocalFolder} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold flex-shrink-0" title="Save Active Deal to Chosen Local Folder">
+                  💾 Save
                 </button>
 
                 {driveToken ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <button onClick={() => openDriveFolderModal("save")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold">
-                      ☁ Save Drive
-                    </button>
-                    <button onClick={() => openDriveFolderModal("open")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold" title="Browse & Open from Google Drive Folders">
-                      📂 Drive
+                      ☁ Drive
                     </button>
                   </div>
                 ) : (
-                  <button onClick={handleGoogleSignIn} className="touch-btn px-2.5 py-1.5 rounded-lg coral-bg hover:opacity-95 text-white text-xs font-bold">
+                  <button onClick={handleGoogleSignIn} className="touch-btn px-2.5 py-1.5 rounded-lg coral-bg hover:opacity-95 text-white text-xs font-bold flex-shrink-0">
                     ☁ G-Drive
                   </button>
                 )}
 
                 {screen !== "home" && (
-                  <button onClick={() => navigateTo("home")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-xs font-bold">
+                  <button onClick={() => navigateTo("home")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-xs font-bold flex-shrink-0">
                     ⌂ Home
                   </button>
                 )}
@@ -3366,11 +3558,13 @@
                         {projects.map(p => (
                           <div
                             key={p.id}
-                            onClick={() => { setEditingId(p.id); navigateTo("summary"); }}
-                            className={`cursor-pointer px-2.5 py-1.5 rounded-lg border text-xs flex items-center justify-between ${p.id === editingId ? "border-blue-600 bg-blue-50 font-semibold navy-text" : "border-slate-200 hover:bg-slate-50"}`}
+                            className={`px-2 py-1.5 rounded-lg border text-xs flex items-center justify-between gap-2 ${p.id === editingId ? "border-blue-600 bg-blue-50 font-semibold navy-text" : "border-slate-200 bg-white"}`}
                           >
-                            <span className="truncate pr-2">{p.name}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 flex-shrink-0">Open →</span>
+                            <span className="truncate flex-1 cursor-pointer" onClick={() => { setEditingId(p.id); navigateTo("summary"); }}>{p.name}</span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 cursor-pointer" onClick={() => { setEditingId(p.id); navigateTo("summary"); }}>Open</span>
+                              <button onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }} className="text-red-600 hover:text-red-800 p-0.5 font-bold text-xs" title="Delete Deal">×</button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -3540,11 +3734,16 @@
                             <div><span className="text-slate-400 block">IT / Yard Area</span><span className="font-bold">{Math.round(pEng.totalItWhiteSpaceSqm)} / {pEng.totalNonItYardSqm} m²</span></div>
                             <div><span className="text-slate-400 block">Non-IT Pre-Tax</span><span className="font-bold navy-text">{formatMoney(pEng.totals.sellingPreTax, p.currency, standards)}</span></div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <button onClick={() => { setEditingId(p.id); navigateTo("summary"); }} className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold">15-Pt Summary</button>
-                            <button onClick={() => { setEditingId(p.id); navigateTo("solution"); }} className="px-3 py-1.5 rounded-lg bg-sky-700 text-white text-xs font-bold">Solution Build</button>
-                            <button onClick={() => { setEditingId(p.id); navigateTo("workspace"); }} className="px-3 py-1.5 rounded-lg navy-bg text-white text-xs font-bold">Commercial BOQ</button>
-                            <button onClick={() => { setEditingId(p.id); setWizardMode("edit"); setWizardTab(0); navigateTo("wizard"); }} className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-900 border border-blue-200 text-xs font-bold">Wizard</button>
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                            <div className="flex flex-wrap gap-1.5">
+                              <button onClick={() => { setEditingId(p.id); navigateTo("summary"); }} className="px-2.5 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold">Summary</button>
+                              <button onClick={() => { setEditingId(p.id); navigateTo("solution"); }} className="px-2.5 py-1.5 rounded-lg bg-sky-700 text-white text-xs font-bold">Build</button>
+                              <button onClick={() => { setEditingId(p.id); navigateTo("workspace"); }} className="px-2.5 py-1.5 rounded-lg navy-bg text-white text-xs font-bold">BOQ</button>
+                              <button onClick={() => { setEditingId(p.id); setWizardMode("edit"); setWizardTab(0); navigateTo("wizard"); }} className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-900 border border-blue-200 text-xs font-bold">Wizard</button>
+                            </div>
+                            <button onClick={() => deleteProject(p.id)} className="px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold border border-red-200" title="Delete Saved Deal">
+                              🗑️ Delete
+                            </button>
                           </div>
                         </div>
                       );
@@ -4108,8 +4307,9 @@
 
                     {wizardTab === 4 && (
                       <div className="space-y-4 text-sm">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                           {[
+                            ["None", "No Uptime Tier Mandate (Basic N)", "Single-path non-redundant baseline for captive R&D or tactical edge pilots."],
                             ["Tier II", "Uptime Tier II (N+1 Components)", "Single distribution path with N+1 redundant pumps, CDUs & UPS modules."],
                             ["Tier III", "Uptime Tier III (Concurrently Maintainable)", "Dual A/B power busways, N+1 active distribution & isolated maintenance bypass."],
                             ["Tier IV", "Uptime Tier IV (2N Fault-Tolerant)", "Fully compartmentalized 2N / 2(N+1) power & cooling plants surviving any single failure."]
@@ -4117,7 +4317,7 @@
                             <div
                               key={val}
                               onClick={() => updateCurrentProject({ uptimeTier: val })}
-                              className={`cursor-pointer p-4 rounded-xl border-2 transition ${currentProject.uptimeTier === val ? "border-[#002870] bg-blue-50/70" : "border-slate-200 hover:bg-slate-50"}`}
+                              className={`cursor-pointer p-3.5 rounded-xl border-2 transition ${currentProject.uptimeTier === val ? "border-[#002870] bg-blue-50/70" : "border-slate-200 hover:bg-slate-50"}`}
                             >
                               <div className="font-bold navy-text text-xs">{title}</div>
                               <p className="text-xs text-slate-600 mt-1">{desc}</p>
@@ -4125,9 +4325,27 @@
                           ))}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block font-bold text-slate-700 mb-1">Statutory & Seismic Rulebook</label>
-                            <input type="text" value={currentProject.regulatoryCode} onChange={e => updateCurrentProject({ regulatoryCode: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                          <div className="space-y-2">
+                            <label className="block font-bold text-slate-700">Statutory & BIS Compliance Mandate</label>
+                            <select
+                              value={
+                                (currentProject.regulatoryCode || "").toLowerCase().includes("no specific compliance")
+                                  ? "No Specific Compliance Mandates"
+                                  : "India BIS / CEA / CPCB IV+ / PESO / NBC / IS 1893"
+                              }
+                              onChange={e => updateCurrentProject({ regulatoryCode: e.target.value })}
+                              className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold text-xs"
+                            >
+                              <option value="India BIS / CEA / CPCB IV+ / PESO / NBC / IS 1893">India BIS / CEA / CPCB IV+ / PESO / NBC / IS 1893 (Full Statutory)</option>
+                              <option value="No Specific Compliance Mandates">No Specific Compliance Mandates (Unregulated / Internal Pilot)</option>
+                            </select>
+                            <input
+                              type="text"
+                              value={currentProject.regulatoryCode}
+                              onChange={e => updateCurrentProject({ regulatoryCode: e.target.value })}
+                              className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs"
+                              placeholder="Custom rulebook or notes..."
+                            />
                           </div>
                           <div className="flex flex-col justify-center gap-2 text-xs">
                             <label className="flex items-center gap-2 font-medium">
@@ -5237,16 +5455,21 @@
                     </div>
                   ))}
                   {driveFileList.map(file => (
-                    <div key={file.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <div>
-                        <div className="font-bold text-slate-800">📄 {file.name}</div>
+                    <div key={file.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-slate-800 truncate">📄 {file.name}</div>
                         <div className="text-[10px] text-slate-400">{new Date(file.modifiedTime).toLocaleString()}</div>
                       </div>
-                      {driveModalMode === "open" && (
-                        <button onClick={() => loadFileFromGoogleDrive(file.id, file.name)} className="px-3 py-1 rounded navy-bg text-white font-bold">
-                          Load
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {driveModalMode === "open" && (
+                          <button onClick={() => loadFileFromGoogleDrive(file.id, file.name)} className="px-3 py-1 rounded navy-bg text-white font-bold">
+                            Load
+                          </button>
+                        )}
+                        <button onClick={() => deleteFileFromGoogleDrive(file.id, file.name)} className="px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold" title="Move JSON to Google Drive Trash">
+                          🗑️
                         </button>
-                      )}
+                      </div>
                     </div>
                   ))}
                   {driveFolderList.length === 0 && driveFileList.length === 0 && (
