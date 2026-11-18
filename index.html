@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V9)</title>
-  <link rel="manifest" href="/manifest.json" />
+  <title>AI Modular Data Center Configurator (V10)</title>
+  <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
@@ -21,6 +21,8 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { box-sizing: border-box; font-family: 'Roboto', sans-serif; }
+    html { font-size: 13.5px; }
+    @media (max-width: 640px) { html { font-size: 13px; } }
     html, body, #root { height: 100%; margin: 0; overflow: hidden; background: #F4F6FA; color: #0F172A; }
     body { -webkit-tap-highlight-color: transparent; }
     .navy-bg { background-color: #002870; }
@@ -28,7 +30,7 @@
     .coral-bg { background-color: #FF5539; }
     .coral-text { color: #FF5539; }
     .card-shadow { box-shadow: 0 4px 20px -2px rgba(0, 40, 112, 0.08); }
-    .touch-btn { min-height: 38px; }
+    .touch-btn { min-height: 34px; }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #E2E8F0; }
     ::-webkit-scrollbar-thumb { background: #94A3B8; border-radius: 3px; }
@@ -41,7 +43,7 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v9_enterprise";
+    const STORAGE_KEY = "ai_mdc_studio_v10_enterprise";
 
     // DEFAULT COLOR PALETTES FOR 3D, 2D & POWERPOINT DRAWINGS
     const COLOR_THEMES = {
@@ -1399,6 +1401,47 @@
       return canvas.toDataURL("image/png");
     }
 
+    function renderElectricalSldPng(project, eng, palette) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1100;
+      canvas.height = 390;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "#FF5539";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(140, 95); ctx.lineTo(960, 95); ctx.stroke();
+      ctx.fillStyle = "#FF5539";
+      ctx.font = "bold 12px Roboto, sans-serif";
+      ctx.fillText(`PATH A — PRIMARY 415V CRITICAL BUS (${project.uptimeTier} | Peak Facility: ${eng.totalFacilityPeakKva.toLocaleString()} kVA)`, 140, 82);
+
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(140, 295); ctx.lineTo(960, 295); ctx.stroke();
+      ctx.fillStyle = "#0F172A";
+      ctx.fillText("PATH B — REDUNDANT / STANDBY FEED & CRITICAL COOLING PUMP BUS", 140, 318);
+
+      const blocks = [
+        [45, "1. HT VCB & MV/LV TRAFOS", `${eng.transformerUnits} × ${eng.selTrafo.ratedCapacity} kVA`, `${project.transformerType}`, palette.transformer],
+        [305, "2. CPCB IV+ DG & PESO HSD", `${eng.dgUnitsCount} × ${eng.selDg.ratedCapacity} kVA (${eng.effectiveDgKva}kVA)`, `${project.dgAutonomyHours}h Autonomy (${totalHsdK(eng.totalHsdFuelLitres)} kL)`, palette.dgSet],
+        [565, "3. MODULAR UPS & BESS", `${eng.upsContainersCount} × ${eng.selUps.ratedCapacity} kVA UPS`, `${project.batteryRuntimeMin}m ${project.batteryChemistry} (${Math.round(eng.batteryKwhReq)} kWh)`, palette.upsBess],
+        [825, "4. DUAL A/B TRACK BUSWAY", `${INITIAL_STANDARDS.buswayAmperageA}A Overhead Busways`, `${eng.activeRacks.length} Dual-Feed IT Racks`, palette.itPod]
+      ];
+      blocks.forEach(([x, title, l1, l2, col]) => {
+        ctx.fillStyle = col || "#1E293B";
+        ctx.fillRect(x, 125, 230, 140);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "bold 12px Roboto, sans-serif";
+        ctx.fillText(title, x + 14, 162);
+        ctx.font = "11px Roboto, sans-serif";
+        ctx.fillText(l1, x + 14, 194);
+        ctx.fillText(l2, x + 14, 222);
+      });
+
+      return canvas.toDataURL("image/png");
+    }
+
     function renderMepSchematicPng(project, eng) {
       const canvas = document.createElement("canvas");
       canvas.width = 1100;
@@ -1474,6 +1517,7 @@
         const ashraePng = renderAshraeChartPng(project, eng);
         const sitePng = renderSiteYardPng(project, eng, palette);
         const podPng = renderPodFloorPlanPng(project, eng, palette);
+        const sldPng = renderElectricalSldPng(project, eng, palette);
         const mepPng = renderMepSchematicPng(project, eng);
 
         // Strict bottom clearance: all elements stay above y = 4.40" (leaving 3.1" blank footer!)
@@ -1570,9 +1614,14 @@
         addSlideHeader(s5, "Intra-Container 2-Row Architecture & Growth Reserve", `${eng.pods.length} Dedicated IT Pods • ${project.hallTopology} Assembly • ${project.futureGrowthReservePct}% Expansion Bay`, "04");
         s5.addImage({ data: podPng, x: 0.65, y: 1.26, w: 12.0, h: 3.05 });
 
-        // SLIDE 6: Electrical SLD (E-201), Multi-Pump Hydraulic P&ID (M-301), IBMS & Compliance
+        // SLIDE 6A: Dedicated Electrical Single-Line Diagram (E-201)
+        const s6a = pptx.addSlide();
+        addSlideHeader(s6a, "Electrical Single-Line Diagram (E-201)", `${project.uptimeTier} Power Train • ${eng.totalFacilityPeakKva.toLocaleString()} kVA Peak • ${project.batteryRuntimeMin}m ${project.batteryChemistry} Backup`, "05");
+        s6a.addImage({ data: sldPng, x: 0.65, y: 1.26, w: 12.0, h: 3.05 });
+
+        // SLIDE 6B: Hydraulic P&ID (M-301) & IBMS Envelope
         const s6 = pptx.addSlide();
-        addSlideHeader(s6, "Non-IT MEP Schematics, Redundancy & Regulatory Envelope", `${project.uptimeTier} Redundancy • ${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar TDH • ${project.seismicZone}`, "05");
+        addSlideHeader(s6, "DLC Hydraulic Loop (M-301) & IBMS Telemetry Envelope", `${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar TDH • ${eng.totalWaterStorageKl} kL Storage • ${project.seismicZone}`, "06");
         s6.addImage({ data: mepPng, x: 0.65, y: 1.26, w: 12.0, h: 3.05 });
 
         // SLIDE 7: Regulatory, Environmental De-Risking & Operations / AMC Management (Points 13 & 14)
@@ -2086,7 +2135,7 @@
           <ColorLegendBar palette={palette} onUpdatePalette={onUpdatePalette} onApplyTheme={onApplyTheme} eng={eng} />
 
           <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <span className="font-bold text-slate-600 mr-1">Camera:</span>
               {["Iso", "Top", "Aisle", "Plenum", "Rear"].map(pr => (
                 <button key={pr} onClick={() => applyPreset(pr)} className={`px-2.5 py-1 rounded font-medium ${cameraPreset === pr ? "navy-bg text-white" : "bg-white border border-slate-300 text-slate-700"}`}>
@@ -2373,7 +2422,7 @@
                 </g>
               )}
 
-              {(sheet === "A-101" || sheet === "E-201") && (
+              {sheet === "A-101" && (
                 <g>
                   {[
                     [70, "MV/LV SUBSTATION", `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA (${eng.yardBreakdown.substationSqm}m²)`, palette.transformer],
@@ -2385,6 +2434,28 @@
                       <rect x="0" y="0" width="210" height="125" fill={col} />
                       <text x="105" y="52" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle">{title}</text>
                       <text x="105" y="78" fill="#FFFFFF" fontSize="10" textAnchor="middle">{sub}</text>
+                    </g>
+                  ))}
+                </g>
+              )}
+
+              {sheet === "E-201" && (
+                <g>
+                  <line x1="165" y1="150" x2="935" y2="150" stroke={accent} strokeWidth="3" />
+                  <line x1="165" y1="305" x2="935" y2="305" stroke={primary} strokeWidth="3" />
+                  <text x="550" y="138" fill={accent} fontSize="11" fontWeight="bold" textAnchor="middle">PATH A — PRIMARY 415V AC BUS ({currentProject.uptimeTier} REDUNDANT)</text>
+                  <text x="550" y="325" fill={primary} fontSize="11" fontWeight="bold" textAnchor="middle">PATH B — SECONDARY / STANDBY BUS & CRITICAL COOLING FEED</text>
+                  {[
+                    [60, "1. HT 11/33kV VCB & TRAFOS", `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity} kVA`, `${project.transformerType}`, palette.transformer],
+                    [315, "2. CPCB IV+ DG & ATS", `${eng.dgUnitsCount}×${eng.selDg.ratedCapacity} kVA (${eng.effectiveDgKva}kVA)`, `${project.dgAutonomyHours}h (${totalHsdK(eng.totalHsdFuelLitres)}kL HSD)`, palette.dgSet],
+                    [570, "3. MODULAR UPS & BESS", `${eng.upsContainersCount}×${eng.selUps.ratedCapacity} kVA UPS`, `${project.batteryRuntimeMin}m ${project.batteryChemistry} (${Math.round(eng.batteryKwhReq)}kWh)`, palette.upsBess],
+                    [825, "4. DUAL A/B BUSWAY & rPDU", `${standards.buswayAmperageA}A Overhead Track`, `${eng.activeRacks.length} Dual-Feed Racks`, palette.itPod]
+                  ].map(([x, t, l1, l2, col], idx) => (
+                    <g key={idx} transform={`translate(${x}, 172)`}>
+                      <rect x="0" y="0" width="215" height="110" rx="6" fill={col} />
+                      <text x="107" y="34" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle">{t}</text>
+                      <text x="107" y="60" fill="#FFFFFF" fontSize="10.5" textAnchor="middle">{l1}</text>
+                      <text x="107" y="82" fill="#E2E8F0" fontSize="9.5" textAnchor="middle">{l2}</text>
                     </g>
                   ))}
                 </g>
@@ -3054,9 +3125,9 @@
       return (
         <div className="h-screen flex flex-col overflow-hidden">
           {/* PINNED PERSISTENT TOP HEADER WITH BACK NAVIGATION + FOLDER SAVE */}
-          <header className="navy-bg text-white px-4 py-2.5 shadow-md flex-shrink-0 z-50 border-b border-blue-900">
-            <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
+          <header className="navy-bg text-white px-3 py-2 shadow-md flex-shrink-0 z-50 border-b border-blue-900">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {screen !== "home" && (
                   <button onClick={goBack} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold flex items-center gap-1" title="Go Back">
                     ← Back
@@ -3130,8 +3201,8 @@
                 )}
 
                 {screen !== "home" && (
-                  <button onClick={() => navigateTo("home")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold">
-                    ⌂
+                  <button onClick={() => navigateTo("home")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-xs font-bold">
+                    ⌂ Home
                   </button>
                 )}
               </div>
@@ -3143,8 +3214,8 @@
 
               {/* 1. UNIFIED HUB-AND-SPOKE HOME DASHBOARD */}
               {screen === "home" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  <div className="bg-white rounded-2xl p-6 card-shadow border-2 border-[#FF5539] flex flex-col justify-between min-h-[235px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  <div className="bg-white rounded-2xl p-4 card-shadow border-2 border-[#FF5539] flex flex-col justify-between">
                     <div>
                       <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold coral-bg text-white mb-2">STAGE 01 • REQUIREMENTS & DEALS</span>
                       <h2 className="text-xl font-bold navy-text">Start New or Open Deal</h2>
@@ -3176,7 +3247,7 @@
                     </div>
                   </div>
 
-                  <div onClick={() => navigateTo("summary")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border-2 border-teal-600 hover:border-teal-800 transition flex flex-col justify-between min-h-[235px]">
+                  <div onClick={() => navigateTo("summary")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border-2 border-teal-600 hover:border-teal-800 transition flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-teal-100 text-teal-950">EXECUTIVE SOLUTION SUMMARY</span>
@@ -3188,7 +3259,7 @@
                     <div className="text-xs font-bold text-teal-800 mt-4">Open 15-Point Solution Summary →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("solution")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border-2 border-sky-600 hover:border-blue-800 transition flex flex-col justify-between min-h-[235px]">
+                  <div onClick={() => navigateTo("solution")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border-2 border-sky-600 hover:border-blue-800 transition flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-sky-100 text-sky-950">STAGE 02 • SOLUTION BUILD & TUNING</span>
@@ -3200,7 +3271,7 @@
                     <div className="text-xs font-bold text-sky-800 mt-4">Inspect & Tune Engineering Solution →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("workspace")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[235px]">
+                  <div onClick={() => navigateTo("workspace")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900">STAGE 03 • COMMERCIAL BOQ & TCO</span>
@@ -3212,7 +3283,7 @@
                     <div className="text-xs font-bold text-emerald-700 mt-4">Open Commercial BOQ & Validator →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("studio3d")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[235px]">
+                  <div onClick={() => navigateTo("studio3d")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-100 text-indigo-900">04 • INTERACTIVE 3D & COLOR STUDIO</span>
@@ -3224,7 +3295,7 @@
                     <div className="text-xs font-bold text-indigo-700 mt-4">Launch Interactive 3D Viewport →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("outputs")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between min-h-[235px]">
+                  <div onClick={() => navigateTo("outputs")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900">05 • POWERPOINT (.PPTX) & REPORTS</span>
@@ -3236,7 +3307,7 @@
                     <div className="text-xs font-bold text-amber-800 mt-4">Generate PowerPoint & Reports →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("supply_intel")} className="cursor-pointer bg-white rounded-2xl p-6 card-shadow border border-dashed border-blue-400 hover:border-blue-700 transition flex flex-col justify-between min-h-[220px]">
+                  <div onClick={() => navigateTo("supply_intel")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border border-dashed border-blue-400 hover:border-blue-700 transition flex flex-col justify-between">
                     <div>
                       <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-sky-100 text-sky-900 mb-2">06 • SUPPLY CHAIN INTELLIGENCE</span>
                       <h2 className="text-xl font-bold navy-text">India OEM Price & Rating Engine</h2>
@@ -3245,7 +3316,7 @@
                     <div className="text-xs font-bold text-sky-700 mt-4">Open Supply Chain Intelligence →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-2xl p-6 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between min-h-[220px] md:col-span-2">
+                  <div onClick={() => navigateTo("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-2xl p-4 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between">
                     <div>
                       <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-amber-300 mb-2">07 • MASTER CATALOGS (CRUD)</span>
                       <h2 className="text-xl font-bold">Global Master Parameters & Equipment Catalogs</h2>
@@ -3449,9 +3520,14 @@
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200">
-                            <label className="block font-bold navy-text mb-1">Target Total IT Load (MW)</label>
-                            <input type="number" step="0.1" min="0" placeholder="e.g., 10.0" value={currentProject.targetItMw || ""} onChange={e => updateCurrentProject({ targetItMw: Number(e.target.value) })} className="w-full border border-blue-300 rounded-lg px-3 py-2 text-lg font-black navy-text bg-white" />
+                          <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 space-y-2">
+                            <label className="block font-bold navy-text">Target Total IT Load (MW)</label>
+                            <input type="number" step="0.1" min="0" placeholder="e.g., 10.0" value={currentProject.targetItMw || ""} onChange={e => updateCurrentProject({ targetItMw: Number(e.target.value) })} className="w-full border border-blue-300 rounded-lg px-3 py-1.5 text-lg font-black navy-text bg-white" />
+                            {currentProject.targetItMw > 0 && (
+                              <div className={`text-[11px] font-bold px-2 py-1 rounded ${Math.abs((eng.totalDesignContKw/1000) - currentProject.targetItMw) <= currentProject.targetItMw * 0.08 ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-950"}`}>
+                                Selected Racks: {(eng.totalDesignContKw/1000).toFixed(2)} MW ({(((eng.totalDesignContKw/1000) - currentProject.targetItMw) >= 0 ? "+" : "") + (((eng.totalDesignContKw/1000) - currentProject.targetItMw)*1000).toFixed(0)} kW vs Target)
+                              </div>
+                            )}
                           </div>
                           <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 text-xs">
                             <label className="block font-bold navy-text mb-1">Target Coolant Supply Temp (°C)</label>
@@ -5020,7 +5096,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
       });
     }
   </script>
