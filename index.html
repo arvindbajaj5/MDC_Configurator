@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V10.1)</title>
+  <title>AI Modular Data Center Configurator (V10.2)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -42,7 +42,7 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v10_1_enterprise";
+    const STORAGE_KEY = "ai_mdc_studio_v10_2_enterprise";
 
     // DEFAULT COLOR PALETTES FOR 3D, 2D & POWERPOINT DRAWINGS
     const COLOR_THEMES = {
@@ -3085,15 +3085,15 @@
           ["4. Max Inlet Coolant Temp Maintained", `${eng.effectiveSupplyTempC}°C Target (Governing SKU Limit: ${eng.governingMaxInletTempC}°C)`],
           ["5. Extreme Weather & Hydraulics", `${eng.coolingMode} | ${eng.totalWaterStorageKl} kL Tanks | ${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar TDH`],
           ["6. IT Container Dimensions", `${eng.pods[0] ? `${(eng.pods[0].extLengthMm/1000).toFixed(2)}m x ${(eng.pods[0].extWidthMm/1000).toFixed(2)}m x ${(eng.pods[0].extHeightMm/1000).toFixed(2)}m` : "N/A"}`],
-          ["7. Additional Non-IT Containers", `${eng.upsContainersCount} UPS Pods, ${eng.batteryContainersCount} BESS Pods, Admin: ${project.includeAdminModule ? "Yes" : "No"}, Staging: ${project.includeStagingModule ? "Yes" : "No"}`],
+          ["7. Additional Non-IT Containers", `${eng.upsContainersCount} UPS Pods, ${eng.batteryContainersCount} BESS Pods, Admin: ${currentProject.includeAdminModule ? "Yes" : "No"}, Staging: ${currentProject.includeStagingModule ? "Yes" : "No"}`],
           ["8. IT White-Space Area", `${Math.round(eng.totalItWhiteSpaceSqm)} m²`],
           ["9. Non-IT Technical Yard Area", `${eng.totalNonItYardSqm} m² (Total Campus: ${eng.totalCampusOccupiedSqm} m²)`],
-          ["10. Redundancy Management", `${project.uptimeTier}`],
+          ["10. Redundancy Management", `${currentProject.uptimeTier}`],
           ["11. Cabling & Plumbing", `Overhead Dual A/B Busways + Underfloor SS316L Manifolds`],
-          ["12. IBMS / DCIM", `${project.includeIntegratedBms ? "IBMS + Leak Ropes" : "Standard"}`],
-          ["13. Regulatory & De-Risking", `VESDA + ${eng.novecGasKg}kg Novec 1230, CCTV, EMI Shielding, Elevated Monsoon Plinth, ${project.seismicLabel}`],
-          ["14. Operations & AMC", `${project.amcYears} Yrs AMC, ${project.residentHeadcount} Resident Staff, ${eng.totalHsdFuelLitres}L Fuel`],
-          ["15. City & ASHRAE Microclimate", `${project.cityQuery} (${project.peakDryBulb}°C DB / ${project.peakWetBulb}°C WB)`]
+          ["12. IBMS / DCIM", `${currentProject.includeIntegratedBms ? "IBMS + Leak Ropes" : "Standard"}`],
+          ["13. Regulatory & De-Risking", `VESDA + ${eng.novecGasKg}kg Novec 1230, CCTV, EMI Shielding, Elevated Monsoon Plinth, ${currentProject.seismicLabel}`],
+          ["14. Operations & AMC", `${currentProject.amcYears} Yrs AMC, ${currentProject.residentHeadcount} Resident Staff, ${eng.totalHsdFuelLitres}L Fuel`],
+          ["15. City & ASHRAE Microclimate", `${currentProject.cityQuery} (${currentProject.peakDryBulb}°C DB / ${currentProject.peakWetBulb}°C WB)`]
         ];
         downloadCsv(`${currentProject.name.replace(/\s+/g, "_")}_15Point_Solution_Summary.csv`, rows);
       };
@@ -4201,7 +4201,7 @@
                           ],
                           [
                             "3. Redundancy, Runtime & Autonomy",
-                            `${project.uptimeTier} • ${currentProject.batteryRuntimeMin}m ${currentProject.batteryChemistry} • ${currentProject.dgAutonomyHours}h DG Fuel`,
+                            `${currentProject.uptimeTier} • ${currentProject.batteryRuntimeMin}m ${currentProject.batteryChemistry} • ${currentProject.dgAutonomyHours}h DG Fuel`,
                             `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA Trafos • ${eng.upsContainersCount}×${eng.selUps.ratedCapacity}kVA UPS • ${eng.dgUnitsCount}×${eng.selDg.ratedCapacity}kVA DGs`
                           ]
                         ].map(([title, reqTxt, desTxt], i) => (
