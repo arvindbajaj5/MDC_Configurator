@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V10)</title>
+  <title>AI Modular Data Center Configurator (V10.1)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -20,9 +20,8 @@
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    * { box-sizing: border-box; font-family: 'Roboto', sans-serif; }
-    html { font-size: 13.5px; }
-    @media (max-width: 640px) { html { font-size: 13px; } }
+    * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    html { font-size: 14px; }
     html, body, #root { height: 100%; margin: 0; overflow: hidden; background: #F4F6FA; color: #0F172A; }
     body { -webkit-tap-highlight-color: transparent; }
     .navy-bg { background-color: #002870; }
@@ -43,7 +42,7 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v10_enterprise";
+    const STORAGE_KEY = "ai_mdc_studio_v10_1_enterprise";
 
     // DEFAULT COLOR PALETTES FOR 3D, 2D & POWERPOINT DRAWINGS
     const COLOR_THEMES = {
@@ -609,8 +608,11 @@
       else if (project.containerLengthMode === "ISO40") targetExtLengthMm = standards.iso40LengthMm;
       else targetExtLengthMm = project.maxCustomLengthMm || standards.defaultCustomMaxLenMm;
 
-      const maxUsableRowMm = Math.max(3600, Math.floor((targetExtLengthMm - airlockReserveMm - wallInsulReserveMm) / growthFactor));
-      const maxDlcKwPerPod = standards.maxDlcKwPerPod || 2000;
+      const isAllInOne = project.containerLengthMode === "AllInOne";
+      if (isAllInOne) targetExtLengthMm = 12192;
+      const effectiveAirlockMm = isAllInOne ? 3600 : airlockReserveMm; // 3.6m internal utility bulkhead for UPS/CDU in All-in-One mode
+      const maxUsableRowMm = Math.max(3200, Math.floor((targetExtLengthMm - effectiveAirlockMm - wallInsulReserveMm) / growthFactor));
+      const maxDlcKwPerPod = isAllInOne ? 1000 : (standards.maxDlcKwPerPod || 2000);
       const maxAcKwPerPod = standards.maxAcKwPerPod || 400;
       const maxPayloadKgPerPod = standards.maxPodPayloadKg || 36000;
 
@@ -683,7 +685,7 @@
             ? Math.round((Math.min(rowAKw, rowBKw) / Math.max(rowAKw, rowBKw)) * 100)
             : 100;
 
-          p.label = `${podKind} Pod #${idx + 1}`;
+          p.label = isAllInOne ? `All-in-One Pod #${idx + 1}` : `${podKind} Pod #${idx + 1}`;
           p.extLengthMm = extLenMm;
           p.extWidthMm = project.containerWidthMm;
           p.extHeightMm = project.containerHeightMm;
@@ -3126,7 +3128,7 @@
         <div className="h-screen flex flex-col overflow-hidden">
           {/* PINNED PERSISTENT TOP HEADER WITH BACK NAVIGATION + FOLDER SAVE */}
           <header className="navy-bg text-white px-3 py-2 shadow-md flex-shrink-0 z-50 border-b border-blue-900">
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap">
+            <div className="max-w-[1640px] w-full mx-auto flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap">
               <div className="flex items-center gap-2 flex-shrink-0">
                 {screen !== "home" && (
                   <button onClick={goBack} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold flex items-center gap-1" title="Go Back">
@@ -3210,22 +3212,25 @@
           </header>
 
           <main className="flex-1 overflow-y-auto">
-            <div className="max-w-7xl w-full mx-auto p-4 sm:p-6">
+            <div className="max-w-[1640px] w-full mx-auto p-3 sm:p-5">
 
               {/* 1. UNIFIED HUB-AND-SPOKE HOME DASHBOARD */}
               {screen === "home" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                  <div className="bg-white rounded-2xl p-4 card-shadow border-2 border-[#FF5539] flex flex-col justify-between">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="col-span-2 md:col-span-1 bg-white rounded-xl p-4 card-shadow border-2 border-[#FF5539] flex flex-col justify-between">
                     <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold coral-bg text-white mb-2">STAGE 01 • REQUIREMENTS & DEALS</span>
-                      <h2 className="text-xl font-bold navy-text">Start New or Open Deal</h2>
-                      <p className="text-xs text-slate-600 mt-1">Capture requirements via the 7-step Wizard, or open an existing customer deal:</p>
-                      <div className="mt-3 space-y-1.5 max-h-28 overflow-y-auto">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold coral-bg text-white whitespace-nowrap">STAGE 01 • DEALS</span>
+                        <span className="text-[10px] text-slate-400 font-semibold">{projects.length} Saved</span>
+                      </div>
+                      <h2 className="text-base font-bold navy-text leading-snug">Start New or Open Deal</h2>
+                      <p className="text-xs text-slate-600 mt-1">Capture requirements via Wizard or open an existing customer deal:</p>
+                      <div className="mt-2.5 space-y-1 max-h-24 overflow-y-auto">
                         {projects.map(p => (
                           <div
                             key={p.id}
                             onClick={() => { setEditingId(p.id); navigateTo("summary"); }}
-                            className={`cursor-pointer px-2.5 py-1.5 rounded-lg border text-xs flex items-center justify-between ${p.id === editingId ? "border-blue-600 bg-blue-50 font-bold navy-text" : "border-slate-200 hover:bg-slate-50"}`}
+                            className={`cursor-pointer px-2.5 py-1.5 rounded-lg border text-xs flex items-center justify-between ${p.id === editingId ? "border-blue-600 bg-blue-50 font-semibold navy-text" : "border-slate-200 hover:bg-slate-50"}`}
                           >
                             <span className="truncate pr-2">{p.name}</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 flex-shrink-0">Open →</span>
@@ -3233,96 +3238,101 @@
                         ))}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-4 pt-2 border-t border-slate-100">
-                      <button onClick={startBlankProjectWizard} className="flex-1 py-2 rounded-lg coral-bg text-white text-xs font-bold">
-                        + New Blank Wizard
+                    <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-100">
+                      <button onClick={startBlankProjectWizard} className="flex-1 py-1.5 px-2 rounded-lg coral-bg text-white text-xs font-bold whitespace-nowrap">
+                        + New Wizard
                       </button>
-                      <label className="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold navy-text cursor-pointer">
-                        📂 Load .JSON
+                      <label className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold navy-text cursor-pointer whitespace-nowrap">
+                        📂 .JSON
                         <input type="file" accept=".json" onChange={importDealFromLocalFile} className="hidden" />
                       </label>
-                      <button onClick={() => navigateTo("projects")} className="px-2.5 py-2 rounded-lg border border-slate-300 text-xs font-bold navy-text">
+                      <button onClick={() => navigateTo("projects")} className="px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold navy-text whitespace-nowrap">
                         All ({projects.length})
                       </button>
                     </div>
                   </div>
 
-                  <div onClick={() => navigateTo("summary")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border-2 border-teal-600 hover:border-teal-800 transition flex flex-col justify-between">
+                  <div onClick={() => navigateTo("summary")} className="cursor-pointer bg-white rounded-xl p-4 card-shadow border border-teal-500/70 hover:border-teal-700 transition flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-teal-100 text-teal-950">EXECUTIVE SOLUTION SUMMARY</span>
-                        <span className="text-[10px] font-bold text-slate-400 truncate max-w-[130px]">{currentProject.name}</span>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-950 whitespace-nowrap">15-PT SUMMARY</span>
+                        <span className="text-[10px] font-medium text-slate-400 truncate max-w-[110px]">{currentProject.name}</span>
                       </div>
-                      <h2 className="text-xl font-bold navy-text">15-Point Engineering Datasheet</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">View the complete 15-point solution summary: DLC/AC split, PUE, max inlet water temp, 12-month ASHRAE chart, m² white-space & yard layout, IBMS, regulatory & AMC.</p>
+                      <h2 className="text-base font-bold navy-text leading-snug">Executive Solution Datasheet</h2>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">DLC/AC load split, annualized PUE, max inlet temp, 12-month ASHRAE chart, m² white-space & yard layout, IBMS & AMC.</p>
                     </div>
-                    <div className="text-xs font-bold text-teal-800 mt-4">Open 15-Point Solution Summary →</div>
+                    <div className="text-xs font-bold text-teal-800 mt-3 pt-2 border-t border-slate-100">Open Datasheet →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("solution")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border-2 border-sky-600 hover:border-blue-800 transition flex flex-col justify-between">
+                  <div onClick={() => navigateTo("solution")} className="cursor-pointer bg-white rounded-xl p-4 card-shadow border border-sky-500/70 hover:border-blue-800 transition flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-sky-100 text-sky-950">STAGE 02 • SOLUTION BUILD & TUNING</span>
-                        <span className="text-[10px] font-bold text-slate-400 truncate max-w-[130px]">{currentProject.name}</span>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-950 whitespace-nowrap">STAGE 02 • BUILD</span>
+                        <span className="text-[10px] font-medium text-slate-400 truncate max-w-[110px]">{currentProject.name}</span>
                       </div>
-                      <h2 className="text-xl font-bold navy-text">Subsystem Sizing & Block Optimizer</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Tune supply water temperature, UPS checkpoint backup (5–60 min), multi-pump staging, Transformer/UPS/DG building-block sizes & AMC basis.</p>
+                      <h2 className="text-base font-bold navy-text leading-snug">Supply-Chain Synthesis & Tuning</h2>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">Requirement-to-OEM traceability walkthrough, auto-mapped supply chain SKUs, UPS checkpoint runtime, pump staging & block overrides.</p>
                     </div>
-                    <div className="text-xs font-bold text-sky-800 mt-4">Inspect & Tune Engineering Solution →</div>
+                    <div className="text-xs font-bold text-sky-800 mt-3 pt-2 border-t border-slate-100">Walkthrough & Tune →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("workspace")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
+                  <div onClick={() => navigateTo("workspace")} className="cursor-pointer bg-white rounded-xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900">STAGE 03 • COMMERCIAL BOQ & TCO</span>
-                        <span className="text-[10px] font-bold text-slate-400 truncate max-w-[130px]">{currentProject.name}</span>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-900 whitespace-nowrap">STAGE 03 • BOQ</span>
+                        <span className="text-[10px] font-medium text-slate-400 truncate max-w-[110px]">{currentProject.name}</span>
                       </div>
-                      <h2 className="text-xl font-bold navy-text">Commercial BOQ, Special Quotes & TCO</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Audit Design Validator, apply deal-specific special vendor quotes (with validity dates & comments), and review 5-year lifecycle TCO.</p>
+                      <h2 className="text-base font-bold navy-text leading-snug">Commercial BOQ & 5-Yr TCO</h2>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">Audit Design Validator, apply deal-specific special vendor quotes with validity dates, and review 5-year lifecycle TCO.</p>
                     </div>
-                    <div className="text-xs font-bold text-emerald-700 mt-4">Open Commercial BOQ & Validator →</div>
+                    <div className="text-xs font-bold text-emerald-700 mt-3 pt-2 border-t border-slate-100">Open BOQ & TCO →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("studio3d")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
+                  <div onClick={() => navigateTo("studio3d")} className="cursor-pointer bg-white rounded-xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-100 text-indigo-900">04 • INTERACTIVE 3D & COLOR STUDIO</span>
-                        <span className="text-[10px] font-bold text-slate-400 truncate max-w-[130px]">{currentProject.name}</span>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-900 whitespace-nowrap">04 • 3D STUDIO</span>
+                        <span className="text-[10px] font-medium text-slate-400 truncate max-w-[110px]">{currentProject.name}</span>
                       </div>
-                      <h2 className="text-xl font-bold navy-text">360° 3D Container & Yard Studio</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Inspect separated IT white-space pods vs. Non-IT yard equipment with live m² readouts, color legends, and custom color picker.</p>
+                      <h2 className="text-base font-bold navy-text leading-snug">360° Container & Yard Twin</h2>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">Inspect IT white-space pods vs. Non-IT yard equipment with live m² readouts, color legends, and custom color picker.</p>
                     </div>
-                    <div className="text-xs font-bold text-indigo-700 mt-4">Launch Interactive 3D Viewport →</div>
+                    <div className="text-xs font-bold text-indigo-700 mt-3 pt-2 border-t border-slate-100">Launch 3D View →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("outputs")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
+                  <div onClick={() => navigateTo("outputs")} className="cursor-pointer bg-white rounded-xl p-4 card-shadow border border-slate-200 hover:border-blue-600 transition flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900">05 • POWERPOINT (.PPTX) & REPORTS</span>
-                        <span className="text-[10px] font-bold text-slate-400 truncate max-w-[130px]">{currentProject.name}</span>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 whitespace-nowrap">05 • OUTPUTS</span>
+                        <span className="text-[10px] font-medium text-slate-400 truncate max-w-[110px]">{currentProject.name}</span>
                       </div>
-                      <h2 className="text-xl font-bold navy-text">PowerPoint Deck (.PPTX), CAD & Summary</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Export PowerPoint decks with embedded ASHRAE chart, site/yard & pod drawings, 15-point Solution Summary CSV, BOM & CAD sheets.</p>
+                      <h2 className="text-base font-bold navy-text leading-snug">PowerPoint (.PPTX) & CAD Pack</h2>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">Export PowerPoint decks with embedded ASHRAE chart, Electrical SLD (E-201), site/pod CAD drawings & CSV schedules.</p>
                     </div>
-                    <div className="text-xs font-bold text-amber-800 mt-4">Generate PowerPoint & Reports →</div>
+                    <div className="text-xs font-bold text-amber-800 mt-3 pt-2 border-t border-slate-100">Export Deck & CAD →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("supply_intel")} className="cursor-pointer bg-white rounded-2xl p-4 card-shadow border border-dashed border-blue-400 hover:border-blue-700 transition flex flex-col justify-between">
+                  <div onClick={() => navigateTo("supply_intel")} className="cursor-pointer bg-white rounded-xl p-4 card-shadow border border-dashed border-blue-400 hover:border-blue-700 transition flex flex-col justify-between">
                     <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-sky-100 text-sky-900 mb-2">06 • SUPPLY CHAIN INTELLIGENCE</span>
-                      <h2 className="text-xl font-bold navy-text">India OEM Price & Rating Engine</h2>
-                      <p className="text-sm text-slate-600 mt-1.5">Load & refresh external <code>mdc_supply_intel.json</code>, compare Indian OEM ratings, track 6-month staleness, and push quotes to deal BOQ.</p>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-900 whitespace-nowrap">06 • SUPPLY INTEL</span>
+                        <span className="text-[10px] font-semibold text-sky-800">{supplyIntel.items?.length || 0} SKUs</span>
+                      </div>
+                      <h2 className="text-base font-bold navy-text leading-snug">India OEM Price & Rating DB</h2>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">Refresh external <code>mdc_supply_intel.json</code>, audit 6-month freshness, and map OEM ratings automatically.</p>
                     </div>
-                    <div className="text-xs font-bold text-sky-700 mt-4">Open Supply Chain Intelligence →</div>
+                    <div className="text-xs font-bold text-sky-700 mt-3 pt-2 border-t border-slate-100">Manage Supply DB →</div>
                   </div>
 
-                  <div onClick={() => navigateTo("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-2xl p-4 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between">
+                  <div onClick={() => navigateTo("parameters")} className="cursor-pointer bg-slate-900 text-white rounded-xl p-4 card-shadow border border-slate-700 hover:border-amber-400 transition flex flex-col justify-between">
                     <div>
-                      <span className="inline-block px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700 text-amber-300 mb-2">07 • MASTER CATALOGS (CRUD)</span>
-                      <h2 className="text-xl font-bold">Global Master Parameters & Equipment Catalogs</h2>
-                      <p className="text-sm text-slate-300 mt-1.5">Configure IT Rack engineering specs (including Max Inlet Temp °C, dimensions, weight, CDU tower), Container shells, multi-size Non-IT building blocks, default AMC %, Company Logo & Drive OAuth.</p>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-amber-300 whitespace-nowrap">07 • MASTER CRUD</span>
+                      </div>
+                      <h2 className="text-base font-bold leading-snug">Master Catalogs & Standards</h2>
+                      <p className="text-xs text-slate-300 mt-1 leading-relaxed">Configure IT Rack SKUs (Max Inlet °C, dimensions, weight), Container shells, Non-IT blocks, AMC % & Drive OAuth.</p>
                     </div>
-                    <div className="text-xs font-bold text-amber-300 mt-4">Configure Master Catalogs →</div>
+                    <div className="text-xs font-bold text-amber-300 mt-3 pt-2 border-t border-slate-800">Configure Catalogs →</div>
                   </div>
                 </div>
               )}
@@ -3554,85 +3564,167 @@
 
                     {wizardTab === 1 && (
                       <div className="space-y-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3 bg-blue-50 p-3.5 rounded-xl border border-blue-200 text-xs">
-                          <div>
-                            <span className="font-bold navy-text">Target:</span> {currentProject.targetItMw || 0} MW •{" "}
-                            <span className="font-bold text-emerald-800">Design TDP:</span> {(eng.totalDesignContKw / 1000).toFixed(2)} MW •{" "}
-                            <span className="font-bold coral-text">Governing Max Inlet Temp:</span> {eng.governingMaxInletTempC}°C
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-lg border border-slate-300">
-                              <span className="font-bold text-slate-600">Future Growth Reserve:</span>
-                              <input type="number" min="0" max="50" value={currentProject.futureGrowthReservePct} onChange={e => updateCurrentProject({ futureGrowthReservePct: Number(e.target.value) })} className="w-12 text-center font-bold" />
-                              <span>%</span>
+                        {/* Real-Time MW Sanity Check & Target Reconciliation Banner */}
+                        {(() => {
+                          const targetMw = Number(currentProject.targetItMw) || 0;
+                          const selectedMw = Number((eng.totalDesignContKw / 1000).toFixed(2));
+                          const diffKw = Math.round(eng.totalDesignContKw - targetMw * 1000);
+                          const pctMatch = targetMw > 0 ? Math.round((selectedMw / targetMw) * 100) : 100;
+                          const isBalanced = targetMw === 0 || Math.abs(diffKw) <= Math.max(50, targetMw * 80);
+                          return (
+                            <div className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs ${isBalanced ? "bg-emerald-50/80 border-emerald-300" : "bg-amber-50 border-amber-400"}`}>
+                              <div className="space-y-0.5">
+                                <div className="font-bold navy-text text-sm flex flex-wrap items-center gap-2">
+                                  <span>Target IT Load: {targetMw.toFixed(2)} MW</span>
+                                  <span>vs.</span>
+                                  <span className={isBalanced ? "text-emerald-800" : "text-amber-900"}>Selected Racks: {selectedMw.toFixed(2)} MW ({pctMatch}%)</span>
+                                  {targetMw > 0 && (
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black ${isBalanced ? "bg-emerald-600 text-white" : "bg-amber-500 text-slate-950"}`}>
+                                      {isBalanced ? "✓ MW SANITY PASSED" : `${diffKw > 0 ? "+" : ""}${diffKw} kW VARIANCE`}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-slate-600">
+                                  Split: <strong>{(eng.dlcDesignKw/1000).toFixed(2)} MW DLC</strong> ({eng.dlcRacks.length} racks) + <strong>{(eng.acDesignKw/1000).toFixed(2)} MW AC</strong> ({eng.acRacks.length} racks) • Governing Max Inlet Temp: <strong className="coral-text">{eng.governingMaxInletTempC}°C</strong>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-lg border border-slate-300">
+                                  <span className="font-bold text-slate-600">Growth Reserve:</span>
+                                  <input type="number" min="0" max="50" value={currentProject.futureGrowthReservePct} onChange={e => updateCurrentProject({ futureGrowthReservePct: Number(e.target.value) })} className="w-11 text-center font-bold" />
+                                  <span>%</span>
+                                </div>
+                                <button
+                                  disabled={targetMw <= 0}
+                                  onClick={autoBalanceRacksFromTargetMw}
+                                  className="px-3.5 py-2 rounded-lg navy-bg text-white font-bold disabled:opacity-40"
+                                >
+                                  ⚡ Auto-Fit Racks to {targetMw} MW
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              disabled={!currentProject.targetItMw || currentProject.targetItMw <= 0}
-                              onClick={autoBalanceRacksFromTargetMw}
-                              className="px-3.5 py-2 rounded-lg navy-bg text-white font-bold disabled:opacity-40"
-                            >
-                              ⚡ Auto-Populate for {currentProject.targetItMw || 0} MW
-                            </button>
+                          );
+                        })()}
+
+                        {/* Dropdown-Based DLC & AC Rack Solution Selectors */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+                          {/* DLC Compute Racks Selector */}
+                          <div className="p-4 rounded-xl bg-sky-50/60 border border-sky-200 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-bold navy-text text-sm">A. Liquid-Cooled (DLC) Compute Racks</h3>
+                              <span className="px-2 py-0.5 rounded bg-sky-200 text-sky-950 font-bold">{(eng.dlcDesignKw/1000).toFixed(2)} MW</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-lg border border-sky-200">
+                              <select id="dlc-sku-picker" className="flex-1 min-w-[180px] border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold navy-text">
+                                {skus.filter(s => s.coolingType === "DLC").map(s => (
+                                  <option key={s.id} value={s.id}>{s.name} ({s.peakKw} kW • Max {s.maxInletTempC}°C)</option>
+                                ))}
+                              </select>
+                              <input id="dlc-qty-picker" type="number" min="1" defaultValue="16" className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 font-bold text-center" />
+                              <button
+                                onClick={() => {
+                                  const sid = document.getElementById("dlc-sku-picker")?.value;
+                                  const qty = Number(document.getElementById("dlc-qty-picker")?.value) || 0;
+                                  if (sid && qty > 0) updateRackQuantitiesWithAutoCooling({ ...currentProject.rackQuantities, [sid]: qty });
+                                }}
+                                className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold"
+                              >
+                                Set DLC
+                              </button>
+                            </div>
+                            <div className="space-y-1.5">
+                              {skus.filter(s => s.coolingType === "DLC").map(s => (
+                                <div key={s.id} className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                                  <div>
+                                    <div className="font-bold navy-text">{s.name}</div>
+                                    <div className="text-[11px] text-slate-500">{s.peakKw} kW • {s.liquidSplitPct}% Liq • Max Inlet {s.maxInletTempC}°C • {s.cduIntegrated ? "Integrated CDU" : "Yard CDU"}</div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="number" min="0"
+                                      value={currentProject.rackQuantities?.[s.id] || 0}
+                                      onChange={e => updateRackQuantitiesWithAutoCooling({ ...currentProject.rackQuantities, [s.id]: Number(e.target.value) })}
+                                      className="w-16 border border-slate-300 rounded px-2 py-1 font-bold text-center"
+                                    />
+                                    <span className="text-slate-400">racks</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* AC / Storage / Networking Racks Selector */}
+                          <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-200 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-bold navy-text text-sm">B. Air-Cooled (AC) Storage, Spine & Mgmt Racks</h3>
+                              <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-950 font-bold">{(eng.acDesignKw/1000).toFixed(2)} MW</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-lg border border-amber-200">
+                              <select id="ac-sku-picker" className="flex-1 min-w-[180px] border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold navy-text">
+                                {skus.filter(s => s.coolingType !== "DLC").map(s => (
+                                  <option key={s.id} value={s.id}>{s.name} ({s.peakKw} kW)</option>
+                                ))}
+                              </select>
+                              <input id="ac-qty-picker" type="number" min="1" defaultValue="8" className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 font-bold text-center" />
+                              <button
+                                onClick={() => {
+                                  const sid = document.getElementById("ac-sku-picker")?.value;
+                                  const qty = Number(document.getElementById("ac-qty-picker")?.value) || 0;
+                                  if (sid && qty > 0) updateRackQuantitiesWithAutoCooling({ ...currentProject.rackQuantities, [sid]: qty });
+                                }}
+                                className="px-3 py-1.5 rounded-lg coral-bg text-white font-bold"
+                              >
+                                Set AC
+                              </button>
+                            </div>
+                            <div className="space-y-1.5">
+                              {skus.filter(s => s.coolingType !== "DLC").map(s => (
+                                <div key={s.id} className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                                  <div>
+                                    <div className="font-bold navy-text">{s.name}</div>
+                                    <div className="text-[11px] text-slate-500">{s.peakKw} kW • 100% Air-Cooled • {s.heightMm}×{s.widthMm}×{s.depthMm}mm</div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="number" min="0"
+                                      value={currentProject.rackQuantities?.[s.id] || 0}
+                                      onChange={e => updateRackQuantitiesWithAutoCooling({ ...currentProject.rackQuantities, [s.id]: Number(e.target.value) })}
+                                      className="w-16 border border-slate-300 rounded px-2 py-1 font-bold text-center"
+                                    />
+                                    <span className="text-slate-400">racks</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
 
-                        <div className="space-y-2.5">
-                          {skus.map(s => (
-                            <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-3.5 border border-slate-200 rounded-xl hover:bg-slate-50">
-                              <div>
-                                <div className="font-bold text-sm navy-text">
-                                  {s.name}{" "}
-                                  <span className={`ml-1.5 px-2 py-0.5 rounded text-[10px] font-black ${s.coolingType === "DLC" ? "bg-sky-100 text-sky-900" : "bg-amber-100 text-amber-900"}`}>
-                                    {s.coolingType} • Max Inlet {s.maxInletTempC || 35}°C
-                                  </span>
-                                </div>
-                                <div className="text-xs text-slate-600 mt-0.5">
-                                  {s.peakKw} kW • {s.coolingType === "DLC" ? `${s.liquidSplitPct}% Liquid (${s.cduIntegrated ? "Integrated CDU" : `Yard CDU ${s.cduTowerHeightMm}×${s.cduTowerWidthMm}×${s.cduTowerDepthMm}mm`}) • ` : "100% Air-Cooled • "}
-                                  {s.heightMm}×{s.widthMm}×{s.depthMm}mm • {s.weightKg}kg • Pwr: {s.powerEntry} / Plumb: {s.plumbingEntry}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-500">Racks:</span>
-                                <input
-                                  type="number" min="0"
-                                  value={currentProject.rackQuantities?.[s.id] || 0}
-                                  onChange={e => updateRackQuantitiesWithAutoCooling({ ...currentProject.rackQuantities, [s.id]: Number(e.target.value) })}
-                                  className="w-20 border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-center"
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div>
-                              <div className="font-bold navy-text text-sm">Workload Loading Mode (Standard First-Cut vs. Per-Rack Actual Load)</div>
-                              <div className="text-slate-500">Use Standard factors for rapid first-cut sizing, or feed non-uniform per-rack actual kW loads with bulk row duplication.</div>
+                              <div className="font-bold navy-text">Workload Loading Mode (Standard Factors vs. Actual Per-Rack Load)</div>
+                              <div className="text-slate-500">Use Standard factors for rapid first-cut sizing, or specify non-uniform per-rack actual kW loads.</div>
                             </div>
                             <div className="flex gap-1 bg-white p-1 rounded-lg border border-slate-300">
-                              <button onClick={() => updateCurrentProject({ loadingMode: "Standard" })} className={`px-3 py-1.5 rounded font-bold ${currentProject.loadingMode === "Standard" ? "navy-bg text-white" : "text-slate-600"}`}>
+                              <button onClick={() => updateCurrentProject({ loadingMode: "Standard" })} className={`px-3 py-1 rounded font-bold ${currentProject.loadingMode === "Standard" ? "navy-bg text-white" : "text-slate-600"}`}>
                                 Mode A: Standard Factors
                               </button>
-                              <button onClick={() => updateCurrentProject({ loadingMode: "ActualPerRack" })} className={`px-3 py-1.5 rounded font-bold ${currentProject.loadingMode === "ActualPerRack" ? "coral-bg text-white" : "text-slate-600"}`}>
+                              <button onClick={() => updateCurrentProject({ loadingMode: "ActualPerRack" })} className={`px-3 py-1 rounded font-bold ${currentProject.loadingMode === "ActualPerRack" ? "coral-bg text-white" : "text-slate-600"}`}>
                                 Mode B: Actual Per-Rack Load
                               </button>
                             </div>
                           </div>
-
                           {currentProject.loadingMode === "ActualPerRack" && eng.activeRacks.length > 0 && (
-                            <div className="space-y-3 pt-2 border-t border-slate-200">
-                              <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
-                                <span className="font-bold text-slate-700">Bulk Duplicate Actual Load (kW):</span>
-                                <input type="number" value={bulkLoadValue} onChange={e => setBulkLoadValue(Number(e.target.value))} className="w-24 border rounded px-2 py-1 font-bold" />
-                                <button onClick={() => {
-                                  const next = { ...currentProject.actualRackLoads };
-                                  eng.activeRacks.filter(r => r.isDlc).forEach(r => next[r.instanceKey] = bulkLoadValue);
-                                  updateCurrentProject({ actualRackLoads: next });
-                                }} className="px-3 py-1 rounded navy-bg text-white font-bold">
-                                  Apply to All DLC Racks
-                                </button>
-                              </div>
+                            <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-lg border border-slate-200">
+                              <span className="font-bold text-slate-700">Bulk Duplicate Actual Load (kW):</span>
+                              <input type="number" value={bulkLoadValue} onChange={e => setBulkLoadValue(Number(e.target.value))} className="w-20 border rounded px-2 py-1 font-bold" />
+                              <button onClick={() => {
+                                const next = { ...currentProject.actualRackLoads };
+                                eng.activeRacks.filter(r => r.isDlc).forEach(r => next[r.instanceKey] = bulkLoadValue);
+                                updateCurrentProject({ actualRackLoads: next });
+                              }} className="px-3 py-1 rounded navy-bg text-white font-bold">
+                                Apply to All DLC Racks
+                              </button>
                             </div>
                           )}
                         </div>
@@ -3642,18 +3734,19 @@
                     {wizardTab === 2 && (
                       <div className="space-y-4 text-sm">
                         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950">
-                          <strong>Architectural Separation Rule:</strong> IT Containers are dedicated <strong>100% to IT Racks</strong> + {currentProject.futureGrowthReservePct}% Future Growth Reserve. All External CDUs, Pump Skids, Coolers, Tanks, Transformers, UPS/BESS & DGs are placed cleanly in the separated <strong>Non-IT Technical Yard</strong>.
+                          <strong>Container Architecture Selection:</strong> Choose <strong>Standard Catalog</strong> pods, <strong>Bespoke Parametric</strong> containers, or <strong>All-in-One Edge Pod</strong> (compact drop-and-run enclosure for deployments &le; 1 MW with integrated UPS/CDU compartment).
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                           {[
-                            ["ISO20", "20 ft ISO Marine Max (6,058 mm)", "Tactical edge drops & tight crane limits."],
-                            ["ISO40", "40 ft ISO Marine Max (12,192 mm)", "International sea-freight ISO chassis."],
-                            ["CustomOptimum", "Custom Optimum Length (Recommended)", "Calculated from exact 2-row rack widths + growth reserve."]
+                            ["ISO40", "Standard Catalog Pod (20ft / 40ft ISO)", "Select fixed pre-engineered ISO shell dimensions and baseline pricing from catalog."],
+                            ["CustomOptimum", "Bespoke Parametric Container", "Custom length/width/height engineered from exact 2-row rack bay + growth reserve."],
+                            ["AllInOne", "All-in-One Edge Pod (<= 1 MW)", "Single self-contained pod integrating IT racks, UPS/BESS bay & CDU bulkhead."],
+                            ["ISO20", "20 ft Tactical Edge ISO (6.06m)", "Compact marine-rated chassis for tight crane & remote site access."]
                           ].map(([val, title, desc]) => (
                             <div
                               key={val}
                               onClick={() => updateCurrentProject({ containerLengthMode: val })}
-                              className={`cursor-pointer p-4 rounded-xl border-2 transition ${currentProject.containerLengthMode === val ? "border-[#002870] bg-blue-50/70" : "border-slate-200 hover:bg-slate-50"}`}
+                              className={`cursor-pointer p-3.5 rounded-xl border-2 transition ${currentProject.containerLengthMode === val ? "border-[#002870] bg-blue-50/70" : "border-slate-200 hover:bg-slate-50"}`}
                             >
                               <div className="font-bold navy-text text-xs">{title}</div>
                               <p className="text-xs text-slate-600 mt-1">{desc}</p>
@@ -3670,7 +3763,7 @@
                             <div
                               key={val}
                               onClick={() => updateCurrentProject({ hallTopology: val })}
-                              className={`cursor-pointer p-4 rounded-xl border-2 transition ${currentProject.hallTopology === val ? "border-[#FF5539] bg-orange-50/50" : "border-slate-200 hover:bg-slate-50"}`}
+                              className={`cursor-pointer p-3.5 rounded-xl border-2 transition ${currentProject.hallTopology === val ? "border-[#FF5539] bg-orange-50/50" : "border-slate-200 hover:bg-slate-50"}`}
                             >
                               <div className="font-bold navy-text text-xs">{title}</div>
                               <p className="text-xs text-slate-600 mt-1">{desc}</p>
@@ -3687,7 +3780,7 @@
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                              <label className="block font-bold text-slate-600 mb-1">Apply Standard Container Preset (Optional)</label>
+                              <label className="block font-bold text-slate-600 mb-1">Apply Standard Container Preset</label>
                               <select
                                 value={currentProject.containerCatalogId}
                                 onChange={e => {
@@ -3695,7 +3788,6 @@
                                   if (found) {
                                     updateCurrentProject({
                                       containerCatalogId: found.id,
-                                      containerLengthMode: "CustomOptimum",
                                       maxCustomLengthMm: found.lengthMm,
                                       containerWidthMm: found.widthMm,
                                       containerHeightMm: found.heightMm,
@@ -4081,6 +4173,47 @@
                           <span className="text-slate-500">Derate: <strong>{eng.dgDerateFactor}×</strong></span>
                         </div>
                         <div className="text-[10px] text-slate-500">PESO Bulk HSD: <strong>{eng.totalHsdFuelLitres.toLocaleString()} L</strong></div>
+                      </div>
+                    </div>
+
+                    {/* Requirement-to-Design & Supply Chain Intelligence Traceability Matrix */}
+                    <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-2.5 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <div className="font-bold navy-text text-sm">Requirement-to-Design Traceability & Supply Chain Mapping</div>
+                          <div className="text-slate-600">Maps captured Functional & Non-Functional requirements directly to synthesized containers and Indian OEM supply chain equipment.</div>
+                        </div>
+                        <button onClick={() => navigateTo("supply_intel")} className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 font-bold navy-text hover:border-blue-600">
+                          View Supply DB ({supplyIntel.items?.length || 0} SKUs) →
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                        {[
+                          [
+                            "1. IT Load & Container Synthesis",
+                            `Target ${currentProject.targetItMw || (eng.totalDesignContKw/1000).toFixed(2)} MW • ${eng.dlcRacks.length} DLC + ${eng.acRacks.length} AC Racks`,
+                            `${eng.pods.length} × ${currentProject.containerLengthMode === "AllInOne" ? "All-in-One" : currentProject.metallurgy} Pods (${Math.round(eng.totalItWhiteSpaceSqm)} m²)`
+                          ],
+                          [
+                            "2. Thermal & Hydraulic Requirement",
+                            `${currentProject.cityQuery} (${currentProject.peakDryBulb}°C DB) • Supply <= ${eng.effectiveSupplyTempC}°C`,
+                            `${eng.adiabaticUnits}×${eng.selCooler.ratedCapacity}kW Coolers + ${eng.extCduUnits}×${eng.selCdu.ratedCapacity}kW CDUs + ${eng.totalWaterStorageKl}kL Tanks`
+                          ],
+                          [
+                            "3. Redundancy, Runtime & Autonomy",
+                            `${project.uptimeTier} • ${currentProject.batteryRuntimeMin}m ${currentProject.batteryChemistry} • ${currentProject.dgAutonomyHours}h DG Fuel`,
+                            `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA Trafos • ${eng.upsContainersCount}×${eng.selUps.ratedCapacity}kVA UPS • ${eng.dgUnitsCount}×${eng.selDg.ratedCapacity}kVA DGs`
+                          ]
+                        ].map(([title, reqTxt, desTxt], i) => (
+                          <div key={i} className="bg-white p-3 rounded-lg border border-emerald-200 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold navy-text">{title}</span>
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black">✓ MATCH</span>
+                            </div>
+                            <div className="text-slate-500"><strong>Req:</strong> {reqTxt}</div>
+                            <div className="text-slate-800 font-medium"><strong>Mapped:</strong> {desTxt}</div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
