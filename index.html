@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V10.2)</title>
+  <title>AI Modular Data Center Configurator (V10.3)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -42,7 +42,7 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v10_2_enterprise";
+    const STORAGE_KEY = "ai_mdc_studio_v10_3_enterprise";
 
     // DEFAULT COLOR PALETTES FOR 3D, 2D & POWERPOINT DRAWINGS
     const COLOR_THEMES = {
@@ -271,9 +271,26 @@
       });
     }
 
+    function estimateSummerDesignClimate(lat = 19.0, lon = 73.0, elevationM = 14) {
+      const absLat = Math.abs(Number(lat) || 19.0);
+      const elev = Math.max(0, Number(elevationM) || 0);
+      // Lapse rate ~6.5°C per 1000m elevation + tropical/subtropical summer peak baseline
+      let peakDb = 41.5 - (elev / 1000) * 6.5;
+      if (absLat < 15) peakDb -= 2.0; // equatorial coastal moderation
+      if (elev >= 1200 && elev < 2500) peakDb = Math.max(25.0, Math.min(31.5, peakDb)); // hill stations e.g. Dharamshala (1457m) ~29-31°C
+      if (elev >= 2500) peakDb = Math.max(18.0, Math.min(25.0, peakDb)); // Leh/Ladakh ~22-24°C
+      peakDb = Number(Math.max(18.0, Math.min(47.0, peakDb)).toFixed(1));
+      const isCoastal = (lon < 74.5 && lat < 23.5) || (lon > 79.5 && lat < 22.5);
+      const rh = elev > 1200 ? 64 : (isCoastal ? 76 : 48);
+      const T = peakDb;
+      const tw = T * Math.atan(0.151977 * Math.pow(rh + 8.313659, 0.5)) + Math.atan(T + rh) - Math.atan(rh - 1.676331) + 0.00391838 * Math.pow(rh, 1.5) * Math.atan(0.023101 * rh) - 4.686035;
+      const peakWb = Number(Math.max(12.0, Math.min(peakDb - 2.0, tw)).toFixed(1));
+      return { peakDryBulb: peakDb, peakWetBulb: peakWb, relHumidityPct: rh };
+    }
+
     function classifySeismicZone(cityName = "", lat = 19.0, lon = 73.0) {
       const c = cityName.toLowerCase();
-      if (c.includes("guwahati") || c.includes("shillong") || c.includes("imphal") || c.includes("itanagar") || c.includes("kohima") || c.includes("agartala") || c.includes("aizawl") || c.includes("gangtok") || c.includes("bhuj") || c.includes("srinagar") || c.includes("leh") || c.includes("dehradun") || c.includes("shimla") || c.includes("port blair") || (lon > 89 && lat > 22) || lat > 30) {
+      if (c.includes("guwahati") || c.includes("shillong") || c.includes("imphal") || c.includes("itanagar") || c.includes("kohima") || c.includes("agartala") || c.includes("aizawl") || c.includes("gangtok") || c.includes("bhuj") || c.includes("srinagar") || c.includes("leh") || c.includes("dehradun") || c.includes("shimla") || c.includes("dharamshala") || c.includes("dharamsala") || c.includes("kangra") || c.includes("port blair") || (lon > 89 && lat > 22) || lat > 30) {
         return { zone: "Zone V", zFactor: 0.36, label: "IS 1893 Zone V (Very High Seismicity — 0.36g)" };
       }
       if (c.includes("delhi") || c.includes("noida") || c.includes("gurgaon") || c.includes("gurugram") || c.includes("patna") || c.includes("lucknow") || c.includes("chandigarh") || c.includes("amritsar") || c.includes("kolkata") || c.includes("siliguri") || lat > 25.5) {
@@ -388,6 +405,8 @@
       solutionQtyOverrides: {},
       gridTariffInrKwh: std.gridTariffInrKwh,
       waterTariffInrKl: std.waterTariffInrKl,
+      plotAreaUnit: "acres",
+      plotAreaInput: 2.5,
       parcelShape: "IrregularTrapezoid",
       parcelVertices: [
         { x: 0, y: 0 },
@@ -1024,7 +1043,11 @@
         const j = (i + 1) % verts.length;
         area += verts[i].x * verts[j].y - verts[j].x * verts[i].y;
       }
-      const grossPlotSqm = Math.abs(area) / 2;
+      const polyAreaSqm = Math.abs(area) / 2;
+      const manualSqm = (project.plotAreaInput !== "" && Number(project.plotAreaInput) > 0)
+        ? (project.plotAreaUnit === "acres" ? Number(project.plotAreaInput) * 4046.8564 : Number(project.plotAreaInput))
+        : 0;
+      const grossPlotSqm = manualSqm > 0 ? manualSqm : polyAreaSqm;
       const netBuildableSqm = Math.max(100, grossPlotSqm * 0.72);
       const plotUtilizationPct = Math.min(100, Math.round((totalCampusOccupiedSqm / Math.max(1, netBuildableSqm)) * 100));
 
@@ -1237,72 +1260,95 @@
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Left: Parcel + Separated IT White-Space vs Non-IT Yard Schematic
       ctx.strokeStyle = "#000000";
       ctx.lineWidth = 2;
-      ctx.strokeRect(30, 30, 680, 360);
+      ctx.strokeRect(24, 26, 695, 368);
 
-      // 6.0m Fire Setback Dashed Perimeter
       ctx.strokeStyle = "#FF5539";
       ctx.setLineDash([8, 5]);
-      ctx.strokeRect(52, 52, 636, 316);
+      ctx.strokeRect(42, 44, 659, 332);
       ctx.setLineDash([]);
       ctx.fillStyle = "#FF5539";
       ctx.font = "bold 11px Roboto, sans-serif";
-      ctx.fillText(`6.0m NBC Fire-Tender Setback Perimeter (${Math.round(eng.grossPlotSqm)} m² Gross Plot)`, 62, 46);
+      const acresStr = (eng.grossPlotSqm / 4046.8564).toFixed(2);
+      ctx.fillText(`6.0m NBC Fire-Tender Perimeter • Plot: ${Math.round(eng.grossPlotSqm).toLocaleString()} m² (${acresStr} Acres)`, 52, 39);
 
-      // Zone A: IT White-Space Containers
-      ctx.fillStyle = "#F5F6F8";
-      ctx.fillRect(68, 70, 330, 280);
+      // ZONE A: IT Compute Cluster + Adjacent Admin/NOC & Staging Pods
+      ctx.fillStyle = "#F8FAFC";
+      ctx.fillRect(54, 58, 290, 304);
       ctx.strokeStyle = "#CBD5E1";
-      ctx.strokeRect(68, 70, 330, 280);
+      ctx.strokeRect(54, 58, 290, 304);
       ctx.fillStyle = "#000000";
-      ctx.font = "bold 12px Roboto, sans-serif";
-      ctx.fillText(`ZONE A: IT WHITE-SPACE (${Math.round(eng.totalItWhiteSpaceSqm)} m²)`, 80, 90);
+      ctx.font = "bold 11px Roboto, sans-serif";
+      ctx.fillText(`ZONE A: IT PODS + ADMIN/STAGING (${Math.round(eng.totalItWhiteSpaceSqm + eng.yardBreakdown.adminStagingSqm)} m²)`, 62, 76);
 
-      const podCount = Math.min(eng.pods.length, 6);
+      const podCount = Math.min(eng.pods.length, 5);
       for (let i = 0; i < podCount; i++) {
-        const px = 85 + i * 48;
+        const px = 66 + i * 44;
         ctx.fillStyle = palette.itPod;
-        ctx.fillRect(px, 108, 38, 220);
+        ctx.fillRect(px, 90, 36, 195);
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 10px Roboto, sans-serif";
+        ctx.font = "bold 9.5px Roboto, sans-serif";
         ctx.save();
-        ctx.translate(px + 22, 220);
+        ctx.translate(px + 21, 188);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = "center";
         ctx.fillText(eng.pods[i].label, 0, 0);
         ctx.restore();
       }
+      ctx.fillStyle = palette.adminStage;
+      ctx.fillRect(66, 296, 265, 52);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 10.5px Roboto, sans-serif";
+      ctx.fillText("Admin / NOC & Staging Dock (Co-located w/ IT)", 76, 326);
 
-      // Zone B: Separated Non-IT Technical Yard
-      ctx.fillStyle = "#F5F6F8";
-      ctx.fillRect(415, 70, 255, 280);
-      ctx.strokeStyle = "#CBD5E1";
-      ctx.strokeRect(415, 70, 255, 280);
-      ctx.fillStyle = "#000000";
-      ctx.font = "bold 12px Roboto, sans-serif";
-      ctx.fillText(`ZONE B: NON-IT YARD (${eng.totalNonItYardSqm} m²)`, 425, 90);
+      // ZONE B: Containerized UPS & BESS Pods (6m+ EMI/Fire Isolation Buffer)
+      ctx.fillStyle = "#FFF7ED";
+      ctx.fillRect(362, 58, 130, 304);
+      ctx.strokeStyle = "#FDBA74";
+      ctx.strokeRect(362, 58, 130, 304);
+      ctx.fillStyle = "#9A3412";
+      ctx.font = "bold 10.5px Roboto, sans-serif";
+      ctx.fillText("ZONE B: UPS/BESS", 370, 76);
+      ctx.font = "9.5px Roboto, sans-serif";
+      ctx.fillText("Containerized Only", 370, 90);
+      ctx.fillStyle = palette.upsBess;
+      ctx.fillRect(372, 104, 110, 244);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 10px Roboto, sans-serif";
+      ctx.fillText(`${eng.upsContainersCount}× UPS Pods`, 380, 190);
+      ctx.fillText(`${eng.batteryContainersCount}× BESS Pods`, 380, 212);
+      ctx.fillText(`(${eng.yardBreakdown.upsBessSqm} m²)`, 380, 234);
 
-      const yardBlocks = [
-        { label: `CDU & Pump Skids (${eng.yardBreakdown.cduPumpSqm}m²)`, col: palette.cduPump, y: 105 },
-        { label: `Coolers & Tanks (${eng.yardBreakdown.coolerChillerSqm + eng.yardBreakdown.waterTankSqm}m²)`, col: palette.coolerTank, y: 152 },
-        { label: `Substation & Trafos (${eng.yardBreakdown.substationSqm}m²)`, col: palette.transformer, y: 199 },
-        { label: `UPS & BESS Pods (${eng.yardBreakdown.upsBessSqm}m²)`, col: palette.upsBess, y: 246 },
-        { label: `CPCB IV+ DGs & Admin (${eng.yardBreakdown.dgPesoSqm + eng.yardBreakdown.adminStagingSqm}m²)`, col: palette.dgSet, y: 293 }
+      // ZONE C: Open Outdoor Power & Cooling Yard (>=12m Away: EMI, Noise, Vibration Isolation)
+      ctx.fillStyle = "#F1F5F9";
+      ctx.fillRect(510, 58, 180, 304);
+      ctx.strokeStyle = "#94A3B8";
+      ctx.strokeRect(510, 58, 180, 304);
+      ctx.fillStyle = "#0F172A";
+      ctx.font = "bold 10.5px Roboto, sans-serif";
+      ctx.fillText("ZONE C: OPEN MEP YARD", 518, 76);
+      ctx.font = "9.5px Roboto, sans-serif";
+      ctx.fillText(">=12m EMI/Noise/Vib Buffer", 518, 90);
+
+      const openYardBlocks = [
+        { label: `Open-Pad Trafos (${eng.yardBreakdown.substationSqm}m²)`, col: palette.transformer, y: 104 },
+        { label: `Canopy DGs/PESO (${eng.yardBreakdown.dgPesoSqm}m²)`, col: palette.dgSet, y: 168 },
+        { label: `Yard Coolers/Tanks (${eng.yardBreakdown.coolerChillerSqm + eng.yardBreakdown.waterTankSqm}m²)`, col: palette.coolerTank, y: 232 },
+        { label: `CDU/Pump Skids (${eng.yardBreakdown.cduPumpSqm}m²)`, col: palette.cduPump, y: 296 }
       ];
-      yardBlocks.forEach(b => {
+      openYardBlocks.forEach(b => {
         ctx.fillStyle = b.col;
-        ctx.fillRect(428, b.y, 228, 36);
+        ctx.fillRect(518, b.y, 164, 52);
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 11px Roboto, sans-serif";
-        ctx.fillText(b.label, 438, b.y + 22);
+        ctx.font = "bold 10px Roboto, sans-serif";
+        ctx.fillText(b.label, 524, b.y + 30);
       });
 
       // Right: Color Legend & Area Summary
       ctx.fillStyle = "#000000";
       ctx.font = "bold 14px Roboto, sans-serif";
-      ctx.fillText("Campus Space & Color Legend", 735, 48);
+      ctx.fillText("3-Zone Campus & Color Legend", 735, 48);
 
       EQUIPMENT_COLOR_META.forEach(([k, lbl], idx) => {
         const ly = 72 + idx * 32;
@@ -1314,8 +1360,8 @@
       });
 
       ctx.fillStyle = "#FF5539";
-      ctx.font = "bold 13px Roboto, sans-serif";
-      ctx.fillText(`Total Campus Occupied: ${eng.totalCampusOccupiedSqm} m² (${eng.plotUtilizationPct}% Plot)`, 735, 382);
+      ctx.font = "bold 12.5px Roboto, sans-serif";
+      ctx.fillText(`Occupied: ${eng.totalCampusOccupiedSqm} m² (${(eng.totalCampusOccupiedSqm/4046.8564).toFixed(2)} Acres • ${eng.plotUtilizationPct}%)`, 735, 382);
 
       return canvas.toDataURL("image/png");
     }
@@ -2048,9 +2094,10 @@
           scene.add(podGroup);
         });
 
-        // Render Separated Non-IT Technical Yard Equipment (Grey Space)
+        // Render 3-Zone Spatial Separation:
+        // Zone A: Admin/Staging co-located beside IT Pods; Zone B: Containerized UPS/BESS (8m away); Zone C: Open-Pad Trafos, Canopy DGs, Coolers/Pumps (15m away for EMI/Noise/Vibration)
         if (viewScope === "Hall" && layers.yardEquipment) {
-          const yardZ = (podsToRender[0]?.extLengthMm || 12000) / 2000 + 3.5;
+          const basePodLen = (podsToRender[0]?.extLengthMm || 12000) / 1000;
           const addYardBlock = (x, z, w, h, l, hexCol) => {
             const m = new THREE.Mesh(
               new THREE.BoxGeometry(w, h, l),
@@ -2059,12 +2106,24 @@
             m.position.set(x, h / 2 + 0.25, z);
             scene.add(m);
           };
-          if (eng.extCduUnits > 0 || eng.pumpSkidsCount > 0) addYardBlock(-11, yardZ, 3.6, 2.8, 6.5, palette.cduPump);
-          if (eng.adiabaticUnits > 0 || eng.waterTankUnits > 0) addYardBlock(-5.5, yardZ, 4.5, 3.0, 8.0, palette.coolerTank);
-          if (eng.transformerUnits > 0) addYardBlock(0.5, yardZ, 4.0, 2.9, 6.0, palette.transformer);
-          if (eng.upsContainersCount > 0 || eng.batteryContainersCount > 0) addYardBlock(6.0, yardZ, 3.2, 3.2, 11.0, palette.upsBess);
-          if (eng.dgUnitsCount > 0) addYardBlock(11.5, yardZ, 3.6, 3.4, 11.0, palette.dgSet);
-          if (project.includeAdminModule || project.includeStagingModule) addYardBlock(-16.5, yardZ, 3.4, 3.2, 10.0, palette.adminStage);
+          // Zone A: Co-located Admin & Staging adjacent to IT cluster
+          if (project.includeAdminModule || project.includeStagingModule) {
+            addYardBlock(-totalSpanW / 2 - 3.6, -3, 3.4, 3.2, Math.min(12, basePodLen), palette.adminStage);
+          }
+          // Zone B: Containerized UPS & BESS Pods (8m EMI/Fire separation from IT Pods)
+          const zoneBZ = basePodLen / 2 + 5.5;
+          if (eng.upsContainersCount > 0 || eng.batteryContainersCount > 0) {
+            addYardBlock(-4.0, zoneBZ, 3.4, 3.2, 11.0, palette.upsBess);
+            if (eng.upsContainersCount + eng.batteryContainersCount > 2) {
+              addYardBlock(1.0, zoneBZ, 3.4, 3.2, 11.0, palette.upsBess);
+            }
+          }
+          // Zone C: Open Outdoor Power & Cooling Yard (>=14m away from IT Pods for EMI, Noise & Vibration Isolation)
+          const zoneCZ = basePodLen / 2 + 13.5;
+          if (eng.extCduUnits > 0 || eng.pumpSkidsCount > 0) addYardBlock(-11.5, zoneCZ, 3.8, 2.4, 6.5, palette.cduPump);
+          if (eng.adiabaticUnits > 0 || eng.waterTankUnits > 0) addYardBlock(-5.5, zoneCZ, 4.8, 2.8, 8.0, palette.coolerTank);
+          if (eng.transformerUnits > 0) addYardBlock(1.0, zoneCZ, 4.2, 2.6, 5.5, palette.transformer);
+          if (eng.dgUnitsCount > 0) addYardBlock(8.0, zoneCZ, 4.0, 3.4, 11.5, palette.dgSet);
         }
 
         let animId;
@@ -2212,7 +2271,7 @@
                 }));
                 const offX = Math.min(...pts.map(p => p.x));
                 const offY = Math.min(...pts.map(p => p.y));
-                onUpdateProject({ parcelShape: "CustomGeoJSON", parcelVertices: pts.map(p => ({ x: p.x - offX, y: p.y - offY })) });
+                onUpdateProject({ parcelShape: "CustomGeoJSON", plotAreaInput: "", parcelVertices: pts.map(p => ({ x: p.x - offX, y: p.y - offY })) });
                 setStatusMsg(`Imported ${pts.length} survey vertices from ${file.name}`);
               }
             } else if (file.name.endsWith(".kml")) {
@@ -2226,7 +2285,7 @@
                 }));
                 const offX = Math.min(...pts.map(p => p.x));
                 const offY = Math.min(...pts.map(p => p.y));
-                onUpdateProject({ parcelShape: "CustomKML", parcelVertices: pts.map(p => ({ x: p.x - offX, y: p.y - offY })) });
+                onUpdateProject({ parcelShape: "CustomKML", plotAreaInput: "", parcelVertices: pts.map(p => ({ x: p.x - offX, y: p.y - offY })) });
                 setStatusMsg(`Imported ${pts.length} vertices from KML survey`);
               }
             }
@@ -2241,16 +2300,16 @@
 
       return (
         <div className="bg-white rounded-xl card-shadow border border-slate-200 overflow-hidden space-y-4">
-          <div className="p-5 pb-0 flex flex-wrap items-center justify-between gap-3">
+          <div className="p-4 pb-0 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-bold navy-text">Total Campus & Yard Layout Planner (IT White-Space vs. Non-IT Yard)</h3>
-              <p className="text-xs text-slate-500">Shows occupied m² for IT containers and separated Non-IT yard equipment within 6.0m NBC fire setbacks</p>
+              <h3 className="text-base font-bold navy-text">Total Campus & Yard Layout Planner (Acres / m² & 3-Zone Isolation)</h3>
+              <p className="text-xs text-slate-500">Zone A: IT Pods + Admin/Staging • Zone B: Containerized UPS/BESS • Zone C: Open Outdoor Trafos, Canopy DGs & Cooling (&gt;=12m away)</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => loadPresetShape("IrregularTrapezoid")} className="px-3 py-1.5 text-xs font-bold rounded border border-slate-300 hover:bg-slate-50">Trapezoid Plot</button>
-              <button onClick={() => loadPresetShape("LShaped")} className="px-3 py-1.5 text-xs font-bold rounded border border-slate-300 hover:bg-slate-50">L-Shaped Plot</button>
-              <button onClick={() => loadPresetShape("PentagonPlot")} className="px-3 py-1.5 text-xs font-bold rounded border border-slate-300 hover:bg-slate-50">5-Sided Polygon</button>
-              <label className="px-3 py-1.5 text-xs font-bold rounded navy-bg text-white cursor-pointer">
+            <div className="flex flex-wrap gap-1.5">
+              <button onClick={() => loadPresetShape("IrregularTrapezoid")} className="px-2.5 py-1 text-xs font-bold rounded border border-slate-300 hover:bg-slate-50">Trapezoid</button>
+              <button onClick={() => loadPresetShape("LShaped")} className="px-2.5 py-1 text-xs font-bold rounded border border-slate-300 hover:bg-slate-50">L-Shaped</button>
+              <button onClick={() => loadPresetShape("PentagonPlot")} className="px-2.5 py-1 text-xs font-bold rounded border border-slate-300 hover:bg-slate-50">5-Sided</button>
+              <label className="px-2.5 py-1 text-xs font-bold rounded navy-bg text-white cursor-pointer">
                 Import .KML / .GeoJSON
                 <input type="file" accept=".kml,.json,.geojson" onChange={handleFileUpload} className="hidden" />
               </label>
@@ -2259,16 +2318,50 @@
 
           {palette && <ColorLegendBar palette={palette} onUpdatePalette={onUpdatePalette} onApplyTheme={onApplyTheme} eng={eng} />}
 
-          {statusMsg && <div className="mx-5 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-2 rounded">{statusMsg}</div>}
+          {statusMsg && <div className="mx-4 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-2 rounded">{statusMsg}</div>}
 
-          <div className="p-5 pt-0 grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="p-4 pt-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="space-y-3 text-xs">
+              <div className="p-3 bg-blue-50/70 rounded-lg border border-blue-200 space-y-2">
+                <label className="block font-bold navy-text">Available Site / Yard Area (Acres or m²)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" step="0.1" min="0"
+                    placeholder="e.g. 2.5"
+                    value={project.plotAreaInput}
+                    onChange={e => onUpdateProject({ plotAreaInput: e.target.value })}
+                    className="w-28 border border-blue-300 rounded px-2.5 py-1.5 bg-white font-bold"
+                  />
+                  <select
+                    value={project.plotAreaUnit || "acres"}
+                    onChange={e => {
+                      const nextUnit = e.target.value;
+                      const curVal = Number(project.plotAreaInput) || 0;
+                      let converted = project.plotAreaInput;
+                      if (curVal > 0) {
+                        converted = nextUnit === "acres"
+                          ? Number((curVal / 4046.8564).toFixed(2))
+                          : Math.round(curVal * 4046.8564);
+                      }
+                      onUpdateProject({ plotAreaUnit: nextUnit, plotAreaInput: converted });
+                    }}
+                    className="border border-blue-300 rounded px-2.5 py-1.5 bg-white font-bold navy-text"
+                  >
+                    <option value="acres">Acres</option>
+                    <option value="sqm">Square Meters (m²)</option>
+                  </select>
+                </div>
+                <div className="text-[11px] text-slate-600">
+                  Equals <strong>{Math.round(eng.grossPlotSqm).toLocaleString()} m²</strong> ({(eng.grossPlotSqm / 4046.8564).toFixed(2)} Acres) Gross Plot
+                </div>
+              </div>
+
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5">
-                <div className="font-bold navy-text uppercase">Occupied Area Breakdown (m²)</div>
-                <div className="flex justify-between"><span>Gross Survey Area:</span><span className="font-bold">{Math.round(eng.grossPlotSqm).toLocaleString()} m²</span></div>
-                <div className="flex justify-between"><span>Net Buildable Zone:</span><span className="font-bold">{Math.round(eng.netBuildableSqm).toLocaleString()} m²</span></div>
-                <div className="flex justify-between text-blue-900"><span>IT White-Space Pods:</span><span className="font-bold">{Math.round(eng.totalItWhiteSpaceSqm).toLocaleString()} m²</span></div>
-                <div className="flex justify-between text-slate-700"><span>Non-IT Technical Yard:</span><span className="font-bold">{eng.totalNonItYardSqm.toLocaleString()} m²</span></div>
+                <div className="font-bold navy-text uppercase">3-Zone Area Breakdown</div>
+                <div className="flex justify-between"><span>Net Buildable (72%):</span><span className="font-bold">{Math.round(eng.netBuildableSqm).toLocaleString()} m² ({(eng.netBuildableSqm/4046.8564).toFixed(2)} ac)</span></div>
+                <div className="flex justify-between text-blue-900"><span>Zone A (IT + Admin/Stage):</span><span className="font-bold">{Math.round(eng.totalItWhiteSpaceSqm + eng.yardBreakdown.adminStagingSqm).toLocaleString()} m²</span></div>
+                <div className="flex justify-between text-pink-900"><span>Zone B (UPS/BESS Pods):</span><span className="font-bold">{eng.yardBreakdown.upsBessSqm.toLocaleString()} m²</span></div>
+                <div className="flex justify-between text-slate-700"><span>Zone C (Open MEP/DG Yard):</span><span className="font-bold">{(eng.totalNonItYardSqm - eng.yardBreakdown.upsBessSqm - eng.yardBreakdown.adminStagingSqm).toLocaleString()} m²</span></div>
                 <div className="flex justify-between items-center pt-1 border-t border-slate-200">
                   <span>Total Campus Occupied:</span>
                   <span className={`px-2 py-0.5 rounded font-bold ${eng.plotUtilizationPct > 90 ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}`}>
@@ -2277,52 +2370,58 @@
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Cluster Orientation Angle ({project.hallRotationDeg}°)</label>
-                <input type="range" min="-90" max="90" value={project.hallRotationDeg} onChange={e => onUpdateProject({ hallRotationDeg: Number(e.target.value) })} className="w-full" />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Perimeter Fire-Tender Setback (m)</label>
-                <input type="number" step="0.5" value={project.setbackMeters} onChange={e => onUpdateProject({ setbackMeters: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2.5 py-1.5" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Orientation ({project.hallRotationDeg}°)</label>
+                  <input type="range" min="-90" max="90" value={project.hallRotationDeg} onChange={e => onUpdateProject({ hallRotationDeg: Number(e.target.value) })} className="w-full" />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Fire Setback (m)</label>
+                  <input type="number" step="0.5" value={project.setbackMeters} onChange={e => onUpdateProject({ setbackMeters: Number(e.target.value) })} className="w-full border border-slate-300 rounded px-2 py-1" />
+                </div>
               </div>
             </div>
 
             <div className="lg:col-span-2 bg-white rounded-xl p-3 border border-slate-300 flex flex-col items-center justify-center">
-              <svg viewBox={`${minX - 12} ${minY - 12} ${maxX - minX + 24} ${maxY - minY + 24}`} className="w-full h-[330px]">
+              <svg viewBox={`${minX - 12} ${minY - 12} ${maxX - minX + 24} ${maxY - minY + 24}`} className="w-full h-[320px]">
                 <polygon points={polyStr} fill="#F8FAFC" stroke="#0F172A" strokeWidth="0.9" />
                 <polygon points={polyStr} transform={`translate(${cx},${cy}) scale(0.86) translate(${-cx},${-cy})`} fill="none" stroke="#FF5539" strokeWidth="0.6" strokeDasharray="1.8,1.2" />
                 <g transform={`translate(${cx}, ${cy}) rotate(${project.hallRotationDeg})`}>
-                  {/* IT Pods Block */}
-                  {eng.pods.slice(0, 8).map((p, idx) => {
+                  {/* Zone A: IT Pods + Co-located Admin/Staging */}
+                  {eng.pods.slice(0, 6).map((p, idx) => {
                     const pw = p.extWidthMm / 1000;
                     const pl = p.extLengthMm / 1000;
                     const step = project.hallTopology === "Isolated" ? pw + 2.4 : pw + 0.15;
-                    const xPos = -32 + idx * step;
+                    const xPos = -34 + idx * step;
                     return (
                       <g key={p.id}>
                         <rect x={xPos} y={-pl / 2} width={pw} height={pl} fill={palette?.itPod || "#0F172A"} stroke="#FFFFFF" strokeWidth="0.3" />
-                        <text x={xPos + pw/2} y={0} fill="#FFFFFF" fontSize="1.6" fontWeight="bold" textAnchor="middle" transform={`rotate(-90, ${xPos + pw/2}, 0)`}>
+                        <text x={xPos + pw/2} y={0} fill="#FFFFFF" fontSize="1.5" fontWeight="bold" textAnchor="middle" transform={`rotate(-90, ${xPos + pw/2}, 0)`}>
                           {p.label}
                         </text>
                       </g>
                     );
                   })}
-                  {/* Separated Non-IT Yard Blocks */}
-                  <rect x={8} y={-14} width={11} height={6} fill={palette?.cduPump || "#0284C7"} />
-                  <text x={13.5} y={-10.5} fill="#FFFFFF" fontSize="1.5" fontWeight="bold" textAnchor="middle">CDU/Pumps</text>
+                  <rect x={-34} y={9} width={22} height={4.5} fill={palette?.adminStage || "#475569"} />
+                  <text x={-23} y={11.8} fill="#FFFFFF" fontSize="1.4" fontWeight="bold" textAnchor="middle">Admin / NOC & Staging</text>
 
-                  <rect x={8} y={-6} width={11} height={6} fill={palette?.coolerTank || "#059669"} />
-                  <text x={13.5} y={-2.5} fill="#FFFFFF" fontSize="1.5" fontWeight="bold" textAnchor="middle">Coolers/Tanks</text>
+                  {/* Zone B: Containerized UPS & BESS Pods (Separated Buffer) */}
+                  <rect x={-2} y={-12} width={11} height={22} fill={palette?.upsBess || "#DB2777"} />
+                  <text x={3.5} y={-2} fill="#FFFFFF" fontSize="1.5" fontWeight="bold" textAnchor="middle">UPS / BESS</text>
+                  <text x={3.5} y={1} fill="#FFFFFF" fontSize="1.2" textAnchor="middle">(Containerized)</text>
 
-                  <rect x={8} y={2} width={11} height={6} fill={palette?.transformer || "#7C3AED"} />
-                  <text x={13.5} y={5.5} fill="#FFFFFF" fontSize="1.5" fontWeight="bold" textAnchor="middle">Trafos/SWG</text>
+                  {/* Zone C: Open Outdoor Power & Cooling Yard (>=12m away for EMI/Noise/Vibration) */}
+                  <rect x={16} y={-14} width={15} height={6} fill={palette?.transformer || "#7C3AED"} />
+                  <text x={23.5} y={-10.5} fill="#FFFFFF" fontSize="1.4" fontWeight="bold" textAnchor="middle">Open-Pad Trafos</text>
 
-                  <rect x={21} y={-14} width={11} height={10} fill={palette?.upsBess || "#DB2777"} />
-                  <text x={26.5} y={-8.5} fill="#FFFFFF" fontSize="1.5" fontWeight="bold" textAnchor="middle">UPS/BESS</text>
+                  <rect x={16} y={-6} width={15} height={6} fill={palette?.dgSet || "#DC2626"} />
+                  <text x={23.5} y={-2.5} fill="#FFFFFF" fontSize="1.4" fontWeight="bold" textAnchor="middle">Canopy DGs/PESO</text>
 
-                  <rect x={21} y={-2} width={11} height={10} fill={palette?.dgSet || "#DC2626"} />
-                  <text x={26.5} y={3.5} fill="#FFFFFF" fontSize="1.5" fontWeight="bold" textAnchor="middle">DGs/PESO</text>
+                  <rect x={16} y={2} width={15} height={6} fill={palette?.coolerTank || "#059669"} />
+                  <text x={23.5} y={5.5} fill="#FFFFFF" fontSize="1.4" fontWeight="bold" textAnchor="middle">Coolers / Tanks</text>
+
+                  <rect x={16} y={10} width={15} height={5} fill={palette?.cduPump || "#0284C7"} />
+                  <text x={23.5} y={13} fill="#FFFFFF" fontSize="1.4" fontWeight="bold" textAnchor="middle">CDU / Pump Skids</text>
                 </g>
               </svg>
             </div>
@@ -2482,6 +2581,9 @@
       const [clientId, setClientId] = useState(DEFAULT_CLIENT_ID);
       const [driveToken, setDriveToken] = useState("");
       const [driveStatus, setDriveStatus] = useState("Local Ready");
+      const [lastSavedAt, setLastSavedAt] = useState(() => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      const [saveToast, setSaveToast] = useState("");
+      const [cityMatches, setCityMatches] = useState([]);
 
       // Google Drive Folder Browser & Creator State
       const [showDriveModal, setShowDriveModal] = useState(false);
@@ -2550,6 +2652,7 @@
       useEffect(() => {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, editingId, skus, containerCatalog, nonItCatalog, standards, palette, supplyIntel, logoDataUrl, clientId }));
+          setLastSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
         } catch (e) {}
       }, [projects, editingId, skus, containerCatalog, nonItCatalog, standards, palette, supplyIntel, logoDataUrl, clientId]);
 
@@ -2565,6 +2668,16 @@
 
       const updateCurrentProject = (patch) => {
         setProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, ...patch, updatedAt: new Date().toISOString().slice(0, 10) } : p));
+      };
+
+      const saveDraftNow = (customMsg = "All progress saved to browser storage ✓") => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, editingId, skus, containerCatalog, nonItCatalog, standards, palette, supplyIntel, logoDataUrl, clientId }));
+          const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          setLastSavedAt(t);
+          setSaveToast(`${customMsg} (${t})`);
+          setTimeout(() => setSaveToast(""), 3500);
+        } catch (e) {}
       };
 
       const updatePaletteKey = (k, hex) => setPalette(prev => ({ ...prev, [k]: hex }));
@@ -2640,49 +2753,73 @@
         setQuoteModalItem(null);
       };
 
+      const applySelectedCityMatch = (place) => {
+        const { latitude, longitude, elevation, name, country, admin1 } = place;
+        const elev = Math.round(elevation || 0);
+        const est = estimateSummerDesignClimate(latitude, longitude, elev);
+        const seis = classifySeismicZone(`${name} ${admin1 || ""}`, latitude, longitude);
+        updateCurrentProject({
+          cityQuery: `${name}${admin1 ? ", " + admin1 : ""}${country ? " (" + country + ")" : ""}`,
+          lat: Number(latitude.toFixed(2)),
+          lon: Number(longitude.toFixed(2)),
+          elevationM: elev,
+          peakDryBulb: est.peakDryBulb,
+          peakWetBulb: est.peakWetBulb,
+          relHumidityPct: est.relHumidityPct,
+          monthlyClimate: synthesizeMonthlyClimate(est.peakDryBulb, est.peakWetBulb, est.relHumidityPct),
+          seismicZone: seis.zone,
+          seismicZFactor: seis.zFactor,
+          seismicLabel: seis.label
+        });
+        setCityMatches([]);
+        setWeatherMsg(`✓ Resolved ${name}${admin1 ? ", " + admin1 : ""}: Summer Design ${est.peakDryBulb}°C DB / ${est.peakWetBulb}°C WB, Elev ${elev}m, ${seis.label}`);
+      };
+
       const fetchCityWeatherAndSeismic = async () => {
-        const q = (currentProject.cityQuery || "").trim();
-        if (!q) return;
+        const rawQ = (currentProject.cityQuery || "").trim();
+        if (!rawQ) return;
+        const cleanQ = rawQ.split(",")[0].trim();
         setWeatherLoading(true);
-        setWeatherMsg("Fetching live climate & seismic zone...");
+        setWeatherMsg("Searching matching cities & ASHRAE summer peaks...");
+        setCityMatches([]);
         try {
-          const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`);
-          const geoData = await geoRes.json();
-          const place = geoData.results?.[0];
-          if (!place) {
-            const seis = classifySeismicZone(q, 20, 78);
+          const queries = [cleanQ];
+          if (cleanQ.toLowerCase() === "dharamshala") queries.push("Dharamsala");
+          let combined = [];
+          for (const qItem of queries) {
+            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(qItem)}&count=8&language=en&format=json`);
+            const geoData = await geoRes.json();
+            if (Array.isArray(geoData.results)) combined = [...combined, ...geoData.results];
+          }
+          // Deduplicate by id
+          const seen = new Set();
+          const unique = combined.filter(p => {
+            if (seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+          });
+          // Prioritize India results and higher-population district HQ / cities
+          unique.sort((a, b) => {
+            const aIn = a.country_code === "IN" ? 1 : 0;
+            const bIn = b.country_code === "IN" ? 1 : 0;
+            if (aIn !== bIn) return bIn - aIn;
+            return (b.population || 0) - (a.population || 0);
+          });
+
+          if (unique.length === 0) {
+            const seis = classifySeismicZone(cleanQ, 20, 78);
             updateCurrentProject({ seismicZone: seis.zone, seismicZFactor: seis.zFactor, seismicLabel: seis.label });
-            setWeatherMsg(`City coordinates not found; applied ${seis.label}. You can adjust Dry/Wet Bulb manually.`);
+            setWeatherMsg(`City coordinates not found; applied ${seis.label}. Adjust Dry/Wet Bulb manually.`);
             setWeatherLoading(false);
             return;
           }
-          const { latitude, longitude, elevation, name, country, admin1 } = place;
-          const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max&current=relative_humidity_2m,temperature_2m&timezone=auto`);
-          const wData = await wRes.json();
-          const maxForecast = Math.max(...(wData.daily?.temperature_2m_max || [38]));
-          const peakDryBulb = Number(Math.max(maxForecast, 34).toFixed(1));
-          const rh = wData.current?.relative_humidity_2m || 65;
-          const T = peakDryBulb;
-          const tw = T * Math.atan(0.151977 * Math.pow(rh + 8.313659, 0.5)) + Math.atan(T + rh) - Math.atan(rh - 1.676331) + 0.00391838 * Math.pow(rh, 1.5) * Math.atan(0.023101 * rh) - 4.686035;
-          const peakWetBulb = Number(Math.max(18, Math.min(peakDryBulb - 2, tw)).toFixed(1));
-          const seis = classifySeismicZone(`${name} ${admin1 || ""}`, latitude, longitude);
 
-          updateCurrentProject({
-            cityQuery: `${name}${admin1 ? ", " + admin1 : ""}${country ? " (" + country + ")" : ""}`,
-            lat: Number(latitude.toFixed(2)),
-            lon: Number(longitude.toFixed(2)),
-            elevationM: Math.round(elevation || 0),
-            peakDryBulb,
-            peakWetBulb,
-            relHumidityPct: rh,
-            monthlyClimate: synthesizeMonthlyClimate(peakDryBulb, peakWetBulb, rh),
-            seismicZone: seis.zone,
-            seismicZFactor: seis.zFactor,
-            seismicLabel: seis.label
-          });
-          setWeatherMsg(`✓ Resolved ${name}: ${peakDryBulb}°C DB, ${peakWetBulb}°C WB, Elev ${Math.round(elevation || 0)}m, ${seis.label}`);
+          applySelectedCityMatch(unique[0]);
+          if (unique.length > 1) {
+            setCityMatches(unique.slice(0, 5));
+          }
         } catch (e) {
-          const seis = classifySeismicZone(q, 20, 78);
+          const seis = classifySeismicZone(cleanQ, 20, 78);
           updateCurrentProject({ seismicZone: seis.zone, seismicZFactor: seis.zFactor, seismicLabel: seis.label });
           setWeatherMsg(`Offline mode: Applied ${seis.label}. Adjust Dry/Wet Bulb manually below.`);
         }
@@ -3435,9 +3572,15 @@
                           "Services, Multi-Year AMC, Manpower & Non-Standard Works"
                         ][wizardTab]}</h2>
                       </div>
-                      <button onClick={() => navigateTo("solution")} className="px-3.5 py-2 rounded-lg coral-bg text-white text-xs font-bold">
-                        Build Engineering Solution →
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] text-emerald-300 font-semibold hidden sm:inline">✓ Auto-saved {lastSavedAt}</span>
+                        <button onClick={() => saveDraftNow("Wizard progress saved")} className="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black">
+                          💾 Save Progress
+                        </button>
+                        <button onClick={() => { saveDraftNow("Wizard saved"); navigateTo("solution"); }} className="px-3.5 py-2 rounded-lg coral-bg text-white text-xs font-bold">
+                          Build Engineering Solution →
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-1.5 mt-4">
@@ -3493,6 +3636,20 @@
                             </button>
                           </div>
                           {weatherMsg && <div className="text-xs text-blue-900 font-medium">{weatherMsg}</div>}
+                          {cityMatches.length > 1 && (
+                            <div className="flex flex-wrap items-center gap-1.5 text-xs pt-1">
+                              <span className="font-bold text-slate-600">Select exact match:</span>
+                              {cityMatches.map(cm => (
+                                <button
+                                  key={cm.id}
+                                  onClick={() => applySelectedCityMatch(cm)}
+                                  className="px-2.5 py-1 rounded-lg bg-white border border-blue-300 hover:bg-blue-600 hover:text-white font-semibold navy-text transition"
+                                >
+                                  {cm.name}{cm.admin1 ? `, ${cm.admin1}` : ""} ({cm.country_code}) • {Math.round(cm.elevation || 0)}m
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                             <div>
                               <label className="block text-slate-500">Peak Dry Bulb (°C)</label>
@@ -3529,7 +3686,7 @@
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 space-y-2">
                             <label className="block font-bold navy-text">Target Total IT Load (MW)</label>
                             <input type="number" step="0.1" min="0" placeholder="e.g., 10.0" value={currentProject.targetItMw || ""} onChange={e => updateCurrentProject({ targetItMw: Number(e.target.value) })} className="w-full border border-blue-300 rounded-lg px-3 py-1.5 text-lg font-black navy-text bg-white" />
@@ -3539,24 +3696,16 @@
                               </div>
                             )}
                           </div>
-                          <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 text-xs">
-                            <label className="block font-bold navy-text mb-1">Target Coolant Supply Temp (°C)</label>
-                            <input
-                              type="number" step="0.5"
-                              placeholder={`Auto (${eng.governingMaxInletTempC}°C)`}
-                              value={currentProject.targetSupplyTempC}
-                              onChange={e => updateCurrentProject({ targetSupplyTempC: e.target.value })}
-                              className="w-full border border-sky-300 rounded-lg px-3 py-1.5 font-bold bg-white"
-                            />
-                            <span className="text-[11px] text-slate-600 block mt-1">Governing SKU Ceiling: <strong>{eng.governingMaxInletTempC}°C</strong> (leave blank for auto)</span>
-                          </div>
-                          <div>
-                            <label className="block font-bold text-slate-700 mb-1">Proposal Currency</label>
-                            <select value={currentProject.currency} onChange={e => updateCurrentProject({ currency: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
+                          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                            <label className="block font-bold text-slate-700">Proposal Currency</label>
+                            <select value={currentProject.currency} onChange={e => updateCurrentProject({ currency: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold">
                               <option value="INR">INR (₹ Crores / Lakhs)</option>
                               <option value="USD">USD ($ Millions)</option>
                               <option value="EUR">EUR (€ Millions)</option>
                             </select>
+                            <div className="text-[11px] text-slate-500">
+                              Inlet Coolant Supply Temp is auto-derived from the lowest Max Inlet Temp (°C) of your selected DLC racks in Step 2.
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -4082,19 +4231,30 @@
                       </div>
                     )}
 
-                    <div className="flex justify-between pt-4 border-t border-slate-200">
+                    {saveToast && (
+                      <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold">
+                        {saveToast}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-200">
                       <button disabled={wizardTab === 0} onClick={() => setWizardTab(w => w - 1)} className="touch-btn px-4 py-2 rounded-lg border border-slate-300 text-xs font-bold disabled:opacity-40">
                         ← Previous Step
                       </button>
-                      {wizardTab < 6 ? (
-                        <button onClick={() => setWizardTab(w => w + 1)} className="touch-btn px-5 py-2 rounded-lg navy-bg text-white text-xs font-bold">
-                          Next Step →
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => saveDraftNow(`Step ${wizardTab + 1} saved`)} className="touch-btn px-4 py-2 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-950 border border-emerald-300 text-xs font-bold">
+                          💾 Save Step {wizardTab + 1}
                         </button>
-                      ) : (
-                        <button onClick={() => navigateTo("solution")} className="touch-btn px-6 py-2 rounded-lg coral-bg text-white text-xs font-bold shadow">
-                          Build Engineering Solution & Review →
-                        </button>
-                      )}
+                        {wizardTab < 6 ? (
+                          <button onClick={() => { saveDraftNow(`Step ${wizardTab + 1} saved`); setWizardTab(w => w + 1); }} className="touch-btn px-5 py-2 rounded-lg navy-bg text-white text-xs font-bold">
+                            Save & Next Step →
+                          </button>
+                        ) : (
+                          <button onClick={() => { saveDraftNow("Requirements saved"); navigateTo("solution"); }} className="touch-btn px-6 py-2 rounded-lg coral-bg text-white text-xs font-bold shadow">
+                            Save & Build Solution →
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4110,12 +4270,16 @@
                         <h2 className="text-xl font-bold navy-text mt-1">Solution Build & Subsystem Review — {currentProject.name}</h2>
                         <p className="text-xs text-slate-600">Tune target inlet water temperature, UPS checkpoint shutdown runtime, multi-pump staging, DG autonomy, building-block ratings & AMC before locking Commercial BOQ.</p>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button onClick={autoOptimizeBuildingBlocks} className="touch-btn px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-black shadow">
-                          ⚡ Auto-Optimize Block Sizes for Lowest CapEx & Footprint
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] text-emerald-700 font-semibold">✓ Saved {lastSavedAt}</span>
+                        <button onClick={() => saveDraftNow("Solution configuration saved")} className="touch-btn px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black">
+                          💾 Save Solution
                         </button>
-                        <button onClick={() => navigateTo("workspace")} className="touch-btn px-5 py-2 rounded-xl coral-bg text-white text-xs font-bold shadow">
-                          Approve Solution & Open Commercial BOQ →
+                        <button onClick={autoOptimizeBuildingBlocks} className="touch-btn px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-black shadow">
+                          ⚡ Auto-Optimize Blocks
+                        </button>
+                        <button onClick={() => { saveDraftNow("Solution approved"); navigateTo("workspace"); }} className="touch-btn px-5 py-2 rounded-xl coral-bg text-white text-xs font-bold shadow">
+                          Approve & Open BOQ →
                         </button>
                       </div>
                     </div>
