@@ -1,48 +1,41 @@
-const CACHE_NAME = 'ai-mdc-configurator-v9.2';
-const CORE_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/privacy.html'
+const CACHE_NAME = 'mdc-configurator-v10.0';
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './mdc_supply_intel.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  const url = new URL(event.request.url);
-  // Skip Google OAuth & Drive API calls from cache
-  if (url.hostname.includes('googleapis.com') || url.hostname.includes('accounts.google.com')) {
-    return;
-  }
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResp) => {
-          if (networkResp && networkResp.status === 200) {
-            const copy = networkResp.clone();
+      const networkFetch = fetch(event.request)
+        .then((resp) => {
+          if (resp && resp.status === 200 && resp.type === 'basic') {
+            const copy = resp.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           }
-          return networkResp;
+          return resp;
         })
         .catch(() => cached);
-      return cached || fetchPromise;
+      return cached || networkFetch;
     })
   );
 });
