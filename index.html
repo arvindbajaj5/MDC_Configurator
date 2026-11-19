@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V12.0 Enterprise)</title>
+  <title>AI Modular Data Center Configurator (V12.1 Enterprise)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -458,13 +458,14 @@ function V12ModuleNavBar({ activeScreen, onNavigate, eng }) {
     ["wizard", "1. Site & Racks"],
     ["mod_whitespace", "2. Hall, PAC/CDU & Branding"],
     ["mod_civil", "3. Civil, Plinth & BnM"],
-    ["solution", "4. Yard MEP & Grid Shield"],
+    ["solution", "4. Yard & Indoor MEP"],
     ["mod_telecom", "5. Telecom & MMR"],
     ["mod_logistics", "6. Logistics & Rigging"],
     ["studio3d", "7. 360° 3D Studio"],
     ["supply_intel", "8. Supply Chain (MII)"],
     ["parameters", "9. Master CRUD"],
-    ["workspace", `10. MIS & BOM (${eng.bomItems?.length || 0})`]
+    ["outputs", "10. CAD & Outputs"],
+    ["workspace", `11. BOQ & MIS (${eng.bomItems?.length || 0})`]
   ];
   return (
     <div className="bg-slate-900 text-slate-200 px-3 py-1.5 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-xs flex-shrink-0">
@@ -613,40 +614,86 @@ function V12WhiteSpaceAndBrandingModule({ project, eng, onUpdateProject, onNavig
   );
 }
 
-// 3. MODULE 3: STRUCTURAL, PLINTH & BRICK-AND-MORTAR (BnM) PLANNING
+// 3. MODULE 3: STRUCTURAL, PLINTH & BRICK-AND-MORTAR (BnM) PLANNING (City-Linked & Container-Correlated)
 function V12CivilAndStructuralModule({ project, eng, onUpdateProject }) {
   const safeProj = extendProjectDefaultsV12(project);
   const isBnM = safeProj.shellArchitecture === "BnM_Hall";
+  const pod0 = eng.pods?.[0];
+  const podDimStr = pod0
+    ? `${(pod0.extLengthMm / 1000).toFixed(2)}m L × ${(pod0.extWidthMm / 1000).toFixed(2)}m W × ${(pod0.extHeightMm / 1000).toFixed(2)}m H`
+    : `${(safeProj.maxCustomLengthMm / 1000).toFixed(2)}m L × ${(safeProj.containerWidthMm / 1000).toFixed(2)}m W × ${(safeProj.containerHeightMm / 1000).toFixed(2)}m H`;
 
   return (
     <div className="space-y-5 text-xs">
       <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div>
-            <span className="px-2.5 py-0.5 rounded bg-amber-100 text-amber-950 font-black uppercase text-[10px]">Module 03 • Civil, Foundation & Structural Engineering</span>
+            <span className="px-2.5 py-0.5 rounded bg-amber-100 text-amber-950 font-black uppercase text-[10px]">
+              Module 03 • Civil, Plinth & Structural Engineering — {safeProj.cityQuery || "Site Location"}
+            </span>
             <h2 className="text-xl font-bold navy-text mt-1">
-              {isBnM ? "Brick-and-Mortar (BnM) Column-Grid & Structural Slab Planning" : "Container Raised RCC Plinth, Soil Bearing & Seismic Foundation Engineering"}
+              {isBnM ? "Brick-and-Mortar (BnM) Structural Hall & Slab Engineering" : "Container Raised RCC Plinth, Soil Bearing & Foundation Engineering"}
             </h2>
+            <p className="text-slate-600">
+              Correlated directly to <strong>{eng.pods?.length || 1} × {podDimStr}</strong> ({safeProj.metallurgy}) • Loaded Unit Mass: <strong>{eng.civil?.unitGrossTonnes} Tonnes</strong>
+            </p>
           </div>
           <select
             value={safeProj.shellArchitecture}
             onChange={e => onUpdateProject({ shellArchitecture: e.target.value })}
             className="border-2 border-[#002870] rounded-lg px-3 py-1.5 bg-white font-bold navy-text"
           >
-            <option value="Container">Mode: Modular ISO Corten-A Containers</option>
-            <option value="BnM_Hall">Mode: Brick-and-Mortar (BnM) Structural Hall</option>
+            <option value="Container">Enclosure Mode: Modular ISO Corten-A Containers</option>
+            <option value="BnM_Hall">Enclosure Mode: Brick-and-Mortar (BnM) Structural Hall</option>
           </select>
         </div>
 
+        {/* City Historical Site Data Banner (Designer Can Validate & Override) */}
+        <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-500 block">Deployment City & Elev</span>
+            <span className="font-bold navy-text">{safeProj.cityQuery} ({safeProj.elevationM || 14}m ASL)</span>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-500 block">Historical Peak Climate</span>
+            <span className="font-bold text-slate-800">{safeProj.peakDryBulb}°C DB / {safeProj.peakWetBulb}°C WB ({safeProj.relHumidityPct}% RH)</span>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-500 block">IS 1893 Seismic Zone</span>
+            <select
+              value={safeProj.seismicZone}
+              onChange={e => {
+                const z = e.target.value;
+                const zMap = { "Zone II": 0.10, "Zone III": 0.16, "Zone IV": 0.24, "Zone V": 0.36 };
+                onUpdateProject({ seismicZone: z, seismicZFactor: zMap[z], seismicLabel: `IS 1893 ${z} (${zMap[z]}g)` });
+              }}
+              className="mt-0.5 border rounded px-2 py-0.5 bg-white font-bold navy-text"
+            >
+              <option>Zone II</option><option>Zone III</option><option>Zone IV</option><option>Zone V</option>
+            </select>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-500 block">100-Yr Historical Flood Mark (mm)</span>
+            <input
+              type="number" step="50"
+              value={safeProj.historicalFloodLevelMm}
+              onChange={e => onUpdateProject({ historicalFloodLevelMm: Number(e.target.value) })}
+              className="mt-0.5 w-24 border rounded px-2 py-0.5 bg-white font-bold"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-500 block">Site Soil Bearing Capacity (kN/m²)</span>
+            <input
+              type="number" step="10"
+              value={safeProj.soilBearingCapacityKpa}
+              onChange={e => onUpdateProject({ soilBearingCapacityKpa: Number(e.target.value) })}
+              className="mt-0.5 w-24 border rounded px-2 py-0.5 bg-white font-bold"
+            />
+          </div>
+        </div>
+
+        {/* Structural Foundation & Plinth Engineering Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Site Soil Bearing Capacity (kN/m²)</label>
-            <input type="number" value={safeProj.soilBearingCapacityKpa} onChange={e => onUpdateProject({ soilBearingCapacityKpa: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
-          </div>
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">100-Yr Historical Flood Level (mm)</label>
-            <input type="number" step="50" value={safeProj.historicalFloodLevelMm} onChange={e => onUpdateProject({ historicalFloodLevelMm: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
-          </div>
           {isBnM ? (
             <>
               <div>
@@ -657,34 +704,42 @@ function V12CivilAndStructuralModule({ project, eng, onUpdateProject }) {
                 </select>
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">RCC Slab Thickness & Clear Soffit</label>
-                <div className="flex items-center gap-1.5">
-                  <input type="number" value={safeProj.bnmSlabThicknessMm} onChange={e => onUpdateProject({ bnmSlabThicknessMm: Number(e.target.value) })} className="w-20 border rounded px-2 py-1.5 bg-white font-bold" />
-                  <span>mm /</span>
-                  <input type="number" step="0.2" value={safeProj.bnmClearSoffitM} onChange={e => onUpdateProject({ bnmClearSoffitM: Number(e.target.value) })} className="w-16 border rounded px-2 py-1.5 bg-white font-bold" />
-                  <span>m</span>
-                </div>
+                <label className="block font-bold text-slate-700 mb-1">RCC Slab Thickness (mm)</label>
+                <input type="number" step="25" value={safeProj.bnmSlabThicknessMm} onChange={e => onUpdateProject({ bnmSlabThicknessMm: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Clear Slab-to-Soffit Height (m)</label>
+                <input type="number" step="0.2" value={safeProj.bnmClearSoffitM} onChange={e => onUpdateProject({ bnmClearSoffitM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Fire & Floor Finish Spec</label>
+                <div className="px-3 py-1.5 bg-white border rounded-lg font-bold text-emerald-800">2-Hr Fire Wall + ESD Epoxy</div>
               </div>
             </>
           ) : (
             <>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Engineered RCC Plinth Lift</label>
-                <div className="px-3 py-1.5 bg-white border rounded-lg font-black text-brandOrange">+{eng.civil?.floodPlinthMm} mm Above FGL</div>
+                <label className="block font-bold text-slate-700 mb-1">Plinth Clear Flood Margin (mm)</label>
+                <div className="px-3 py-1.5 bg-white border rounded-lg font-black text-brandOrange">+{eng.civil?.floodPlinthMm} mm Top-of-Plinth</div>
               </div>
               <div>
                 <label className="block font-bold text-slate-700 mb-1">8-Point ISO Corner Reaction</label>
-                <div className="px-3 py-1.5 bg-white border rounded-lg font-black navy-text">{eng.civil?.cornerNodeKn} kN / corner node</div>
+                <div className="px-3 py-1.5 bg-white border rounded-lg font-black navy-text">{eng.civil?.cornerNodeKn} kN / corner casting</div>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Uniform Floor Pressure</label>
+                <div className="px-3 py-1.5 bg-white border rounded-lg font-bold">{eng.civil?.floorPressureKpa} kN/m² ({eng.civil?.unitGrossTonnes}T/pod)</div>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Anchor & Drainage Spec</label>
+                <div className="px-3 py-1.5 bg-white border rounded-lg font-bold text-emerald-800">M30 Shear Bolts + 1:50 Apron</div>
               </div>
             </>
           )}
         </div>
 
-        <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <strong>Recommended Foundation Design:</strong> {eng.civil?.foundationType} • <strong>Uniform Floor Pressure:</strong> {eng.civil?.floorPressureKpa} kN/m² • <strong>Unit Gross Mass:</strong> {eng.civil?.unitGrossTonnes} Tonnes
-          </div>
-          <span className="font-bold text-emerald-800">1:50 Perimeter Drainage Apron + M30 Seismic Hold-Downs Active</span>
+        <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200">
+          <strong>Engineered Sub-Structure Design ({safeProj.cityQuery}):</strong> {eng.civil?.foundationType} • Total Civil Plinth & Apron Area: <strong>{eng.plinthSqm} m²</strong>
         </div>
 
         {renderV11CivilPlinthSvg(safeProj, eng)}
@@ -693,61 +748,61 @@ function V12CivilAndStructuralModule({ project, eng, onUpdateProject }) {
   );
 }
 
-// 4. MODULE 5: TELECOM, CARRIER-NEUTRAL MMR & DIVERSE FIBER INFRASTRUCTURE
+// 4. MODULE 5: DATA CENTER TELECOM INFRASTRUCTURE (CARRIER MMR, DIVERSE VAULTS, ODFs & ISP TERMINATION)
 function V12TelecomAndMmrModule({ project, eng, onUpdateProject }) {
   const safeProj = extendProjectDefaultsV12(project);
   return (
     <div className="space-y-5 text-xs">
       <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
         <div className="border-b border-slate-200 pb-3">
-          <span className="px-2.5 py-0.5 rounded bg-indigo-100 text-indigo-950 font-black uppercase text-[10px]">Module 05 • Telecom, Carrier MMR & Network Infrastructure</span>
-          <h2 className="text-xl font-bold navy-text mt-1">Carrier-Neutral Meet-Me Rooms (MMR), Diverse Fiber Vaults & GPU Fabric</h2>
+          <span className="px-2.5 py-0.5 rounded bg-indigo-100 text-indigo-950 font-black uppercase text-[10px]">Module 05 • Data Center External Telecom & Carrier Infrastructure</span>
+          <h2 className="text-xl font-bold navy-text mt-1">Carrier-Neutral Meet-Me Rooms (MMR), Diverse Underground Fiber Vaults & ODF Patching</h2>
+          <p className="text-slate-600">Covers external ISP/telco demarcation, physically diverse campus fiber entries, ODF cross-connect frames, -48V DC telecom power, and structured fiber pathways.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
           <div>
-            <label className="block font-bold text-slate-700 mb-1">External Telecom Carriers</label>
-            <input type="number" min="1" max="12" value={safeProj.carrierCount} onChange={e => onUpdateProject({ carrierCount: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+            <label className="block font-bold text-slate-700 mb-1">Number of External Carriers / ISPs</label>
+            <input type="number" min="1" max="16" value={safeProj.carrierCount} onChange={e => onUpdateProject({ carrierCount: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
           </div>
           <div>
-            <label className="block font-bold text-slate-700 mb-1">ODF Patch Density (Cores/Bay)</label>
+            <label className="block font-bold text-slate-700 mb-1">48U ODF Patch Density (Cores/Bay)</label>
             <select value={safeProj.odfCoreDensity} onChange={e => onUpdateProject({ odfCoreDensity: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
-              <option value={288}>288-Core LC/APC ODF Bay</option>
+              <option value={288}>288-Core LC/APC Splice & Patch ODF</option>
               <option value={576}>576-Core High-Density ODF Bay</option>
             </select>
           </div>
           <div>
-            <label className="block font-bold text-slate-700 mb-1">Diverse Vault Separation (m)</label>
-            <input type="number" min="20" max="200" value={safeProj.diverseVaultSeparationM} onChange={e => onUpdateProject({ diverseVaultSeparationM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+            <label className="block font-bold text-slate-700 mb-1">Diverse Fiber Vault Separation (m)</label>
+            <input type="number" min="20" max="300" value={safeProj.diverseVaultSeparationM} onChange={e => onUpdateProject({ diverseVaultSeparationM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
           </div>
           <div>
-            <label className="block font-bold text-slate-700 mb-1">East-West GPU Compute Fabric</label>
-            <select value={safeProj.fabricType} onChange={e => onUpdateProject({ fabricType: e.target.value })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
-              <option>InfiniBand NDR (800G OSFP)</option>
-              <option>Eviden Bull BXI Exascale</option>
-              <option>800G RoCEv2 Spine-Leaf</option>
-            </select>
+            <label className="block font-bold text-slate-700 mb-1">MMR Redundancy & Power</label>
+            <div className="px-3 py-1.5 bg-white border rounded-lg font-bold text-emerald-800">Dual A/B MMR + -48V DC Plant</div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-            <div className="font-bold navy-text text-sm">1. Carrier-Neutral MMR & Demarcation</div>
-            <div>• Dedicated MMR Rooms/Pods: <strong>{eng.telecom?.mmrRoomsCount} Biometric MMR(s)</strong></div>
+            <div className="font-bold navy-text text-sm">1. Carrier-Neutral Meet-Me Room (MMR)</div>
+            <div>• MMR Rooms / Pods: <strong>{eng.telecom?.mmrRoomsCount} Biometric-Locked MMR(s)</strong></div>
+            <div>• ISP Demarcation Cages: <strong>{safeProj.carrierCount} Individual Lockable Carrier Racks</strong></div>
+            <div>• Telecom DC Power: <strong>Dual -48V DC Rectifiers + 8-Hr VRLA/LFP Backup</strong></div>
+            <div>• Dedicated Cooling: <strong>Redundant Split/PAC Units (22°C ± 1°C)</strong></div>
+          </div>
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="font-bold navy-text text-sm">2. Diverse Underground Entry Vaults</div>
+            <div>• Campus Entry Routes: <strong>2 Opposite Boundary Routes (North & South)</strong></div>
+            <div>• Vault Separation: <strong>{safeProj.diverseVaultSeparationM}m (&gt;= 30m Zero Single-Point Cut)</strong></div>
+            <div>• Duct Bank Civil Spec: <strong>Concrete-Encased 4-Way 110mm HDPE Ducts</strong></div>
+            <div>• Manhole Protection: <strong>Heavy-Duty CI Covers + Watertight Roxtec Seals</strong></div>
+          </div>
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="font-bold navy-text text-sm">3. ODFs & Structured Backbone Cabling</div>
             <div>• Optical Distribution Frames: <strong>{eng.telecom?.odfBaysCount} × 48U ODF Bays ({eng.telecom?.totalFiberStrands?.toLocaleString()} Strands)</strong></div>
-            <div>• Telecom Power: <strong>Dual -48V DC Rectifiers + Isolated Battery Bank</strong></div>
-          </div>
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-            <div className="font-bold navy-text text-sm">2. Diverse Underground Fiber Vaults</div>
-            <div>• Entry Topology: <strong>North & South Opposite Boundary Manholes</strong></div>
-            <div>• Physical Separation: <strong>{safeProj.diverseVaultSeparationM}m (&gt;= 30m Zero Single-Point Cut)</strong></div>
-            <div>• Duct Bank Spec: <strong>Concrete-Encased 4-Way 110mm HDPE Ducts</strong></div>
-          </div>
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-            <div className="font-bold navy-text text-sm">3. Overhead Raceways & GPU Fabric</div>
-            <div>• Overhead Fiber Troughs: <strong>{eng.telecom?.overheadFiberMeters}m Yellow LSZH Raceways</strong></div>
-            <div>• EMI Segregation: <strong>300mm Above IP55 Sandwich Power Busducts</strong></div>
-            <div>• Backend GPU Interconnect: <strong>{eng.telecom?.gpuFabricLinks?.toLocaleString()} × 800G OSFP Links</strong></div>
+            <div>• Overhead Fiber Troughs: <strong>{eng.telecom?.overheadFiberMeters}m Yellow LSZH Corrugated Raceways</strong></div>
+            <div>• EMI Segregation: <strong>300mm Physical & Metallic Separation from Busducts</strong></div>
+            <div>• DCIM Patch Telemetry: <strong>Automated Port-Level Intelligent Patching</strong></div>
           </div>
         </div>
       </div>
@@ -755,61 +810,90 @@ function V12TelecomAndMmrModule({ project, eng, onUpdateProject }) {
   );
 }
 
-// 5. MODULE 6: LOGISTICS, ROUTE SURVEY, HEAVY-LIFT CRANE & RIGGING PLANNING
+// 5. MODULE 6: LOGISTICS, ROUTE SURVEY, HEAVY-LIFT CRANE & RIGGING PLANNING (All Editable Numeric Inputs + Live Load Sync)
 function V12LogisticsAndRiggingModule({ project, eng, onUpdateProject }) {
   const safeProj = extendProjectDefaultsV12(project);
+  const fullPodTonnes = eng.civil?.unitGrossTonnes || 32.0;
+  const podCount = eng.pods?.length || 1;
+  const ov = safeProj.logisticsOverrides || {};
+
+  const calcTrailers = ov.trailers !== undefined && ov.trailers !== "" ? Number(ov.trailers) : (eng.logistics?.trailerCount || podCount);
+  const calcCraneT = ov.craneTonnage !== undefined && ov.craneTonnage !== ""
+    ? Number(ov.craneTonnage)
+    : Math.max(250, Math.ceil((fullPodTonnes * (safeProj.craneWorkingRadiusM || 10) * 0.72) / 50) * 50);
+  const calcOutriggerKpa = Math.round((fullPodTonnes * 9.81 * 1.45) / 4.8);
+  const calcTurningRadius = Number((Math.max(15.0, 22.5 - (Number(safeProj.approachRoadWidthM) || 12) * 0.5)).toFixed(1));
+  const calcStagingSqm = ov.stagingSqm !== undefined && ov.stagingSqm !== "" ? Number(ov.stagingSqm) : Math.max(240, calcTrailers * 80);
+
+  const setLogOv = (k, val) => onUpdateProject({ logisticsOverrides: { ...(safeProj.logisticsOverrides || {}), [k]: val } });
+
   return (
     <div className="space-y-5 text-xs">
       <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
         <div className="border-b border-slate-200 pb-3">
           <span className="px-2.5 py-0.5 rounded bg-orange-100 text-orange-950 font-black uppercase text-[10px]">Module 06 • Logistics, Heavy-Lift & On-Site Rigging Engineering</span>
-          <h2 className="text-xl font-bold navy-text mt-1">Trailer Fleet, Swept Turning Radius, Mobile Crane Sizing & Rigging Manifest</h2>
+          <h2 className="text-xl font-bold navy-text mt-1">Route Survey, Full-Load Crane Sizing, Ground Bearing & Editable Rigging Manifest</h2>
+          <p className="text-slate-600">Calculated dynamically from <strong>{podCount} Pods × {fullPodTonnes} Tonnes</strong> full loaded container mass (all quantities & dimensions editable below).</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
           <div>
             <label className="block font-bold text-slate-700 mb-1">Approach Road Width (m)</label>
-            <select value={safeProj.approachRoadWidthM} onChange={e => onUpdateProject({ approachRoadWidthM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
-              <option value={12}>12m Wide Double-Lane Industrial Road</option>
-              <option value={8}>8m Single-Lane Road (Pilot Escort Req)</option>
-            </select>
+            <input
+              type="number" step="0.5" min="4" max="30"
+              value={safeProj.approachRoadWidthM}
+              onChange={e => onUpdateProject({ approachRoadWidthM: Number(e.target.value) })}
+              className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+            />
           </div>
           <div>
             <label className="block font-bold text-slate-700 mb-1">Overhead Bridge / Line Clearance (m)</label>
-            <input type="number" step="0.1" value={safeProj.overheadClearanceM} onChange={e => onUpdateProject({ overheadClearanceM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+            <input
+              type="number" step="0.1" min="4.0" max="10.0"
+              value={safeProj.overheadClearanceM}
+              onChange={e => onUpdateProject({ overheadClearanceM: Number(e.target.value) })}
+              className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+            />
           </div>
           <div>
             <label className="block font-bold text-slate-700 mb-1">Crane Working Radius (m)</label>
-            <select value={safeProj.craneWorkingRadiusM} onChange={e => onUpdateProject({ craneWorkingRadiusM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
-              <option value={10}>10m Standard Setback (250T Crane)</option>
-              <option value={16}>16m Extended Reach (350T Crane)</option>
-            </select>
+            <input
+              type="number" step="1" min="6" max="40"
+              value={safeProj.craneWorkingRadiusM}
+              onChange={e => onUpdateProject({ craneWorkingRadiusM: Number(e.target.value) })}
+              className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+            />
           </div>
           <div>
             <label className="block font-bold text-slate-700 mb-1">Crane Pad Ground Surface</label>
-            <select value={safeProj.groundSurfaceType} onChange={e => onUpdateProject({ groundSurfaceType: e.target.value })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
-              <option>Compacted WMM + Concrete Apron</option>
-              <option>Natural Soil (Double Azobe Mats Req)</option>
-            </select>
+            <input
+              type="text"
+              value={safeProj.groundSurfaceType}
+              onChange={e => onUpdateProject({ groundSurfaceType: e.target.value })}
+              className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+            />
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
             <span className="text-slate-500 block">Hydraulic Low-Bed Trailers</span>
-            <span className="text-base font-black navy-text">{eng.logistics?.trailerCount} Multi-Axle Moves</span>
+            <input type="number" min="1" value={calcTrailers} onChange={e => setLogOv("trailers", Number(e.target.value))} className="w-24 border rounded px-2 py-1 font-black navy-text bg-white" />
           </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-slate-500 block">Swept Turning Radius</span>
-            <span className="text-base font-black text-brandBlue">{eng.logistics?.minTurningRadiusM} m Min Circle</span>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <span className="text-slate-500 block">Swept Turning Circle (m)</span>
+            <div className="text-base font-black text-brandBlue">{calcTurningRadius} m Radius</div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-slate-500 block">Crane & Outrigger Pressure</span>
-            <span className="text-base font-black text-brandOrange">{eng.logistics?.craneTonnage}T • {eng.logistics?.outriggerGroundKpa} kN/m²</span>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <span className="text-slate-500 block">Mobile Crane Tonnage (T)</span>
+            <div className="flex items-center gap-1.5">
+              <input type="number" step="50" min="100" value={calcCraneT} onChange={e => setLogOv("craneTonnage", Number(e.target.value))} className="w-20 border rounded px-2 py-1 font-black text-brandOrange bg-white" />
+              <span className="text-[11px] font-bold">T ({calcOutriggerKpa} kN/m²)</span>
+            </div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-slate-500 block">Laydown & Staging Yard</span>
-            <span className="text-base font-black text-teal-800">{eng.logistics?.laydownStagingSqm} m² Reserved</span>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <span className="text-slate-500 block">Laydown & Staging Yard (m²)</span>
+            <input type="number" step="20" min="100" value={calcStagingSqm} onChange={e => setLogOv("stagingSqm", Number(e.target.value))} className="w-24 border rounded px-2 py-1 font-black text-teal-800 bg-white" />
           </div>
         </div>
 
@@ -817,16 +901,36 @@ function V12LogisticsAndRiggingModule({ project, eng, onUpdateProject }) {
           <thead>
             <tr className="navy-bg text-white">
               <th className="p-2">On-Site Rigging & Heavy-Lift Equipment</th>
-              <th className="p-2">Engineering Specification</th>
-              <th className="p-2 text-right">Required Qty</th>
+              <th className="p-2">Engineering Specification (Full Load: {fullPodTonnes}T/pod)</th>
+              <th className="p-2 text-right">Editable Qty</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b"><td className="p-2 font-bold">Mobile Telescopic Crane</td><td className="p-2">{eng.logistics?.craneTonnage}T Capacity @ {safeProj.craneWorkingRadiusM}m radius with certified spreader beam</td><td className="p-2 text-right font-bold">1 Unit</td></tr>
-            <tr className="border-b"><td className="p-2 font-bold">Azobe Hardwood Spreader Mats</td><td className="p-2">2.0m × 1.0m × 150mm heavy outrigger load-distribution pads</td><td className="p-2 text-right font-bold">8 Nos</td></tr>
-            <tr className="border-b"><td className="p-2 font-bold">Counterbalance Heavy Forklifts</td><td className="p-2">5-Tonne & 10-Tonne low-mast forklifts for palletized CDU/UPS/rack unloading</td><td className="p-2 text-right font-bold">2 Units</td></tr>
-            <tr className="border-b"><td className="p-2 font-bold">Steerable Hydraulic Roller Skates</td><td className="p-2">15-Tonne heavy machinery skates for precision pod alignment on plinths</td><td className="p-2 text-right font-bold">4 Sets</td></tr>
-            <tr><td className="p-2 font-bold">Low-Profile Toe Jacks & SS316 Shims</td><td className="p-2">10-Tonne hydraulic toe jacks + laser-cut SS316 leveling plates</td><td className="p-2 text-right font-bold">4 Jacks + {(eng.pods?.length || 1) * 16} Shims</td></tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold">Mobile Telescopic Crane</td>
+              <td className="p-2">{calcCraneT}T Capacity @ {safeProj.craneWorkingRadiusM}m radius • Outrigger pressure {calcOutriggerKpa} kN/m²</td>
+              <td className="p-2 text-right"><input type="number" min="1" value={ov.cranes ?? 1} onChange={e => setLogOv("cranes", Number(e.target.value))} className="w-16 border rounded px-2 py-1 text-right font-bold" /></td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold">Azobe Hardwood Spreader Mats</td>
+              <td className="p-2">2.0m × 1.0m × 150mm outrigger load-distribution mats ({safeProj.groundSurfaceType})</td>
+              <td className="p-2 text-right"><input type="number" min="4" value={ov.mats ?? 8} onChange={e => setLogOv("mats", Number(e.target.value))} className="w-16 border rounded px-2 py-1 text-right font-bold" /></td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold">Counterbalance Heavy Forklifts</td>
+              <td className="p-2">5-Tonne & 10-Tonne low-mast forklifts for palletized CDU/PAC/UPS unloading</td>
+              <td className="p-2 text-right"><input type="number" min="1" value={ov.forklifts ?? 2} onChange={e => setLogOv("forklifts", Number(e.target.value))} className="w-16 border rounded px-2 py-1 text-right font-bold" /></td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold">Steerable Hydraulic Roller Skates</td>
+              <td className="p-2">15-Tonne heavy machinery skates for precision pod alignment on plinths</td>
+              <td className="p-2 text-right"><input type="number" min="2" value={ov.skates ?? 4} onChange={e => setLogOv("skates", Number(e.target.value))} className="w-16 border rounded px-2 py-1 text-right font-bold" /></td>
+            </tr>
+            <tr>
+              <td className="p-2 font-bold">Low-Profile Toe Jacks & SS316 Shims</td>
+              <td className="p-2">10-Tonne hydraulic toe jacks + laser-cut SS316 leveling plates</td>
+              <td className="p-2 text-right"><input type="number" min="2" value={ov.jacks ?? 4} onChange={e => setLogOv("jacks", Number(e.target.value))} className="w-16 border rounded px-2 py-1 text-right font-bold" /></td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -844,17 +948,29 @@ function V12WorkspaceSaveOpenModal({
   onImportLocalFile
 }) {
   const [localStatus, setLocalStatus] = useState("");
+  const defaultFileName = `MDC_Deal_${(currentProject?.name || "Project").replace(/[^a-zA-Z0-9_-]+/g, "_")}.json`;
+  const [targetFileName, setTargetFileName] = useState(defaultFileName);
+  const [includeMasterBackup, setIncludeMasterBackup] = useState(false);
+
+  useEffect(() => {
+    setTargetFileName(`MDC_Deal_${(currentProject?.name || "Project").replace(/[^a-zA-Z0-9_-]+/g, "_")}.json`);
+  }, [currentProject?.id, currentProject?.name, isOpen]);
+
   if (!isOpen) return null;
 
+  const isProtectedMasterFile = (name = "") => /master_catalog|supply_intel/i.test(name);
+  const folderPathLabel = driveFolderStack.map(f => f.name).join(" / ");
+
   const handleExplicitLocalSave = async () => {
-    const cleanName = (currentProject.name || "MDC_Deal").replace(/[^a-zA-Z0-9_-]+/g, "_");
-    const files = [
-      { name: `${cleanName}.json`, content: JSON.stringify(currentProject, null, 2) },
-      { name: "mdc_master_catalog.json", content: JSON.stringify({ skus, containerCatalog, nonItCatalog, standards, exportedAt: new Date().toISOString() }, null, 2) }
-    ];
+    const safeName = (targetFileName || defaultFileName).trim().replace(/[^a-zA-Z0-9_.-]+/g, "_");
+    const finalName = safeName.endsWith(".json") ? safeName : `${safeName}.json`;
+    const files = [{ name: finalName, content: JSON.stringify(currentProject, null, 2) }];
+    if (includeMasterBackup) {
+      files.push({ name: "mdc_master_catalog.json", content: JSON.stringify({ skus, containerCatalog, nonItCatalog, standards, exportedAt: new Date().toISOString() }, null, 2) });
+    }
     try {
       const res = await WorkspaceStorageAdapter.saveFilesToLocalDirectory(files);
-      setLocalStatus(`✓ Saved ${res.count} files (${cleanName}.json + mdc_master_catalog.json) into "${res.folderName}"`);
+      setLocalStatus(`✓ Saved "${finalName}" into "${res.folderName}"`);
     } catch (err) {
       if (err?.name !== "AbortError") setLocalStatus("Save cancelled or blocked by browser.");
     }
@@ -866,21 +982,38 @@ function V12WorkspaceSaveOpenModal({
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
           <div>
             <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-950 font-black uppercase text-[10px]">
-              Explicit Workspace Storage Control
+              Controlled Workspace Storage & Master Protection
             </span>
             <h3 className="text-base font-bold navy-text mt-1">
-              {mode === "save" ? "Choose Local Folder or Google Drive Directory to Save" : "Open Deal or Master Catalog from Local Folder or Google Drive"}
+              {mode === "save" ? "Specify File Name & Target Folder (Local or Google Drive)" : "Open Deal or Master Catalog from Local Folder or Google Drive"}
             </h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-800 font-bold text-base">✕</button>
         </div>
+
+        {mode === "save" && (
+          <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-300 space-y-2">
+            <label className="block font-bold navy-text">Target Deal File Name (.json)</label>
+            <input
+              type="text"
+              value={targetFileName}
+              onChange={e => setTargetFileName(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-mono font-bold navy-text"
+              placeholder="e.g., Sovereign_AI_15MW_Mumbai.json"
+            />
+            <label className="flex items-center gap-2 text-slate-700 pt-1">
+              <input type="checkbox" checked={includeMasterBackup} onChange={e => setIncludeMasterBackup(e.target.checked)} className="w-4 h-4" />
+              <span>Also export a read-only backup copy of <code>mdc_master_catalog.json</code></span>
+            </label>
+          </div>
+        )}
 
         {/* Option 1: Local Folder Selection */}
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="font-bold navy-text text-sm">1. Local Computer / Device Folder</div>
-              <div className="text-slate-500">Pick an exact local folder to save/load <code>.json</code> deal and catalog files.</div>
+              <div className="text-slate-500">Select an exact local directory to save/open your <code>.json</code> file.</div>
             </div>
             {mode === "save" ? (
               <button onClick={handleExplicitLocalSave} className="px-4 py-2 rounded-lg navy-bg text-white font-bold">
@@ -901,8 +1034,8 @@ function V12WorkspaceSaveOpenModal({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="font-bold navy-text text-sm">2. Google Drive Folder Browser</div>
-              <div className="text-slate-600">
-                {driveToken ? `Target Directory: ${driveFolderStack.map(f => f.name).join(" / ")}` : "Connect Google Drive to browse or create project folders."}
+              <div className="text-slate-700 font-medium">
+                {driveToken ? `Selected Drive Path: ${folderPathLabel}` : "Connect Google Drive to select or create a destination folder."}
               </div>
             </div>
             {!driveToken && (
@@ -924,18 +1057,18 @@ function V12WorkspaceSaveOpenModal({
                     }}
                     className="px-2.5 py-1 rounded bg-slate-100 border border-slate-300 font-bold"
                   >
-                    ↑ Parent Folder
+                    ↑ Up One Level
                   </button>
                 )}
                 <input
                   type="text"
-                  placeholder="New Google Drive subfolder name..."
+                  placeholder="Create new subfolder in current directory..."
                   value={newFolderName}
                   onChange={e => setNewFolderName(e.target.value)}
                   className="flex-1 border rounded px-2 py-1"
                 />
                 <button onClick={createDriveSubfolder} className="px-3 py-1 rounded navy-bg text-white font-bold">
-                  + New Folder
+                  + Create Folder
                 </button>
               </div>
 
@@ -951,33 +1084,50 @@ function V12WorkspaceSaveOpenModal({
                     className="cursor-pointer flex items-center justify-between p-1.5 rounded hover:bg-blue-50"
                   >
                     <span className="font-bold navy-text">📁 {folder.name}</span>
-                    <span className="text-slate-400">Open →</span>
+                    <span className="text-slate-400">Open Folder →</span>
                   </div>
                 ))}
-                {driveFileList.map(file => (
-                  <div key={file.id} className="flex items-center justify-between gap-2 p-1.5 rounded bg-slate-50 border border-slate-100">
-                    <span className="font-medium text-slate-800 truncate">📄 {file.name}</span>
-                    <div className="flex items-center gap-1">
-                      {mode === "open" && (
-                        <button onClick={() => loadFileFromGoogleDrive(file.id, file.name)} className="px-2.5 py-0.5 rounded navy-bg text-white font-bold">
-                          Open
-                        </button>
-                      )}
-                      <button onClick={() => deleteFileFromGoogleDrive(file.id, file.name)} className="px-2 py-0.5 rounded bg-red-50 text-red-700 font-bold">
-                        🗑️
-                      </button>
+                {driveFileList.map(file => {
+                  const protectedMaster = isProtectedMasterFile(file.name);
+                  return (
+                    <div key={file.id} className="flex items-center justify-between gap-2 p-1.5 rounded bg-slate-50 border border-slate-100">
+                      <span className="font-medium text-slate-800 truncate">
+                        {protectedMaster ? "🔒" : "📄"} {file.name}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {mode === "open" && (
+                          <button onClick={() => loadFileFromGoogleDrive(file.id, file.name)} className="px-2.5 py-0.5 rounded navy-bg text-white font-bold">
+                            Open
+                          </button>
+                        )}
+                        {protectedMaster ? (
+                          <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-bold" title="Master Catalog files are protected against deletion">
+                            Master Protected
+                          </span>
+                        ) : (
+                          <button onClick={() => deleteFileFromGoogleDrive(file.id, file.name)} className="px-2 py-0.5 rounded bg-red-50 text-red-700 font-bold" title="Move Deal JSON to Trash">
+                            🗑️
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {driveFolderList.length === 0 && driveFileList.length === 0 && (
-                  <div className="text-center text-slate-400 py-4">Empty directory. Create a folder above or save directly here.</div>
+                  <div className="text-center text-slate-400 py-4">Empty folder. Create a subfolder above or save directly into "{driveFolderStack[driveFolderStack.length - 1].name}".</div>
                 )}
               </div>
 
               {mode === "save" && (
-                <div className="flex justify-end">
-                  <button onClick={saveToSelectedDriveFolder} className="px-4 py-2 rounded-lg coral-bg text-white font-bold">
-                    ☁ Save Deal & Catalog in "{driveFolderStack[driveFolderStack.length - 1].name}"
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-blue-200">
+                  <span className="text-[11px] text-slate-600">
+                    Destination: <strong>{folderPathLabel}/{targetFileName}</strong>
+                  </span>
+                  <button
+                    onClick={() => saveToSelectedDriveFolder(targetFileName, includeMasterBackup)}
+                    className="px-4 py-2 rounded-lg coral-bg text-white font-bold"
+                  >
+                    ☁ Confirm & Save to "{driveFolderStack[driveFolderStack.length - 1].name}"
                   </button>
                 </div>
               )}
@@ -988,8 +1138,6 @@ function V12WorkspaceSaveOpenModal({
     </div>
   );
 }
-
-
 
 // ============================================================================
 // MDC CONFIGURATOR V11.0 — PART 1: CORE ENGINE, STORAGE ADAPTER & DATA MODELS
@@ -3773,6 +3921,32 @@ function V11EngineeringGovernanceCard({ project, eng }) {
             };
             renderRow(pod.rowA || [], -1);
             renderRow(pod.rowB || [], 1);
+
+            // Render Internal White-Space PAC Unit, Internal CDU Tower & Internal LV Switchgear/PDU Cabinet
+            const baseY = plinthH + plenumH + 0.08;
+            // 1. White-Space Precision Air Cooler (PAC) at rear-left utility bay
+            const pacMesh = new THREE.Mesh(
+              new THREE.BoxGeometry(0.95, 2.2, 1.1),
+              new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.coolerTank || "#059669"), roughness: 0.35 })
+            );
+            pacMesh.position.set(-W * 0.28, baseY + 1.1, L / 2 - 1.1);
+            podGroup.add(pacMesh);
+
+            // 2. Internal White-Space Liquid CDU Tower at rear-right utility bay (Zero Yard CDUs)
+            const cduMesh = new THREE.Mesh(
+              new THREE.BoxGeometry(0.85, 2.2, 1.1),
+              new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.cduPump || "#0284C7"), roughness: 0.35 })
+            );
+            cduMesh.position.set(W * 0.28, baseY + 1.1, L / 2 - 1.1);
+            podGroup.add(cduMesh);
+
+            // 3. Internal Container LV Distribution Switchboard / Tap-Off Panel near front vestibule
+            const swgMesh = new THREE.Mesh(
+              new THREE.BoxGeometry(0.65, 2.1, 0.9),
+              new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.transformer || "#7C3AED"), roughness: 0.35 })
+            );
+            swgMesh.position.set(-W * 0.28, baseY + 1.05, -L / 2 + 0.85);
+            podGroup.add(swgMesh);
           }
 
           scene.add(podGroup);
@@ -4120,20 +4294,48 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
       const bg = paperMode ? "#FFFFFF" : "#071224";
       const fg = paperMode ? "#0F172A" : "#E2E8F0";
+      const dimCol = paperMode ? "#475569" : "#94A3B8";
       const accent = "#FF5539";
       const primary = paperMode ? "#002870" : "#38BDF8";
 
       const sheets = [
-        ["A-101", "Master Site & Yard Layout (m²)"],
-        ["A-102", "Intra-Container 2-Row Floor Plan"],
-        ["C-101", "Civil Plinth, Seismic & Rigging"],
-        ["E-201", "Full Yard-to-Hall SLD (IEC 60617)"],
+        ["A-101", "Site & Yard GA Plan"],
+        ["A-102", "Pod White-Space, PAC & CDU Plan"],
+        ["C-101", "Civil Plinth & Foundation Section"],
+        ["E-201", "Yard-to-Hall Electrical SLD"],
         ["G-101", "Earthing & Lightning Grid (NBCS 2026)"],
-        ["R-101", "Cable Tray & Roxtec Penetration Plan"],
-        ["M-301", "DLC Hydraulics & Tank P&ID"]
+        ["R-101", "Cable Tray, Fiber & Roxtec Plan"],
+        ["M-301", "Primary/Secondary Hydraulics P&ID"]
       ];
 
-      const pod = eng.pods[0];
+      const pod = eng.pods?.[0];
+      const podLenM = pod ? (pod.extLengthMm / 1000).toFixed(2) : "13.50";
+      const podWidM = pod ? (pod.extWidthMm / 1000).toFixed(2) : "4.20";
+
+      const renderEngineeringTitleBlock = (sheetNo, sheetTitle, scaleStr) => (
+        <g>
+          {/* Outer & Inner CAD Engineering Border + Grid Coordinate Ticks */}
+          <rect x="10" y="10" width="1080" height="460" fill="none" stroke={primary} strokeWidth="2.5" />
+          <rect x="18" y="18" width="1064" height="444" fill="none" stroke={primary} strokeWidth="0.8" />
+          {["A", "B", "C", "D"].map((letLbl, i) => (
+            <text key={letLbl} x="14" y={75 + i * 110} fill={dimCol} fontSize="8" fontWeight="bold" textAnchor="middle">{letLbl}</text>
+          ))}
+          {["1", "2", "3", "4", "5", "6"].map((numLbl, i) => (
+            <text key={numLbl} x={110 + i * 175} y="16" fill={dimCol} fontSize="8" fontWeight="bold" textAnchor="middle">{numLbl}</text>
+          ))}
+          {/* Professional Engineering Title Block (Bottom-Right) */}
+          <rect x="740" y="394" width="342" height="68" fill={paperMode ? "#F8FAFC" : "#0F172A"} stroke={primary} strokeWidth="1.5" />
+          <line x1="740" y1="416" x2="1082" y2="416" stroke={primary} strokeWidth="1" />
+          <line x1="740" y1="438" x2="1082" y2="438" stroke={primary} strokeWidth="1" />
+          <line x1="965" y1="394" x2="965" y2="462" stroke={primary} strokeWidth="1" />
+          <text x="748" y="409" fill={accent} fontSize="9.5" fontWeight="bold">PROJECT: {(project.name || "AI MDC").slice(0, 32)}</text>
+          <text x="973" y="409" fill={fg} fontSize="9" fontWeight="bold">DWG: {sheetNo}</text>
+          <text x="748" y="431" fill={fg} fontSize="9.5" fontWeight="bold">{sheetTitle}</text>
+          <text x="973" y="431" fill={dimCol} fontSize="8.5">SCALE: {scaleStr}</text>
+          <text x="748" y="453" fill={dimCol} fontSize="8.5">SITE: {(project.cityQuery || "India").slice(0, 22)} • {project.seismicZone} • {project.uptimeTier}</text>
+          <text x="973" y="453" fill="#059669" fontSize="8.5" fontWeight="bold">REV: V12.1 IFC</text>
+        </g>
+      );
 
       return (
         <div className="bg-white rounded-xl card-shadow border border-slate-200 overflow-hidden">
@@ -4146,158 +4348,301 @@ function V11EngineeringGovernanceCard({ project, eng }) {
               ))}
             </div>
             <button onClick={() => setPaperMode(!paperMode)} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-400 bg-white">
-              {paperMode ? "Blueprint Dark" : "High-Contrast White"}
+              {paperMode ? "CAD Dark Blueprint" : "CAD White Paper"}
             </button>
           </div>
 
           {palette && <ColorLegendBar palette={palette} onUpdatePalette={onUpdatePalette} onApplyTheme={onApplyTheme} eng={eng} />}
 
           <div className="p-4 flex justify-center" style={{ backgroundColor: bg }}>
-            {sheet === "C-101" ? (
-              renderV11CivilPlinthSvg(project, eng)
-            ) : sheet === "E-201" ? (
-              renderV11ElectricalSldSvg(project, eng, palette)
-            ) : sheet === "G-101" ? (
-              <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border border-slate-300 bg-white">
-                <rect x="0" y="0" width="1100" height="460" fill="#FFFFFF" />
-                <rect x="14" y="14" width="1072" height="432" fill="none" stroke="#002870" strokeWidth="2" />
-                <text x="32" y="40" fill="#FF5539" fontSize="14" fontWeight="bold">SHEET G-101: EXOTHERMIC COPPER EARTHING & LIGHTNING PROTECTION GRID (NBCS 2026 / IS 3043)</text>
-                <rect x="70" y="65" width="960" height="340" fill="#FFFBEB" stroke="#D97706" strokeWidth="2.5" strokeDasharray="8,4" />
-                <text x="550" y="88" fill="#B45309" fontSize="11" fontWeight="bold" textAnchor="middle">50×6mm BARE COPPER RING MAIN EARTH MAT (EXOTHERMIC CADWELD JOINTS • &lt; 0.5 Ω GRID RESISTANCE)</text>
-                {[120, 330, 550, 770, 980].map((px, i) => (
-                  <g key={i}>
-                    <circle cx={px} cy="115" r="10" fill="#059669" />
-                    <text x={px} y="140" fill="#065F46" fontSize="9.5" fontWeight="bold" textAnchor="middle">Chem Pit #{i+1}</text>
-                    <circle cx={px} cy="365" r="10" fill="#059669" />
-                    <text x={px} y="390" fill="#065F46" fontSize="9.5" fontWeight="bold" textAnchor="middle">Chem Pit #{i+6}</text>
-                  </g>
-                ))}
-                <rect x="220" y="175" width="660" height="145" rx="6" fill="#002870" />
-                <text x="550" y="232" fill="#FFFFFF" fontSize="13" fontWeight="bold" textAnchor="middle">EQUIPOTENTIAL BONDING BUSBAR (SRG) — {eng.pods.length} {eng.civil?.isBnM ? "BnM HALL BAYS" : "CORTEN-A PODS"}</text>
-                <text x="550" y="256" fill="#FFB600" fontSize="10.5" textAnchor="middle">Dual Copper Down-Conductors • ESE Lightning Arresters • Dedicated Clean IT Signal Reference Grid</text>
-              </svg>
-            ) : sheet === "R-101" ? (
-              <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border border-slate-300 bg-white">
-                <rect x="0" y="0" width="1100" height="460" fill="#FFFFFF" />
-                <rect x="14" y="14" width="1072" height="432" fill="none" stroke="#002870" strokeWidth="2" />
-                <text x="32" y="40" fill="#FF5539" fontSize="14" fontWeight="bold">SHEET R-101: SEGREGATED CABLE TRAY, FIBER RACEWAY & ROXTEC TRANSIT PLAN</text>
-                <rect x="60" y="75" width="980" height="65" rx="4" fill="#FEF3C7" stroke="#D97706" strokeWidth="2" />
-                <text x="550" y="103" fill="#92400E" fontSize="11.5" fontWeight="bold" textAnchor="middle">TIER 1 (TOP +3200mm): YELLOW LSZH CORRUGATED OPTICAL FIBER TROUGH ({eng.telecom?.overheadFiberMeters || 224}m)</text>
-                <text x="550" y="122" fill="#78350F" fontSize="10" textAnchor="middle">Zero-EMI Optical Isolation • {eng.telecom?.fabricTransceivers || 960}× 800G OSFP Links to Carrier MMR ({eng.telecom?.mmrOdfBays || 4}× ODF Bays)</text>
-                <rect x="60" y="165" width="980" height="65" rx="4" fill="#DBEAFE" stroke="#1D4ED8" strokeWidth="2" />
-                <text x="550" y="193" fill="#1E3A8A" fontSize="11.5" fontWeight="bold" textAnchor="middle">TIER 2 (MID +2750mm): IP55 SANDWICH POWER BUSDUCTS (DUAL A+B REDUNDANT TRACKS)</text>
-                <text x="550" y="212" fill="#1E40AF" fontSize="10" textAnchor="middle">300mm Vertical & Horizontal EMI Separation from Fiber Troughs • Plug-in Tap-Off Boxes</text>
-                <rect x="60" y="255" width="980" height="65" rx="4" fill="#DCFCE7" stroke="#059669" strokeWidth="2" />
-                <text x="550" y="283" fill="#065F46" fontSize="11.5" fontWeight="bold" textAnchor="middle">TIER 3 (WALL / PLINTH BULKHEAD): IP68 / FIRE-RATED ROXTEC MULTI-CABLE & PIPE TRANSIT FRAMES</text>
-                <text x="550" y="302" fill="#047857" fontSize="10" textAnchor="middle">Watertight, Gas-Tight & Rodent-Proof Bulkhead Seals for HV/LV Armored Cables & SS316L Manifolds</text>
-                <rect x="60" y="345" width="980" height="65" rx="4" fill="#F1F5F9" stroke="#475569" strokeWidth="2" />
-                <text x="550" y="373" fill="#0F172A" fontSize="11.5" fontWeight="bold" textAnchor="middle">TIER 4 (UNDERFLOOR PLENUM): SS316L SUPPLY/RETURN COOLANT HEADERS + CONDUCTIVE LEAK ROPES</text>
-                <text x="550" y="392" fill="#334155" fontSize="10" textAnchor="middle">Diverse North/South Underground 4-Way HDPE Telecom Entry Ducts (&gt;= 30m Physical Separation)</text>
-              </svg>
-            ) : (
-            <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border" style={{ borderColor: primary }}>
-              <rect x="0" y="0" width="1100" height="460" fill={bg} />
-              <rect x="16" y="16" width="1068" height="428" fill="none" stroke={primary} strokeWidth="2" />
-              <text x="40" y="48" fill={accent} fontSize="15" fontWeight="bold">SHEET {sheet} — {project.name} ({project.seismicZone}) | White-Space: {Math.round(eng.totalItWhiteSpaceSqm)} m² | Yard: {eng.totalNonItYardSqm} m²</text>
-
-              {sheet === "A-102" && (
-                <g>
-                  <rect x="50" y="80" width="760" height="320" fill="none" stroke={fg} strokeWidth="2.5" />
-                  <rect x="52" y="82" width="90" height="316" fill={paperMode ? "#F1F5F9" : "#1E293B"} stroke={primary} />
-                  <text x="97" y="245" fill={fg} fontSize="11" fontWeight="bold" textAnchor="middle">AIRLOCK</text>
-
-                  {(pod?.rowA || []).slice(0, 12).map((rk, i) => (
-                    <g key={`a-${i}`}>
-                      <rect x={160 + i * 44} y="98" width="38" height="82" fill={rk.isDlc ? palette.dlcRack : palette.acRack} />
-                      <text x={179 + i * 44} y="143" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">A{i + 1}</text>
-                    </g>
-                  ))}
-                  {(pod?.rowB || []).slice(0, 12).map((rk, i) => (
-                    <g key={`b-${i}`}>
-                      <rect x={160 + i * 44} y="300" width="38" height="82" fill={rk.isDlc ? palette.dlcRack : palette.acRack} />
-                      <text x={179 + i * 44} y="345" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">B{i + 1}</text>
-                    </g>
-                  ))}
-
-                  <rect x="160" y="195" width="530" height="90" fill={paperMode ? "#FFF5F3" : "#1E293B"} stroke={accent} />
-                  <text x="425" y="236" fill={accent} fontSize="12" fontWeight="bold" textAnchor="middle">CONTAINED AISLE — 100% IT WHITE-SPACE (ZERO NON-IT INSIDE)</text>
-                  <text x="425" y="256" fill={fg} fontSize="10" textAnchor="middle">Overhead Dual A/B Busways + Underfloor SS316L Headers</text>
-
-                  <rect x="705" y="98" width="90" height="284" fill="none" stroke="#10B981" strokeWidth="1.5" strokeDasharray="5,4" />
-                  <text x="750" y="236" fill="#10B981" fontSize="10" fontWeight="bold" textAnchor="middle">GROWTH</text>
-                  <text x="750" y="252" fill="#10B981" fontSize="10" fontWeight="bold" textAnchor="middle">RESERVE ({project.futureGrowthReservePct}%)</text>
-
-                  <text x="835" y="110" fill={fg} fontSize="12" fontWeight="bold">Intra-Pod Metrics:</text>
-                  <text x="835" y="140" fill={fg} fontSize="11">• Active Racks: {Math.round(eng.activeRackFootprintSqm)} m²</text>
-                  <text x="835" y="168" fill={fg} fontSize="11">• Containment Aisles: {Math.round(eng.aisleServiceAreaSqm)} m²</text>
-                  <text x="835" y="196" fill={fg} fontSize="11">• Future Reserve: {Math.round(eng.futureGrowthAreaSqm)} m²</text>
-                  <text x="835" y="224" fill={fg} fontSize="11">• Total White-Space: {Math.round(eng.totalItWhiteSpaceSqm)} m²</text>
-                </g>
-              )}
-
-              {sheet === "M-301" && (
-                <g>
-                  {[
-                    [65, "MAKE-UP WATER TANKS", `${eng.totalWaterStorageKl} kL (${eng.waterTankUnits}×${eng.selTank.ratedCapacity}kL)`, palette.coolerTank],
-                    [315, "VFD PUMP SKIDS", `${eng.pumpSkidsCount} Skids @ ${eng.pumpDesignHeadBar} bar`, palette.cduPump],
-                    [565, "YARD CDUs & SS316 LOOP", `${eng.extCduUnits}×${eng.selCdu.ratedCapacity}kW | ${Math.round(eng.totalFlowLpm)} LPM`, palette.cduPump],
-                    [815, "IT POD COLD-PLATES", `Supply <= ${eng.effectiveSupplyTempC}°C`, palette.itPod]
-                  ].map(([x, title, sub, col], idx) => (
-                    <g key={idx} transform={`translate(${x}, 175)`}>
-                      <rect x="0" y="0" width="215" height="125" fill={col} />
-                      <text x="107" y="52" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle">{title}</text>
-                      <text x="107" y="78" fill="#FFFFFF" fontSize="10" textAnchor="middle">{sub}</text>
-                    </g>
-                  ))}
-                </g>
-              )}
+            <svg viewBox="0 0 1100 480" className="w-full max-w-6xl border" style={{ borderColor: primary }}>
+              <rect x="0" y="0" width="1100" height="480" fill={bg} />
 
               {sheet === "A-101" && (
                 <g>
-                  {[
-                    [70, "MV/LV SUBSTATION", `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA (${eng.yardBreakdown.substationSqm}m²)`, palette.transformer],
-                    [320, "CPCB IV+ DG & UPS", `${eng.dgUnitsCount}×${eng.selDg.ratedCapacity}kVA | ${eng.upsContainersCount}×${eng.selUps.ratedCapacity}kVA`, palette.dgSet],
-                    [570, "COOLING & CDU YARD", `${eng.adiabaticUnits} Coolers | ${eng.extCduUnits} CDUs (${eng.yardBreakdown.cduPumpSqm + eng.yardBreakdown.coolerChillerSqm}m²)`, palette.coolerTank],
-                    [820, "IT WHITE-SPACE PODS", `${eng.pods.length} Pods (${Math.round(eng.totalItWhiteSpaceSqm)} m²)`, palette.itPod]
-                  ].map(([x, title, sub, col], idx) => (
-                    <g key={idx} transform={`translate(${x}, 175)`}>
-                      <rect x="0" y="0" width="210" height="125" fill={col} />
-                      <text x="105" y="52" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle">{title}</text>
-                      <text x="105" y="78" fill="#FFFFFF" fontSize="10" textAnchor="middle">{sub}</text>
+                  <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">SITE GENERAL ARRANGEMENT & 3-ZONE SEPARATION PLAN (NBC PART 4 SETBACKS)</text>
+                  {/* Site Boundary & 6.0m Fire Tender Lane */}
+                  <rect x="36" y="56" width="685" height="390" fill="none" stroke={fg} strokeWidth="2" />
+                  <rect x="54" y="74" width="649" height="354" fill="none" stroke={accent} strokeWidth="1.2" strokeDasharray="6,4" />
+                  <text x="378" y="69" fill={accent} fontSize="9.5" fontWeight="bold" textAnchor="middle">6.0m PERIMETER FIRE-TENDER DRIVEWAY (SWEPT TURNING RADIUS &gt;= {eng.logistics?.minTurningRadiusM || 16.5}m)</text>
+
+                  {/* Zone A: Compute Hall / Pods */}
+                  <rect x="70" y="90" width="265" height="240" fill={paperMode ? "#F8FAFC" : "#0F172A"} stroke={primary} strokeWidth="1.5" />
+                  <text x="202" y="108" fill={primary} fontSize="10" fontWeight="bold" textAnchor="middle">ZONE A: IT COMPUTE HALL ({Math.round(eng.totalItWhiteSpaceSqm)} m²)</text>
+                  {(eng.pods || []).slice(0, 4).map((p, idx) => (
+                    <g key={p.id}>
+                      <rect x={84 + idx * 60} y="118" width="48" height="196" fill={palette.itPod} stroke="#FFFFFF" strokeWidth="1" />
+                      <text x={108 + idx * 60} y="216" fill="#FFFFFF" fontSize="9.5" fontWeight="bold" textAnchor="middle" transform={`rotate(-90, ${108 + idx * 60}, 216)`}>{p.label}</text>
                     </g>
                   ))}
+                  <rect x="70" y="340" width="265" height="72" fill={palette.adminStage} />
+                  <text x="202" y="372" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">CARRIER MMR + NOC + STAGING BAY</text>
+                  <text x="202" y="388" fill="#E2E8F0" fontSize="9" textAnchor="middle">Dual Diverse North/South Fiber Vaults</text>
+
+                  {/* Zone B: UPS / BESS */}
+                  <rect x="355" y="90" width="140" height="322" fill={palette.upsBess} />
+                  <text x="425" y="235" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">ZONE B: UPS & BESS</text>
+                  <text x="425" y="253" fill="#FFFFFF" fontSize="9.5" textAnchor="middle">{eng.upsContainersCount}× UPS + {eng.batteryContainersCount}× LFP</text>
+                  <text x="425" y="270" fill="#FFFFFF" fontSize="9" textAnchor="middle">({eng.yardBreakdown.upsBessSqm} m²)</text>
+
+                  {/* Zone C: Open Outdoor Yard */}
+                  <rect x="515" y="90" width="172" height="72" fill={palette.transformer} />
+                  <text x="601" y="123" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">HT VCB & K-13 TRAFOS</text>
+                  <text x="601" y="139" fill="#FFFFFF" fontSize="9" textAnchor="middle">{eng.transformerUnits}×{eng.selTrafo?.ratedCapacity}kVA ({eng.yardBreakdown.substationSqm}m²)</text>
+
+                  <rect x="515" y="172" width="172" height="72" fill={palette.dgSet} />
+                  <text x="601" y="205" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">CPCB IV+ DG & PESO</text>
+                  <text x="601" y="221" fill="#FFFFFF" fontSize="9" textAnchor="middle">{eng.dgUnitsCount}×{eng.selDg?.ratedCapacity}kVA ({eng.yardBreakdown.dgPesoSqm}m²)</text>
+
+                  <rect x="515" y="254" width="172" height="72" fill={palette.coolerTank} />
+                  <text x="601" y="287" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">ADIABATIC COOLERS</text>
+                  <text x="601" y="303" fill="#FFFFFF" fontSize="9" textAnchor="middle">{eng.adiabaticUnits}×{eng.selCooler?.ratedCapacity}kW + Tanks</text>
+
+                  <rect x="515" y="336" width="172" height="76" fill={palette.cduPump} />
+                  <text x="601" y="370" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">PUMP SKIDS & CHILLERS</text>
+                  <text x="601" y="386" fill="#FFFFFF" fontSize="9" textAnchor="middle">{eng.pumpSkidsCount} Pumps • Zero Yard CDUs</text>
+
+                  {/* Right Side Schedule */}
+                  <text x="745" y="75" fill={primary} fontSize="11" fontWeight="bold">CAMPUS AREA & LOGISTICS SCHEDULE</text>
+                  <text x="745" y="100" fill={fg} fontSize="10">• Gross Plot: {Math.round(eng.grossPlotSqm).toLocaleString()} m² ({(eng.grossPlotSqm/4046.8564).toFixed(2)} Acres)</text>
+                  <text x="745" y="122" fill={fg} fontSize="10">• IT White-Space: {eng.totalItWhiteSpaceSqm} m² ({eng.pods.length} Pods/Bays)</text>
+                  <text x="745" y="144" fill={fg} fontSize="10">• Non-IT Technical Yard: {eng.totalNonItYardSqm} m²</text>
+                  <text x="745" y="166" fill={fg} fontSize="10">• Total Occupied: {eng.totalCampusOccupiedSqm} m² ({eng.plotUtilizationPct}% Net)</text>
+                  <text x="745" y="188" fill={fg} fontSize="10">• Laydown Staging Yard: {eng.logistics?.laydownStagingSqm || 240} m²</text>
+                  <text x="745" y="210" fill={fg} fontSize="10">• Mobile Crane: {eng.logistics?.craneTonnage || 250}T @ {project.craneWorkingRadiusM || 10}m radius</text>
+                  <text x="745" y="232" fill="#059669" fontSize="10" fontWeight="bold">• MII Local Content: {eng.mii?.miiClassLabel}</text>
+                  {renderEngineeringTitleBlock("A-101", "MASTER SITE & YARD GA PLAN", "1 : 250")}
+                </g>
+              )}
+
+              {sheet === "A-102" && (
+                <g>
+                  <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">INTRA-CONTAINER / HALL WHITE-SPACE PLAN ({podLenM}m L × {podWidM}m W • {project.containmentType})</text>
+                  {/* Outer Shell & Dimension Lines */}
+                  <line x1="45" y1="62" x2="715" y2="62" stroke={dimCol} strokeWidth="1" />
+                  <text x="380" y="57" fill={dimCol} fontSize="9.5" fontWeight="bold" textAnchor="middle">EXTERNAL LENGTH = {podLenM} m ({pod?.extLengthMm || 13500} mm)</text>
+                  <rect x="45" y="72" width="670" height="310" fill="none" stroke={fg} strokeWidth="2.5" />
+
+                  {/* Front Airlock Vestibule + Internal LV Switchboard */}
+                  <rect x="47" y="74" width="84" height="306" fill={paperMode ? "#F1F5F9" : "#1E293B"} stroke={primary} />
+                  <text x="89" y="145" fill={fg} fontSize="9.5" fontWeight="bold" textAnchor="middle">AIRLOCK</text>
+                  <rect x="55" y="255" width="68" height="110" fill={palette.transformer} />
+                  <text x="89" y="305" fill="#FFFFFF" fontSize="8.5" fontWeight="bold" textAnchor="middle">INT. LV</text>
+                  <text x="89" y="318" fill="#FFFFFF" fontSize="8.5" fontWeight="bold" textAnchor="middle">PANEL</text>
+
+                  {/* Row A & Row B IT Racks */}
+                  {(pod?.rowA || []).slice(0, 10).map((rk, i) => (
+                    <g key={`a-${i}`}>
+                      <rect x={145 + i * 44} y="86" width="38" height="74" fill={rk.isDlc ? palette.dlcRack : palette.acRack} />
+                      <text x={164 + i * 44} y="127" fill="#FFFFFF" fontSize="9" fontWeight="bold" textAnchor="middle">A{i + 1}</text>
+                    </g>
+                  ))}
+                  {(pod?.rowB || []).slice(0, 10).map((rk, i) => (
+                    <g key={`b-${i}`}>
+                      <rect x={145 + i * 44} y="294" width="38" height="74" fill={rk.isDlc ? palette.dlcRack : palette.acRack} />
+                      <text x={164 + i * 44} y="335" fill="#FFFFFF" fontSize="9" fontWeight="bold" textAnchor="middle">B{i + 1}</text>
+                    </g>
+                  ))}
+
+                  {/* Contained Cold/Hot Aisle & Service Clearances */}
+                  <rect x="145" y="176" width="445" height="102" fill={paperMode ? "#EFF6FF" : "#1E293B"} stroke={primary} strokeDasharray="4,3" />
+                  <text x="367" y="220" fill={primary} fontSize="10.5" fontWeight="bold" textAnchor="middle">{project.containmentType} ({project.frontServiceClearanceMm}mm FRONT CLEARANCE)</text>
+                  <text x="367" y="238" fill={dimCol} fontSize="9.5" textAnchor="middle">Airflow: {project.airflowDelivery} • Dual A/B Overhead Busways</text>
+
+                  {/* Rear White-Space Internal PAC + Internal CDU Tower (Zero Yard CDUs!) */}
+                  <rect x="605" y="86" width="96" height="130" fill={palette.coolerTank} />
+                  <text x="653" y="145" fill="#FFFFFF" fontSize="9.5" fontWeight="bold" textAnchor="middle">WHITE-SPACE</text>
+                  <text x="653" y="160" fill="#FFFFFF" fontSize="9.5" fontWeight="bold" textAnchor="middle">PAC (80 kW)</text>
+
+                  <rect x="605" y="238" width="96" height="130" fill={palette.cduPump} />
+                  <text x="653" y="297" fill="#FFFFFF" fontSize="9.5" fontWeight="bold" textAnchor="middle">INTERNAL</text>
+                  <text x="653" y="312" fill="#FFFFFF" fontSize="9.5" fontWeight="bold" textAnchor="middle">CDU TOWER</text>
+
+                  {/* Right Side White-Space Schedule */}
+                  <text x="745" y="75" fill={primary} fontSize="11" fontWeight="bold">WHITE-SPACE EQUIPMENT SCHEDULE</text>
+                  <text x="745" y="100" fill={fg} fontSize="10">• Total White-Space: {eng.totalItWhiteSpaceSqm} m²</text>
+                  <text x="745" y="122" fill={fg} fontSize="10">• Internal CDU Towers: {eng.whiteSpace?.internalCduCount || 0} ({eng.whiteSpace?.internalCduFootprintSqm || 0} m²)</text>
+                  <text x="745" y="144" fill={fg} fontSize="10">• Mandatory PAC Units: {eng.whiteSpace?.mandatoryPacCount || 0} ({eng.whiteSpace?.pacFootprintSqm || 0} m²)</text>
+                  <text x="745" y="166" fill={fg} fontSize="10">• Roof/Yard Chillers: {eng.whiteSpace?.chillerUnitsCount || 0} × 1000 kW</text>
+                  <text x="745" y="188" fill={fg} fontSize="10">• Service Clearances: {project.frontServiceClearanceMm}mm F / {project.rearServiceClearanceMm}mm R</text>
+                  <text x="745" y="210" fill={fg} fontSize="10">• Growth Reserve: {project.futureGrowthReservePct}% ({Math.round(eng.futureGrowthAreaSqm)} m²)</text>
+                  {renderEngineeringTitleBlock("A-102", "WHITE-SPACE, PAC & CDU FLOOR PLAN", "1 : 50")}
+                </g>
+              )}
+
+              {sheet === "C-101" && (
+                <g>
+                  <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">STRUCTURAL PLINTH, FOUNDATION & SEISMIC ANCHORAGE SECTION — {project.cityQuery}</text>
+                  {/* Shell / Bay Elevation */}
+                  <rect x="140" y="72" width="480" height="135" fill={palette.itPod} fillOpacity="0.14" stroke={palette.itPod} strokeWidth="2.5" />
+                  <text x="380" y="125" fill={primary} fontSize="12" fontWeight="bold" textAnchor="middle">
+                    {eng.civil?.isBnM ? `BRICK-AND-MORTAR (${project.bnmColumnGridM} GRID • ${project.bnmSlabThicknessMm}mm SLAB)` : `MODULAR CORTEN-A POD (${podLenM}m × ${podWidM}m)`}
+                  </text>
+                  <text x="380" y="146" fill={fg} fontSize="10" textAnchor="middle">
+                    Loaded Unit Mass: {eng.civil?.unitGrossTonnes} T • Floor Pressure: {eng.civil?.floorPressureKpa} kN/m² • Corner Reaction: {eng.civil?.cornerNodeKn} kN
+                  </text>
+                  <text x="380" y="166" fill="#059669" fontSize="9.5" fontWeight="bold" textAnchor="middle">
+                    Coating: {project.brandingMode === "standard" ? "RAL 7035 OEM Standard" : `${project.exteriorRalLabel} / ${project.interiorRalLabel}`}
+                  </text>
+
+                  {/* M30 Seismic Hold-Down Shear Plates */}
+                  <rect x="135" y="198" width="26" height="14" fill={accent} />
+                  <rect x="599" y="198" width="26" height="14" fill={accent} />
+                  <text x="148" y="192" fill={accent} fontSize="9" fontWeight="bold" textAnchor="middle">M30 Seismic Bolt</text>
+                  <text x="612" y="192" fill={accent} fontSize="9" fontWeight="bold" textAnchor="middle">M30 Seismic Bolt</text>
+
+                  {/* Raised M35 RCC Plinth */}
+                  <rect x="115" y="212" width="530" height="54" fill="#CBD5E1" stroke="#334155" strokeWidth="2" />
+                  <text x="380" y="243" fill="#0F172A" fontSize="11" fontWeight="bold" textAnchor="middle">
+                    M35 REINFORCED CEMENT CONCRETE (RCC) PLINTH (+{eng.civil?.floodPlinthMm} mm FLOOD LIFT)
+                  </text>
+
+                  {/* Flood Dimension */}
+                  <line x1="95" y1="212" x2="95" y2="266" stroke={accent} strokeWidth="2" />
+                  <text x="88" y="243" fill={accent} fontSize="10" fontWeight="bold" textAnchor="end">+{eng.civil?.floodPlinthMm}mm</text>
+
+                  {/* 1:50 Sloping Apron & Sub-base */}
+                  <line x1="30" y1="274" x2="115" y2="266" stroke="#059669" strokeWidth="2.5" />
+                  <line x1="645" y1="266" x2="720" y2="274" stroke="#059669" strokeWidth="2.5" />
+                  <text x="72" y="260" fill="#059669" fontSize="9" fontWeight="bold" textAnchor="middle">1:50 Slope</text>
+                  <text x="682" y="260" fill="#059669" fontSize="9" fontWeight="bold" textAnchor="middle">1:50 Slope</text>
+
+                  <rect x="105" y="266" width="550" height="44" fill="#E2E8F0" stroke="#64748B" strokeDasharray="4" />
+                  <text x="380" y="292" fill="#334155" fontSize="10" textAnchor="middle">
+                    Compacted WMM Sub-Base + HDPE Geo-Membrane (SBC: {eng.civil?.sbc} kN/m²)
+                  </text>
+
+                  <text x="745" y="75" fill={primary} fontSize="11" fontWeight="bold">FOUNDATION & RIGGING SCHEDULE</text>
+                  <text x="745" y="100" fill={fg} fontSize="10">• Soil Bearing (SBC): {eng.civil?.sbc} kN/m²</text>
+                  <text x="745" y="122" fill={fg} fontSize="10">• 100-Yr Flood Mark: {project.historicalFloodLevelMm} mm</text>
+                  <text x="745" y="144" fill={fg} fontSize="10">• Plinth Elevation: +{eng.civil?.floodPlinthMm} mm</text>
+                  <text x="745" y="166" fill={fg} fontSize="10">• Corner Reaction: {eng.civil?.cornerNodeKn} kN / node</text>
+                  <text x="745" y="188" fill={fg} fontSize="10">• Crane: {eng.logistics?.craneTonnage}T ({eng.logistics?.outriggerGroundKpa} kN/m²)</text>
+                  {renderEngineeringTitleBlock("C-101", "CIVIL PLINTH & FOUNDATION SECTION", "1 : 40")}
                 </g>
               )}
 
               {sheet === "E-201" && (
                 <g>
-                  <line x1="165" y1="150" x2="935" y2="150" stroke={accent} strokeWidth="3" />
-                  <line x1="165" y1="305" x2="935" y2="305" stroke={primary} strokeWidth="3" />
-                  <text x="550" y="138" fill={accent} fontSize="11" fontWeight="bold" textAnchor="middle">PATH A — PRIMARY 415V AC BUS ({project.uptimeTier} REDUNDANT)</text>
-                  <text x="550" y="325" fill={primary} fontSize="11" fontWeight="bold" textAnchor="middle">PATH B — SECONDARY / STANDBY BUS & CRITICAL COOLING FEED</text>
-                  {[
-                    [60, "1. HT 11/33kV VCB & TRAFOS", `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity} kVA`, `${project.transformerType}`, palette.transformer],
-                    [315, "2. CPCB IV+ DG & ATS", `${eng.dgUnitsCount}×${eng.selDg.ratedCapacity} kVA (${eng.effectiveDgKva}kVA)`, `${project.dgAutonomyHours}h (${totalHsdK(eng.totalHsdFuelLitres)}kL HSD)`, palette.dgSet],
-                    [570, "3. MODULAR UPS & BESS", `${eng.upsContainersCount}×${eng.selUps.ratedCapacity} kVA UPS`, `${project.batteryRuntimeMin}m ${project.batteryChemistry} (${Math.round(eng.batteryKwhReq)}kWh)`, palette.upsBess],
-                    [825, "4. DUAL A/B BUSWAY & rPDU", `${standards.buswayAmperageA}A Overhead Track`, `${eng.activeRacks.length} Dual-Feed Racks`, palette.itPod]
-                  ].map(([x, t, l1, l2, col], idx) => (
-                    <g key={idx} transform={`translate(${x}, 172)`}>
-                      <rect x="0" y="0" width="215" height="110" rx="6" fill={col} />
-                      <text x="107" y="34" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle">{t}</text>
-                      <text x="107" y="60" fill="#FFFFFF" fontSize="10.5" textAnchor="middle">{l1}</text>
-                      <text x="107" y="82" fill="#E2E8F0" fontSize="9.5" textAnchor="middle">{l2}</text>
+                  <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">FULL YARD-TO-HALL ELECTRICAL SINGLE-LINE DIAGRAM (IEC 60617 • CEIG & NBCS 2026)</text>
+                  <rect x="330" y="56" width="380" height="40" rx="4" fill={primary} />
+                  <text x="520" y="74" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">33kV / 66kV DUAL UTILITY INCOMING + HT VCB + TYPE 1+2 SPD</text>
+                  <text x="520" y="88" fill="#FFB600" fontSize="9" textAnchor="middle">IEEE C37 Relay Coordination • Peak Facility: {eng.totalFacilityPeakKva.toLocaleString()} kVA</text>
+
+                  <line x1="520" y1="96" x2="520" y2="112" stroke={fg} strokeWidth="2" />
+                  <line x1="250" y1="112" x2="790" y2="112" stroke={fg} strokeWidth="2" />
+                  <line x1="250" y1="112" x2="250" y2="128" stroke={fg} strokeWidth="2" />
+                  <line x1="790" y1="112" x2="790" y2="128" stroke={fg} strokeWidth="2" />
+
+                  <rect x="110" y="128" width="280" height="46" rx="4" fill={palette.transformer} />
+                  <text x="250" y="148" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">PATH A: {Math.ceil(eng.transformerUnits/2)}×{eng.selTrafo?.ratedCapacity}kVA K-13 Tx</text>
+                  <text x="250" y="164" fill="#E0E7FF" fontSize="9" textAnchor="middle">200% Neutral • Solidly Grounded</text>
+
+                  <rect x="650" y="128" width="280" height="46" rx="4" fill={palette.transformer} />
+                  <text x="790" y="148" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">PATH B: {Math.floor(eng.transformerUnits/2)||1}×{eng.selTrafo?.ratedCapacity}kVA K-13 Tx</text>
+                  <text x="790" y="164" fill="#E0E7FF" fontSize="9" textAnchor="middle">200% Neutral • Solidly Grounded</text>
+
+                  <line x1="250" y1="174" x2="250" y2="192" stroke={fg} strokeWidth="2" />
+                  <line x1="790" y1="174" x2="790" y2="192" stroke={fg} strokeWidth="2" />
+
+                  <rect x="110" y="192" width="820" height="42" rx="4" fill="#F1F5F9" stroke="#0F172A" strokeWidth="1.8" />
+                  <text x="520" y="210" fill="#002870" fontSize="10.5" fontWeight="bold" textAnchor="middle">415V MAIN LV PCC + APFC (500 kVAr) + {eng.dgUnitsCount}×{eng.selDg?.ratedCapacity}kVA CPCB IV+ DG AUTO-SYNC</text>
+                  <text x="520" y="225" fill="#475569" fontSize="9" textAnchor="middle">Form-4B Drawout Switchboard • {project.dgAutonomyHours}h PESO Fuel ({totalHsdK(eng.totalHsdFuelLitres)} kL)</text>
+
+                  <line x1="230" y1="234" x2="230" y2="256" stroke={fg} strokeWidth="2" />
+                  <line x1="520" y1="234" x2="520" y2="256" stroke={accent} strokeWidth="2.2" />
+                  <line x1="810" y1="234" x2="810" y2="256" stroke={fg} strokeWidth="2" />
+
+                  <rect x="100" y="256" width="260" height="50" rx="4" fill={palette.upsBess} />
+                  <text x="230" y="277" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">UPS A + IP55 BUSDUCT A</text>
+                  <text x="230" y="293" fill="#FFFFFF" fontSize="9" textAnchor="middle">{standards.buswayAmperageA}A Sandwich Busway</text>
+
+                  <rect x="385" y="256" width="270" height="50" rx="4" fill="#FFF7ED" stroke={accent} strokeWidth="1.8" />
+                  <text x="520" y="277" fill="#C2410C" fontSize="10" fontWeight="bold" textAnchor="middle">20% LOAD-DROP SHIELD ({(eng.totalDesignContKw*0.20/1000).toFixed(2)} MW)</text>
+                  <text x="520" y="293" fill="#7C2D12" fontSize="9" textAnchor="middle">Fast Load Bank + Grid BESS</text>
+
+                  <rect x="680" y="256" width="260" height="50" rx="4" fill={palette.upsBess} />
+                  <text x="810" y="277" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">UPS B + IP55 BUSDUCT B</text>
+                  <text x="810" y="293" fill="#FFFFFF" fontSize="9" textAnchor="middle">{standards.buswayAmperageA}A Sandwich Busway</text>
+
+                  <line x1="230" y1="306" x2="230" y2="330" stroke={palette.upsBess} strokeWidth="2" />
+                  <line x1="810" y1="306" x2="810" y2="330" stroke={palette.upsBess} strokeWidth="2" />
+
+                  <rect x="140" y="330" width="760" height="44" rx="4" fill={palette.itPod} />
+                  <text x="520" y="349" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">INTERNAL SUB-MAIN LV PANELS + DUAL-CORDED rPDUs ({(eng.totalDesignContKw/1000).toFixed(2)} MW IT LOAD)</text>
+                  <text x="520" y="364" fill="#CBD5E1" fontSize="9" textAnchor="middle">{eng.activeRacks.length} Racks across {eng.pods.length} Pods/Bays • Exothermic Copper Earthing (NBCS 2026)</text>
+                  {renderEngineeringTitleBlock("E-201", "YARD-TO-HALL ELECTRICAL SLD", "NTS")}
+                </g>
+              )}
+
+              {sheet === "G-101" && (
+                <g>
+                  <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">EXOTHERMIC COPPER EARTHING & LIGHTNING PROTECTION GRID (NBCS 2026 / IS 3043)</text>
+                  <rect x="65" y="65" width="970" height="310" fill="#FFFBEB" stroke="#D97706" strokeWidth="2.5" strokeDasharray="8,4" />
+                  <text x="550" y="88" fill="#B45309" fontSize="10.5" fontWeight="bold" textAnchor="middle">50×6mm BARE COPPER RING MAIN EARTH MAT (EXOTHERMIC CADWELD JOINTS • &lt; 0.5 Ω GRID RESISTANCE)</text>
+                  {[120, 330, 550, 770, 980].map((px, i) => (
+                    <g key={i}>
+                      <circle cx={px} cy="115" r="9" fill="#059669" />
+                      <text x={px} y="138" fill="#065F46" fontSize="9" fontWeight="bold" textAnchor="middle">Earth Pit #{i+1}</text>
+                      <circle cx={px} cy="340" r="9" fill="#059669" />
+                      <text x={px} y="362" fill="#065F46" fontSize="9" fontWeight="bold" textAnchor="middle">Earth Pit #{i+6}</text>
                     </g>
                   ))}
+                  <rect x="210" y="168" width="680" height="130" rx="6" fill={primary} />
+                  <text x="550" y="222" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle">EQUIPOTENTIAL SIGNAL REFERENCE GRID (SRG) — {eng.pods.length} {eng.civil?.isBnM ? "BnM HALL BAYS" : "CORTEN-A PODS"}</text>
+                  <text x="550" y="244" fill="#FFB600" fontSize="10" textAnchor="middle">Dual Copper Down-Conductors • ESE Lightning Arresters • Online Earth Fault Monitoring</text>
+                  {renderEngineeringTitleBlock("G-101", "EARTHING & LIGHTNING GRID (NBCS 2026)", "1 : 200")}
+                </g>
+              )}
+
+              {sheet === "R-101" && (
+                <g>
+                  <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">SEGREGATED CABLE TRAY, TELECOM FIBER RACEWAY & ROXTEC PENETRATION PLAN</text>
+                  <rect x="55" y="68" width="990" height="62" rx="4" fill="#FEF3C7" stroke="#D97706" strokeWidth="2" />
+                  <text x="550" y="95" fill="#92400E" fontSize="11" fontWeight="bold" textAnchor="middle">TIER 1 (TOP +3200mm): YELLOW LSZH CORRUGATED OPTICAL FIBER RACEWAY ({eng.telecom?.overheadFiberMeters || 224}m)</text>
+                  <text x="550" y="113" fill="#78350F" fontSize="9.5" textAnchor="middle">300mm EMI Isolation • Connects {eng.telecom?.mmrRoomsCount || 1} Carrier MMR ({eng.telecom?.odfBaysCount || 6}× {project.odfCoreDensity || 576}F ODF Bays) to Compute Rows</text>
+
+                  <rect x="55" y="148" width="990" height="62" rx="4" fill="#DBEAFE" stroke="#1D4ED8" strokeWidth="2" />
+                  <text x="550" y="175" fill="#1E3A8A" fontSize="11" fontWeight="bold" textAnchor="middle">TIER 2 (MID +2750mm): IP55 SANDWICH POWER BUSDUCTS (DUAL A+B REDUNDANT TRACKS)</text>
+                  <text x="550" y="193" fill="#1E40AF" fontSize="9.5" textAnchor="middle">Plug-In Tap-Off Boxes • FRLS/LSZH Armored Feeder Cables • Zero Subfloor Airflow Obstruction</text>
+
+                  <rect x="55" y="228" width="990" height="62" rx="4" fill="#DCFCE7" stroke="#059669" strokeWidth="2" />
+                  <text x="550" y="255" fill="#065F46" fontSize="11" fontWeight="bold" textAnchor="middle">TIER 3 (BULKHEAD / PLINTH ENTRY): IP68 / FIRE-RATED ROXTEC MULTI-CABLE & PIPE TRANSITS</text>
+                  <text x="550" y="273" fill="#047857" fontSize="9.5" textAnchor="middle">Watertight, Gas-Tight & #316 Rodent-Proof Bulkhead Seals for Power, Fiber & SS316L Manifolds</text>
+
+                  <rect x="55" y="308" width="990" height="62" rx="4" fill="#F1F5F9" stroke="#475569" strokeWidth="2" />
+                  <text x="550" y="335" fill="#0F172A" fontSize="11" fontWeight="bold" textAnchor="middle">TIER 4 (OUTSIDE PLANT TELECOM): DUAL DIVERSE UNDERGROUND FIBER VAULTS ({project.diverseVaultSeparationM || 35}m SEPARATION)</text>
+                  <text x="550" y="353" fill="#334155" fontSize="9.5" textAnchor="middle">Concrete-Encased 4-Way 110mm HDPE Duct Banks from North & South Campus Boundaries ({project.carrierCount || 3} Carriers)</text>
+                  {renderEngineeringTitleBlock("R-101", "CABLE TRAY, FIBER & ROXTEC TRANSIT PLAN", "1 : 50")}
+                </g>
+              )}
+
+              {sheet === "M-301" && (
+                <g>
+                  <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">PRIMARY / SECONDARY HYDRAULIC & THERMAL LOOP P&ID (ZERO YARD CDUs)</text>
+                  {[
+                    [55, "1. PRIMARY YARD COOLERS", `${eng.adiabaticUnits}×${eng.selCooler?.ratedCapacity}kW Adiabatic/Dry`, "Rejects Heat to Ambient Air", palette.coolerTank],
+                    [310, "2. VFD PUMPS & WATER TANKS", `${eng.pumpSkidsCount} Skids @ ${eng.pumpDesignHeadBar} bar`, `${eng.totalWaterStorageKl} kL Tanks + RO/DM Pre-Treat`, palette.cduPump],
+                    [565, "3. WHITE-SPACE INTERNAL CDUs", `${eng.whiteSpace?.internalCduCount || 0} Internal CDU Towers`, `Supply <= ${eng.effectiveSupplyTempC}°C (Isolated PG25)`, palette.itPod],
+                    [820, "4. WHITE-SPACE PACs & CHILLERS", `${eng.whiteSpace?.mandatoryPacCount || 0}×80kW PACs + ${eng.whiteSpace?.chillerUnitsCount || 0} Chillers`, `${project.chillerPlacement === "ContainerRoof" ? "Roof Chillers" : "Yard Chillers"} (24°C Room)`, palette.transformer]
+                  ].map(([x, title, sub1, sub2, col], idx) => (
+                    <g key={idx} transform={`translate(${x}, 145)`}>
+                      <rect x="0" y="0" width="225" height="145" rx="6" fill={col} />
+                      <text x="112" y="48" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">{title}</text>
+                      <text x="112" y="76" fill="#FFFFFF" fontSize="9.5" textAnchor="middle">{sub1}</text>
+                      <text x="112" y="98" fill="#E2E8F0" fontSize="9" textAnchor="middle">{sub2}</text>
+                    </g>
+                  ))}
+                  {renderEngineeringTitleBlock("M-301", "PRIMARY / SECONDARY HYDRAULIC P&ID", "NTS")}
                 </g>
               )}
             </svg>
-            )}
           </div>
         </div>
       );
     }
 
-    function App() {
+    function App() {    function App() {
       const [screen, setScreen] = useState("home");
       const [navHistory, setNavHistory] = useState([]);
       const [projects, setProjects] = useState(() => [makeSampleProject(INITIAL_STANDARDS)]);
@@ -4396,15 +4741,17 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       };
 
       const deleteProject = (id) => {
-        if (projects.length <= 1) {
-          alert("Cannot delete the last remaining project.");
-          return;
-        }
-        if (confirm("Are you sure you want to delete this saved deal/JSON?")) {
-          const nextProjects = projects.filter(p => p.id !== id);
-          setProjects(nextProjects);
+        if (!confirm("Are you sure you want to delete this saved deal/JSON?")) return;
+        const remaining = projects.filter(p => p.id !== id);
+        if (remaining.length === 0) {
+          const fresh = makeBlankProject("proj-" + Date.now(), 1, standards);
+          setProjects([fresh]);
+          setEditingId(fresh.id);
+          saveDraftNow("Deal deleted — reset to clean blank project");
+        } else {
+          setProjects(remaining);
           if (editingId === id) {
-            setEditingId(nextProjects[0].id);
+            setEditingId(remaining[0].id);
           }
           saveDraftNow("Deal deleted successfully");
         }
@@ -4922,9 +5269,11 @@ function V11EngineeringGovernanceCard({ project, eng }) {
         } catch (e) { alert("Could not create folder in Google Drive."); }
       };
 
-      const saveToSelectedDriveFolder = async () => {
+      const saveToSelectedDriveFolder = async (customDealFileName = "", alsoSaveMaster = false) => {
         if (!driveToken) return;
         const targetFolder = driveFolderStack[driveFolderStack.length - 1];
+        const safeBase = (customDealFileName || `MDC_Deal_${currentProject.name || "Project"}`).trim().replace(/[^a-zA-Z0-9_.-]+/g, "_");
+        const finalDealName = safeBase.endsWith(".json") ? safeBase : `${safeBase}.json`;
         setDriveStatus("Saving...");
         try {
           const uploadFile = async (fileName, obj) => {
@@ -4936,14 +5285,15 @@ function V11EngineeringGovernanceCard({ project, eng }) {
               method: "POST", headers: { Authorization: `Bearer ${driveToken}` }, body: form
             });
           };
-          const [r1, r2] = await Promise.all([
-            uploadFile(`MDC_Deal_${(currentProject.name || "Project").replace(/[^a-zA-Z0-9_-]+/g, "_")}.json`, currentProject),
-            uploadFile("mdc_master_catalog.json", { skus, containerCatalog, nonItCatalog, standards, exportedAt: new Date().toISOString() })
-          ]);
-          if (r1.ok && r2.ok) {
+          const uploads = [uploadFile(finalDealName, currentProject)];
+          if (alsoSaveMaster) {
+            uploads.push(uploadFile("mdc_master_catalog.json", { skus, containerCatalog, nonItCatalog, standards, exportedAt: new Date().toISOString() }));
+          }
+          const results = await Promise.all(uploads);
+          if (results.every(r => r.ok)) {
             setDriveStatus(`Saved in ${targetFolder.name} ✓`);
             setShowDriveModal(false);
-            alert(`Saved Deal & Master Catalog inside Google Drive folder "${targetFolder.name}"!`);
+            alert(`Saved "${finalDealName}"${alsoSaveMaster ? " + mdc_master_catalog.json" : ""} inside Google Drive folder "${targetFolder.name}"!`);
           }
         } catch (e) { setDriveStatus("Sync Error"); }
       };
@@ -5780,7 +6130,14 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                           </div>
                         </div>
 
-                        <V11ShellAndBrandingPanel project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
+                        <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div>
+                            <strong className="navy-text">White-Space PACs, Internal CDUs & Customer Branding:</strong> Configured in a single unified place inside <strong>Module 2 (Hall, PAC/CDU & Branding)</strong>.
+                          </div>
+                          <button onClick={() => navigateTo("mod_whitespace")} className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold">
+                            Open Hall, PAC/CDU & Branding →
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -5939,26 +6296,16 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
                           <div className="grid grid-cols-3 gap-2 pt-1">
                             <div>
-                              <span className="text-slate-500 block">GPU Fabric</span>
-                              <select value={currentProject.fabricType || "InfiniBand NDR (800G OSFP)"} onChange={e => updateCurrentProject({ fabricType: e.target.value })} className="w-full border rounded px-1.5 py-1 bg-white font-bold">
-                                <option>InfiniBand NDR (800G OSFP)</option>
-                                <option>Eviden Bull BXI Exascale</option>
-                                <option>800G RoCEv2 Spine-Leaf</option>
-                              </select>
+                              <span className="text-slate-500 block">Telecom Carriers</span>
+                              <input type="number" min="1" max="12" value={currentProject.carrierCount || 3} onChange={e => updateCurrentProject({ carrierCount: Number(e.target.value) })} className="w-full border rounded px-2 py-1 bg-white font-bold" />
                             </div>
                             <div>
-                              <span className="text-slate-500 block">Approach Road</span>
-                              <select value={currentProject.approachRoadWidthM || 12} onChange={e => updateCurrentProject({ approachRoadWidthM: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1 bg-white font-bold">
-                                <option value={12}>12m Double-Lane</option>
-                                <option value={8}>8m Single-Lane</option>
-                              </select>
+                              <span className="text-slate-500 block">Approach Road (m)</span>
+                              <input type="number" step="0.5" min="4" max="30" value={currentProject.approachRoadWidthM || 12} onChange={e => updateCurrentProject({ approachRoadWidthM: Number(e.target.value) })} className="w-full border rounded px-2 py-1 bg-white font-bold" />
                             </div>
                             <div>
-                              <span className="text-slate-500 block">Crane Radius</span>
-                              <select value={currentProject.craneWorkingRadiusM || 10} onChange={e => updateCurrentProject({ craneWorkingRadiusM: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1 bg-white font-bold">
-                                <option value={10}>10m (250T Crane)</option>
-                                <option value={16}>16m (350T Crane)</option>
-                              </select>
+                              <span className="text-slate-500 block">Crane Radius (m)</span>
+                              <input type="number" step="1" min="6" max="35" value={currentProject.craneWorkingRadiusM || 10} onChange={e => updateCurrentProject({ craneWorkingRadiusM: Number(e.target.value) })} className="w-full border rounded px-2 py-1 bg-white font-bold" />
                             </div>
                           </div>
                         </div>
@@ -6501,6 +6848,24 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Explicit Indoor (Inside Container/Hall) vs. Technical Yard Switchgear & Cooling Breakdown */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-xs">
+                      <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-1.5">
+                        <div className="font-bold navy-text text-sm">A. Inside Container / Hall White-Space Switchgear & Cooling</div>
+                        <div>• <strong>Internal Switchgear & Tap-Offs:</strong> Form-4B Sub-Main LV Distribution Panel + Dual A/B {standards.buswayAmperageA}A IP55 Sandwich Busway Tap-Offs + Dual Metered 0U rPDUs</div>
+                        <div>• <strong>Internal Liquid Cooling (Secondary Loop):</strong> {eng.whiteSpace?.internalCduCount || 0} × Floor-Standing White-Space CDU Towers ({eng.selCdu?.ratedCapacity || 1350} kW each, {eng.whiteSpace?.internalCduFootprintSqm || 0} m²) — <em>Zero CDUs in Yard</em></div>
+                        <div>• <strong>Mandatory White-Space PACs:</strong> {eng.whiteSpace?.mandatoryPacCount || 0} × 80 kW Precision Air Coolers ({eng.whiteSpace?.pacFootprintSqm || 0} m²) for 24°C room ambient & dew-point control</div>
+                        <div>• <strong>Air Delivery & Containment:</strong> {currentProject.containmentType} • {currentProject.airflowDelivery} ({currentProject.frontServiceClearanceMm}mm F / {currentProject.rearServiceClearanceMm}mm R clearances)</div>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                        <div className="font-bold navy-text text-sm">B. Technical Yard / Roof Switchgear & Heat Rejection Plant</div>
+                        <div>• <strong>Yard HV/LV Switchgear:</strong> 33kV/11kV HT VCB Panels (Type 1+2 SPD) + {eng.transformerUnits}×{eng.selTrafo?.ratedCapacity}kVA K-13 Trafos + Main 3200A LV PCC + APFC (500 kVAr) + VFD MCC</div>
+                        <div>• <strong>Primary DLC Heat Rejection:</strong> {eng.adiabaticUnits} × {eng.selCooler?.ratedCapacity} kW Outdoor Adiabatic / Dry Fluid Coolers + {eng.pumpSkidsCount} VFD Pump Skids</div>
+                        <div>• <strong>Chiller Plant (For PACs & AC Loads):</strong> {eng.whiteSpace?.chillerUnitsCount || 0} × 1000 kW Air-Cooled Magnetic-Bearing Chillers ({currentProject.chillerPlacement === "ContainerRoof" ? "Container Roof-Mounted" : "Dedicated Yard Chiller Pad"})</div>
+                        <div>• <strong>Grid Load-Drop Shield & Backup:</strong> {(eng.totalDesignContKw * 0.20 / 1000).toFixed(2)} MW Fast Load Bank + BESS + {eng.dgUnitsCount}×{eng.selDg?.ratedCapacity}kVA CPCB IV+ DGs</div>
+                      </div>
+                    </div>
                   </div>
 
                   <ExecutiveSolutionSummaryCard project={currentProject} eng={eng} />
@@ -6622,45 +6987,71 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                 <ThreeDStudio project={currentProject} eng={eng} palette={palette} onUpdatePalette={updatePaletteKey} onApplyTheme={applyColorTheme} />
               )}
 
-              {/* OUTPUTS, POWERPOINT (.PPTX) SLIDE DECK, 15-POINT SUMMARY & CAD CENTER */}
+              {/* OUTPUTS, POWERPOINT (.PPTX) SLIDE DECK, 15-POINT SUMMARY & CAD CENTER (TABBED FOR CLEAN NAVIGATION) */}
               {screen === "outputs" && (
-                <div className="space-y-6">
-                  <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                      <div>
-                        <h2 className="text-xl font-bold navy-text">PowerPoint Slide Deck (.PPTX), 15-Point Summary & CAD Schedules</h2>
-                        <p className="text-xs text-slate-500">
-                          Generates <strong>{8 + Math.max(1, Math.ceil(eng.bomItems.length / 4))} PowerPoint slides</strong> with embedded 12-Month ASHRAE chart, Site/Yard & Intra-Pod drawings, 0.1" text padding & 3.1" blank footer
-                        </p>
-                      </div>
-                      <button onClick={() => exportNativePptxDeck(currentProject, eng, skus, standards, logoDataUrl, palette)} className="touch-btn px-5 py-2.5 rounded-xl coral-bg text-white text-sm font-bold shadow">
-                        ⬇ Download PowerPoint Deck (.PPTX)
-                      </button>
+                <div className="space-y-4">
+                  <div className="bg-white rounded-xl card-shadow border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-1.5 text-xs">
+                      {[
+                        ["cad", "1. Engineering CAD Blueprints (7 Sheets)"],
+                        ["dbr", "2. 15-Point Executive DBR Summary"],
+                        ["gov", "3. Civil, Rigging & L1–L5 Commissioning"],
+                        ["exports", "4. PowerPoint (.PPTX) & CSV Schedules"]
+                      ].map(([k, lbl]) => (
+                        <button
+                          key={k}
+                          onClick={() => updateCurrentProject({ activeOutputTab: k })}
+                          className={`px-3.5 py-2 rounded-lg font-bold transition ${
+                            (currentProject.activeOutputTab || "cad") === k ? "navy-bg text-white shadow" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                        >
+                          {lbl}
+                        </button>
+                      ))}
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                      <button onClick={exportSolutionSummaryCsv} className="p-4 rounded-xl border border-teal-300 hover:border-teal-600 text-left bg-teal-50/50">
-                        <div className="text-xs font-bold text-teal-800">EXECUTIVE DATASHEET</div>
-                        <div className="font-bold navy-text mt-1">15-Point Solution Summary (.CSV)</div>
-                      </button>
-                      <button onClick={exportEngineeringBomCsv} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
-                        <div className="text-xs font-bold text-blue-700">ENGINEERING BOM</div>
-                        <div className="font-bold navy-text mt-1">Technical BOM (.CSV)</div>
-                      </button>
-                      <button onClick={exportCommercialPriceCsv} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
-                        <div className="text-xs font-bold text-emerald-700">COMMERCIAL SCHEDULE</div>
-                        <div className="font-bold navy-text mt-1">Commercial Price Sheet (.CSV)</div>
-                      </button>
-                      <button onClick={() => navigateTo("studio3d")} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
-                        <div className="text-xs font-bold text-indigo-700">INTERACTIVE 3D</div>
-                        <div className="font-bold navy-text mt-1">360° 3D Container & Yard Twin</div>
-                      </button>
-                    </div>
+                    <button onClick={() => exportNativePptxDeck(currentProject, eng, skus, standards, logoDataUrl, palette)} className="touch-btn px-4 py-2 rounded-xl coral-bg text-white text-xs font-bold shadow">
+                      ⬇ Download PowerPoint Deck (.PPTX)
+                    </button>
                   </div>
 
-                  <ExecutiveSolutionSummaryCard project={currentProject} eng={eng} />
-                  <V11EngineeringGovernanceCard project={currentProject} eng={eng} />
-                  <CadBlueprintViewer project={currentProject} eng={eng} palette={palette} onUpdatePalette={updatePaletteKey} onApplyTheme={applyColorTheme} />
+                  {(currentProject.activeOutputTab || "cad") === "cad" && (
+                    <CadBlueprintViewer project={currentProject} eng={eng} palette={palette} onUpdatePalette={updatePaletteKey} onApplyTheme={applyColorTheme} />
+                  )}
+
+                  {(currentProject.activeOutputTab || "cad") === "dbr" && (
+                    <ExecutiveSolutionSummaryCard project={currentProject} eng={eng} />
+                  )}
+
+                  {(currentProject.activeOutputTab || "cad") === "gov" && (
+                    <V11EngineeringGovernanceCard project={currentProject} eng={eng} />
+                  )}
+
+                  {(currentProject.activeOutputTab || "cad") === "exports" && (
+                    <div className="bg-white rounded-xl card-shadow border border-slate-200 p-5 space-y-4">
+                      <div>
+                        <h3 className="text-base font-bold navy-text">Deliverable Export Package ({currentProject.name})</h3>
+                        <p className="text-xs text-slate-500">Generates {8 + Math.max(1, Math.ceil(eng.bomItems.length / 4))} widescreen PowerPoint slides + CSV schedules with weighted Make-in-India (MII) scores.</p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <button onClick={exportSolutionSummaryCsv} className="p-4 rounded-xl border border-teal-300 hover:border-teal-600 text-left bg-teal-50/50">
+                          <div className="text-xs font-bold text-teal-800">EXECUTIVE DATASHEET</div>
+                          <div className="font-bold navy-text mt-1">15-Point Solution Summary (.CSV)</div>
+                        </button>
+                        <button onClick={exportEngineeringBomCsv} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
+                          <div className="text-xs font-bold text-blue-700">ENGINEERING BOM</div>
+                          <div className="font-bold navy-text mt-1">Technical BOM (.CSV)</div>
+                        </button>
+                        <button onClick={exportCommercialPriceCsv} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
+                          <div className="text-xs font-bold text-emerald-700">COMMERCIAL SCHEDULE</div>
+                          <div className="font-bold navy-text mt-1">Commercial Price Sheet (.CSV)</div>
+                        </button>
+                        <button onClick={() => navigateTo("studio3d")} className="p-4 rounded-xl border border-slate-200 hover:border-blue-600 text-left bg-slate-50">
+                          <div className="text-xs font-bold text-indigo-700">INTERACTIVE 3D</div>
+                          <div className="font-bold navy-text mt-1">360° 3D Container & Yard Twin</div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
