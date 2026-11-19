@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V12.1 Enterprise)</title>
+  <title>AI Modular Data Center Configurator (V12.3 Enterprise)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -738,8 +738,24 @@ function V12CivilAndStructuralModule({ project, eng, onUpdateProject }) {
           )}
         </div>
 
-        <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200">
-          <strong>Engineered Sub-Structure Design ({safeProj.cityQuery}):</strong> {eng.civil?.foundationType} • Total Civil Plinth & Apron Area: <strong>{eng.plinthSqm} m²</strong>
+        <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+          <div>
+            <strong>Engineered Sub-Structure Design ({safeProj.cityQuery}):</strong> {eng.civil?.foundationType} • Total Civil Plinth & Apron Area: <strong>{eng.plinthSqm} m²</strong>
+          </div>
+          {(() => {
+            const sbcVal = Math.max(20, Number(safeProj.soilBearingCapacityKpa) || 150);
+            const isWeakSoil = sbcVal < 110;
+            const embedmentDepthM = isWeakSoil ? 4.5 : (sbcVal < 160 ? 1.8 : 1.35);
+            const imposedBearingKpa = Number(((eng.civil?.cornerNodeKn || 85) / 2.25).toFixed(1));
+            const safetyFactor = Number((sbcVal / Math.max(1, imposedBearingKpa)).toFixed(2));
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1.5 border-t border-emerald-200 text-[11px]">
+                <div><strong>Foundation / Embedment Depth:</strong> {isWeakSoil ? `${embedmentDepthM} m Pile Cap Depth` : `${embedmentDepthM} m Below Grade (IS 1904)`}</div>
+                <div><strong>Allowable SBC vs. Imposed Load:</strong> {sbcVal} kN/m² allowable vs. {imposedBearingKpa} kN/m² imposed</div>
+                <div><strong>Bearing Safety Factor (FoS):</strong> <span className={safetyFactor >= 2.0 ? "text-emerald-800 font-black" : "text-amber-800 font-black"}>{safetyFactor}× ({safetyFactor >= 2.0 ? "Safe ≥ 2.0×" : "Increase Footing Area"})</span></div>
+              </div>
+            );
+          })()}
         </div>
 
         {renderV11CivilPlinthSvg(safeProj, eng)}
@@ -1029,13 +1045,13 @@ function V12WorkspaceSaveOpenModal({
           {localStatus && <div className="text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded">{localStatus}</div>}
         </div>
 
-        {/* Option 2: Google Drive Folder Browser & Creator */}
+        {/* Option 2: Google Drive Folder Picker, Search & Recent Folders */}
         <div className="p-3.5 rounded-xl bg-blue-50/40 border border-blue-200 space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="font-bold navy-text text-sm">2. Google Drive Folder Browser</div>
+              <div className="font-bold navy-text text-sm">2. Google Drive Folder & File Selector</div>
               <div className="text-slate-700 font-medium">
-                {driveToken ? `Selected Drive Path: ${folderPathLabel}` : "Connect Google Drive to select or create a destination folder."}
+                {driveToken ? `Current Location: ${folderPathLabel}` : "Connect Google Drive to browse folders, search by folder name, or jump to recent folders."}
               </div>
             </div>
             {!driveToken && (
@@ -1046,96 +1062,279 @@ function V12WorkspaceSaveOpenModal({
           </div>
 
           {driveToken && (
-            <>
-              <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-lg border border-slate-200">
-                {driveFolderStack.length > 1 && (
-                  <button
-                    onClick={() => {
-                      const next = driveFolderStack.slice(0, -1);
-                      setDriveFolderStack(next);
-                      fetchDriveFolderContents(next[next.length - 1].id);
-                    }}
-                    className="px-2.5 py-1 rounded bg-slate-100 border border-slate-300 font-bold"
-                  >
-                    ↑ Up One Level
-                  </button>
-                )}
-                <input
-                  type="text"
-                  placeholder="Create new subfolder in current directory..."
-                  value={newFolderName}
-                  onChange={e => setNewFolderName(e.target.value)}
-                  className="flex-1 border rounded px-2 py-1"
-                />
-                <button onClick={createDriveSubfolder} className="px-3 py-1 rounded navy-bg text-white font-bold">
-                  + Create Folder
-                </button>
-              </div>
-
-              <div className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg p-2 space-y-1">
-                {driveFolderList.map(folder => (
-                  <div
-                    key={folder.id}
-                    onClick={() => {
-                      const next = [...driveFolderStack, { id: folder.id, name: folder.name }];
-                      setDriveFolderStack(next);
-                      fetchDriveFolderContents(folder.id);
-                    }}
-                    className="cursor-pointer flex items-center justify-between p-1.5 rounded hover:bg-blue-50"
-                  >
-                    <span className="font-bold navy-text">📁 {folder.name}</span>
-                    <span className="text-slate-400">Open Folder →</span>
-                  </div>
-                ))}
-                {driveFileList.map(file => {
-                  const protectedMaster = isProtectedMasterFile(file.name);
-                  return (
-                    <div key={file.id} className="flex items-center justify-between gap-2 p-1.5 rounded bg-slate-50 border border-slate-100">
-                      <span className="font-medium text-slate-800 truncate">
-                        {protectedMaster ? "🔒" : "📄"} {file.name}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {mode === "open" && (
-                          <button onClick={() => loadFileFromGoogleDrive(file.id, file.name)} className="px-2.5 py-0.5 rounded navy-bg text-white font-bold">
-                            Open
-                          </button>
-                        )}
-                        {protectedMaster ? (
-                          <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-bold" title="Master Catalog files are protected against deletion">
-                            Master Protected
-                          </span>
-                        ) : (
-                          <button onClick={() => deleteFileFromGoogleDrive(file.id, file.name)} className="px-2 py-0.5 rounded bg-red-50 text-red-700 font-bold" title="Move Deal JSON to Trash">
-                            🗑️
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                {driveFolderList.length === 0 && driveFileList.length === 0 && (
-                  <div className="text-center text-slate-400 py-4">Empty folder. Create a subfolder above or save directly into "{driveFolderStack[driveFolderStack.length - 1].name}".</div>
-                )}
-              </div>
-
-              {mode === "save" && (
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-blue-200">
-                  <span className="text-[11px] text-slate-600">
-                    Destination: <strong>{folderPathLabel}/{targetFileName}</strong>
-                  </span>
-                  <button
-                    onClick={() => saveToSelectedDriveFolder(targetFileName, includeMasterBackup)}
-                    className="px-4 py-2 rounded-lg coral-bg text-white font-bold"
-                  >
-                    ☁ Confirm & Save to "{driveFolderStack[driveFolderStack.length - 1].name}"
-                  </button>
-                </div>
-              )}
-            </>
+            <V12DriveFolderPickerBody
+              mode={mode}
+              driveToken={driveToken}
+              driveFolderStack={driveFolderStack}
+              setDriveFolderStack={setDriveFolderStack}
+              driveFolderList={driveFolderList}
+              driveFileList={driveFileList}
+              fetchDriveFolderContents={fetchDriveFolderContents}
+              newFolderName={newFolderName}
+              setNewFolderName={setNewFolderName}
+              createDriveSubfolder={createDriveSubfolder}
+              saveToSelectedDriveFolder={saveToSelectedDriveFolder}
+              loadFileFromGoogleDrive={loadFileFromGoogleDrive}
+              deleteFileFromGoogleDrive={deleteFileFromGoogleDrive}
+              isProtectedMasterFile={isProtectedMasterFile}
+              folderPathLabel={folderPathLabel}
+              targetFileName={targetFileName}
+              includeMasterBackup={includeMasterBackup}
+            />
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function V12DriveFolderPickerBody({
+  mode, driveToken, driveFolderStack, setDriveFolderStack,
+  driveFolderList, driveFileList, fetchDriveFolderContents,
+  newFolderName, setNewFolderName, createDriveSubfolder,
+  saveToSelectedDriveFolder, loadFileFromGoogleDrive, deleteFileFromGoogleDrive,
+  isProtectedMasterFile, folderPathLabel, targetFileName, includeMasterBackup
+}) {
+  const [folderSearch, setFolderSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [recentFolders, setRecentFolders] = useState([]);
+  const [allJsonFiles, setAllJsonFiles] = useState([]);
+  const [loadingDrive, setLoadingDrive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadQuickFoldersAndFiles() {
+      if (!driveToken) return;
+      setLoadingDrive(true);
+      try {
+        const qRecentFolders = "mimeType='application/vnd.google-apps.folder' and trashed=false";
+        const qAllJson = "mimeType='application/json' and trashed=false";
+        const [rFld, rJson] = await Promise.all([
+          fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qRecentFolders)}&orderBy=modifiedTime desc&pageSize=20&fields=files(id,name,modifiedTime,parents)`, {
+            headers: { Authorization: `Bearer ${driveToken}` }
+          }),
+          fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qAllJson)}&orderBy=modifiedTime desc&pageSize=25&fields=files(id,name,modifiedTime,parents)`, {
+            headers: { Authorization: `Bearer ${driveToken}` }
+          })
+        ]);
+        const dFld = await rFld.json();
+        const dJson = await rJson.json();
+        if (!cancelled) {
+          setRecentFolders(dFld.files || []);
+          setAllJsonFiles(dJson.files || []);
+        }
+      } catch (e) {}
+      if (!cancelled) setLoadingDrive(false);
+    }
+    loadQuickFoldersAndFiles();
+    return () => { cancelled = true; };
+  }, [driveToken]);
+
+  const handleFolderSearch = async (val) => {
+    setFolderSearch(val);
+    const trimmed = val.trim();
+    if (!trimmed || !driveToken) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const q = `mimeType='application/vnd.google-apps.folder' and name contains '${trimmed.replace(/'/g, "\\'")}' and trashed=false`;
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&pageSize=20&fields=files(id,name,modifiedTime)`, {
+        headers: { Authorization: `Bearer ${driveToken}` }
+      });
+      const data = await res.json();
+      setSearchResults(data.files || []);
+    } catch (e) {}
+  };
+
+  const jumpToFolder = async (folderObj) => {
+    const nextStack = [{ id: "root", name: "My Drive" }, { id: folderObj.id, name: folderObj.name }];
+    setDriveFolderStack(nextStack);
+    setFolderSearch("");
+    setSearchResults([]);
+    await fetchDriveFolderContents(folderObj.id);
+  };
+
+  return (
+    <>
+      {/* Breadcrumb Bar + Up Level */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2 rounded-lg border border-slate-200">
+        <div className="flex flex-wrap items-center gap-1 text-[11px]">
+          {driveFolderStack.map((crumb, idx) => (
+            <React.Fragment key={crumb.id}>
+              {idx > 0 && <span className="text-slate-400">/</span>}
+              <button
+                onClick={() => {
+                  const next = driveFolderStack.slice(0, idx + 1);
+                  setDriveFolderStack(next);
+                  fetchDriveFolderContents(crumb.id);
+                }}
+                className={`px-1.5 py-0.5 rounded font-bold ${idx === driveFolderStack.length - 1 ? "navy-bg text-white" : "hover:bg-slate-100 navy-text"}`}
+              >
+                {crumb.name}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+        {driveFolderStack.length > 1 && (
+          <button
+            onClick={() => {
+              const next = driveFolderStack.slice(0, -1);
+              setDriveFolderStack(next);
+              fetchDriveFolderContents(next[next.length - 1].id);
+            }}
+            className="px-2.5 py-1 rounded bg-slate-100 border border-slate-300 font-bold"
+          >
+            ↑ Back
+          </button>
+        )}
+      </div>
+
+      {/* Search Any Folder by Name + Create New Subfolder */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <input
+          type="text"
+          placeholder="Search any Google Drive folder by name..."
+          value={folderSearch}
+          onChange={e => handleFolderSearch(e.target.value)}
+          className="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white"
+        />
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            placeholder="New subfolder in current folder..."
+            value={newFolderName}
+            onChange={e => setNewFolderName(e.target.value)}
+            className="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white"
+          />
+          <button onClick={createDriveSubfolder} className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold">
+            + Folder
+          </button>
+        </div>
+      </div>
+
+      {/* Folder Search Results (if searching) */}
+      {searchResults.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-2 space-y-1">
+          <div className="font-bold text-amber-950 text-[11px]">Matching Folders ({searchResults.length}):</div>
+          {searchResults.map(f => (
+            <div key={f.id} onClick={() => jumpToFolder(f)} className="cursor-pointer flex items-center justify-between p-1.5 rounded bg-white hover:bg-blue-50 border border-amber-200">
+              <span className="font-bold navy-text">📁 {f.name}</span>
+              <span className="text-blue-700 font-bold">Select Folder →</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quick-Jump Recent Folders Pills */}
+      {recentFolders.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-[11px] font-bold text-slate-600">Quick-Jump Specific Folders:</div>
+          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+            {recentFolders.slice(0, 12).map(rf => (
+              <button
+                key={rf.id}
+                onClick={() => jumpToFolder(rf)}
+                className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:border-blue-600 font-semibold navy-text text-[11px]"
+              >
+                📁 {rf.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Current Folder Subfolders & JSON Files */}
+      <div className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg p-2 space-y-1">
+        {loadingDrive && <div className="text-center text-slate-400 py-2">Loading Google Drive folders & files...</div>}
+        {driveFolderList.map(folder => (
+          <div
+            key={folder.id}
+            onClick={() => {
+              const next = [...driveFolderStack, { id: folder.id, name: folder.name }];
+              setDriveFolderStack(next);
+              fetchDriveFolderContents(folder.id);
+            }}
+            className="cursor-pointer flex items-center justify-between p-1.5 rounded hover:bg-blue-50"
+          >
+            <span className="font-bold navy-text">📁 {folder.name}</span>
+            <span className="text-slate-400">Open Folder →</span>
+          </div>
+        ))}
+        {driveFileList.map(file => {
+          const protectedMaster = isProtectedMasterFile(file.name);
+          return (
+            <div key={file.id} className="flex items-center justify-between gap-2 p-1.5 rounded bg-slate-50 border border-slate-100">
+              <span className="font-medium text-slate-800 truncate">
+                {protectedMaster ? "🔒" : "📄"} {file.name}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {mode === "open" && (
+                  <button onClick={() => loadFileFromGoogleDrive(file.id, file.name)} className="px-2.5 py-0.5 rounded navy-bg text-white font-bold">
+                    Open
+                  </button>
+                )}
+                {protectedMaster ? (
+                  <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-bold">
+                    Master Protected
+                  </span>
+                ) : (
+                  <button onClick={() => deleteFileFromGoogleDrive(file.id, file.name)} className="px-2 py-0.5 rounded bg-red-50 text-red-700 font-bold">
+                    🗑️
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {!loadingDrive && driveFolderList.length === 0 && driveFileList.length === 0 && (
+          <div className="text-center text-slate-400 py-3">No subfolders or .json files directly inside "{driveFolderStack[driveFolderStack.length - 1].name}".</div>
+        )}
+      </div>
+
+      {/* When in Open mode, also show All Recent .JSON Files across Drive so files inside nested folders can be opened directly */}
+      {mode === "open" && allJsonFiles.length > 0 && (
+        <div className="space-y-1 pt-1">
+          <div className="text-[11px] font-bold text-slate-600">Recent .JSON Files Across Your Google Drive:</div>
+          <div className="max-h-32 overflow-y-auto bg-white border border-slate-200 rounded-lg p-2 space-y-1">
+            {allJsonFiles.map(jf => {
+              const protectedMaster = isProtectedMasterFile(jf.name);
+              return (
+                <div key={jf.id} className="flex items-center justify-between gap-2 p-1 rounded hover:bg-slate-50">
+                  <span className="truncate font-medium text-slate-800">
+                    {protectedMaster ? "🔒" : "📄"} {jf.name}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => loadFileFromGoogleDrive(jf.id, jf.name)} className="px-2.5 py-0.5 rounded navy-bg text-white font-bold">
+                      Open
+                    </button>
+                    {!protectedMaster && (
+                      <button onClick={() => deleteFileFromGoogleDrive(jf.id, jf.name)} className="px-2 py-0.5 rounded bg-red-50 text-red-700 font-bold">
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {mode === "save" && (
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-blue-200">
+          <span className="text-[11px] text-slate-600">
+            Destination: <strong>{folderPathLabel}/{targetFileName}</strong>
+          </span>
+          <button
+            onClick={() => saveToSelectedDriveFolder(targetFileName, includeMasterBackup)}
+            className="px-4 py-2 rounded-lg coral-bg text-white font-bold"
+          >
+            ☁ Confirm & Save to "{driveFolderStack[driveFolderStack.length - 1].name}"
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -3071,9 +3270,9 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       ctx.strokeRect(54, 58, 290, 304);
       ctx.fillStyle = "#000000";
       ctx.font = "bold 11px Roboto, sans-serif";
-      ctx.fillText(`ZONE A: IT PODS + ADMIN/STAGING (${Math.round(eng.totalItWhiteSpaceSqm + eng.yardBreakdown.adminStagingSqm)} m²)`, 62, 76);
+      ctx.fillText(`ZONE A: IT PODS + ADMIN/STAGING (${Math.round(eng.totalItWhiteSpaceSqm + eng?.yardBreakdown?.adminStagingSqm ?? 0)} m²)`, 62, 76);
 
-      const podCount = Math.min(eng.pods.length, 5);
+      const podCount = Math.min((eng?.pods?.length ?? 0), 5);
       for (let i = 0; i < podCount; i++) {
         const px = 66 + i * 44;
         ctx.fillStyle = palette.itPod;
@@ -3109,7 +3308,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       ctx.font = "bold 10px Roboto, sans-serif";
       ctx.fillText(`${eng.upsContainersCount}× UPS Pods`, 380, 190);
       ctx.fillText(`${eng.batteryContainersCount}× BESS Pods`, 380, 212);
-      ctx.fillText(`(${eng.yardBreakdown.upsBessSqm} m²)`, 380, 234);
+      ctx.fillText(`(${eng?.yardBreakdown?.upsBessSqm ?? 0} m²)`, 380, 234);
 
       // ZONE C: Open Outdoor Power & Cooling Yard (>=12m Away: EMI, Noise, Vibration Isolation)
       ctx.fillStyle = "#F1F5F9";
@@ -3123,10 +3322,10 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       ctx.fillText(">=12m EMI/Noise/Vib Buffer", 518, 90);
 
       const openYardBlocks = [
-        { label: `Open-Pad Trafos (${eng.yardBreakdown.substationSqm}m²)`, col: palette.transformer, y: 104 },
-        { label: `Canopy DGs/PESO (${eng.yardBreakdown.dgPesoSqm}m²)`, col: palette.dgSet, y: 168 },
-        { label: `Yard Coolers/Tanks (${eng.yardBreakdown.coolerChillerSqm + eng.yardBreakdown.waterTankSqm}m²)`, col: palette.coolerTank, y: 232 },
-        { label: `CDU/Pump Skids (${eng.yardBreakdown.cduPumpSqm}m²)`, col: palette.cduPump, y: 296 }
+        { label: `Open-Pad Trafos (${eng?.yardBreakdown?.substationSqm ?? 0}m²)`, col: palette.transformer, y: 104 },
+        { label: `Canopy DGs/PESO (${eng?.yardBreakdown?.dgPesoSqm ?? 0}m²)`, col: palette.dgSet, y: 168 },
+        { label: `Yard Coolers/Tanks (${eng?.yardBreakdown?.coolerChillerSqm ?? 0 + eng?.yardBreakdown?.waterTankSqm ?? 0}m²)`, col: palette.coolerTank, y: 232 },
+        { label: `CDU/Pump Skids (${eng?.yardBreakdown?.cduPumpSqm ?? 0}m²)`, col: palette.cduPump, y: 296 }
       ];
       openYardBlocks.forEach(b => {
         ctx.fillStyle = b.col;
@@ -3253,7 +3452,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       ctx.beginPath(); ctx.moveTo(140, 95); ctx.lineTo(960, 95); ctx.stroke();
       ctx.fillStyle = "#FF5539";
       ctx.font = "bold 12px Roboto, sans-serif";
-      ctx.fillText(`PATH A — PRIMARY 415V CRITICAL BUS (${project.uptimeTier} | Peak Facility: ${eng.totalFacilityPeakKva.toLocaleString()} kVA)`, 140, 82);
+      ctx.fillText(`PATH A — PRIMARY 415V CRITICAL BUS (${project.uptimeTier} | Peak Facility: ${(eng?.totalFacilityPeakKva ?? 0).toLocaleString()} kVA)`, 140, 82);
 
       ctx.strokeStyle = "#0F172A";
       ctx.lineWidth = 3;
@@ -3262,10 +3461,10 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       ctx.fillText("PATH B — REDUNDANT / STANDBY FEED & CRITICAL COOLING PUMP BUS", 140, 318);
 
       const blocks = [
-        [45, "1. HT VCB & MV/LV TRAFOS", `${eng.transformerUnits} × ${eng.selTrafo.ratedCapacity} kVA`, `${project.transformerType}`, palette.transformer],
-        [305, "2. CPCB IV+ DG & PESO HSD", `${eng.dgUnitsCount} × ${eng.selDg.ratedCapacity} kVA (${eng.effectiveDgKva}kVA)`, `${project.dgAutonomyHours}h Autonomy (${totalHsdK(eng.totalHsdFuelLitres)} kL)`, palette.dgSet],
-        [565, "3. MODULAR UPS & BESS", `${eng.upsContainersCount} × ${eng.selUps.ratedCapacity} kVA UPS`, `${project.batteryRuntimeMin}m ${project.batteryChemistry} (${Math.round(eng.batteryKwhReq)} kWh)`, palette.upsBess],
-        [825, "4. DUAL A/B TRACK BUSWAY", `${INITIAL_STANDARDS.buswayAmperageA}A Overhead Busways`, `${eng.activeRacks.length} Dual-Feed IT Racks`, palette.itPod]
+        [45, "1. HT VCB & MV/LV TRAFOS", `${eng.transformerUnits} × ${(eng?.selTrafo?.ratedCapacity ?? 2000)} kVA`, `${project.transformerType}`, palette.transformer],
+        [305, "2. CPCB IV+ DG & PESO HSD", `${eng.dgUnitsCount} × ${(eng?.selDg?.ratedCapacity ?? 1500)} kVA (${eng.effectiveDgKva}kVA)`, `${project.dgAutonomyHours}h Autonomy (${totalHsdK(eng.totalHsdFuelLitres)} kL)`, palette.dgSet],
+        [565, "3. MODULAR UPS & BESS", `${eng.upsContainersCount} × ${(eng?.selUps?.ratedCapacity ?? 1000)} kVA UPS`, `${project.batteryRuntimeMin}m ${project.batteryChemistry} (${Math.round(eng.batteryKwhReq)} kWh)`, palette.upsBess],
+        [825, "4. DUAL A/B TRACK BUSWAY", `${INITIAL_STANDARDS.buswayAmperageA}A Overhead Busways`, `${(eng?.activeRacks?.length ?? 0)} Dual-Feed IT Racks`, palette.itPod]
       ];
       blocks.forEach(([x, title, l1, l2, col]) => {
         ctx.fillStyle = col || "#1E293B";
@@ -3309,20 +3508,20 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       ctx.font = "bold 13px Roboto, sans-serif";
       ctx.fillText("E-201: ELECTRICAL SINGLE-LINE ARCHITECTURE", 35, 28);
 
-      drawBlock(35, 42, 235, 82, "1. HT Grid & MV/LV Trafos", `${eng.transformerUnits} × ${eng.selTrafo.ratedCapacity} kVA (${project.transformerType})`, `Peak Demand: ${eng.totalFacilityPeakKva.toLocaleString()} kVA`);
-      drawBlock(300, 42, 245, 82, "2. CPCB IV+ DG & PESO Fuel", `${eng.dgUnitsCount} × ${eng.selDg.ratedCapacity} kVA (${eng.effectiveDgKva}kVA derated)`, `${project.dgAutonomyHours}h Autonomy (${totalHsdK(eng.totalHsdFuelLitres)} kL HSD)`);
-      drawBlock(575, 42, 245, 82, "3. Modular UPS & BESS", `${eng.upsContainersCount} × ${eng.selUps.ratedCapacity} kVA UPS (${project.uptimeTier})`, `${project.batteryRuntimeMin}m ${project.batteryChemistry} (${Math.round(eng.batteryKwhReq)} kWh)`, true);
-      drawBlock(850, 42, 215, 82, "4. Dual A/B Busways & rPDU", `Overhead ${INITIAL_STANDARDS.buswayAmperageA}A Track Busways`, `${eng.activeRacks.length} Dual-Feed IT Racks`);
+      drawBlock(35, 42, 235, 82, "1. HT Grid & MV/LV Trafos", `${eng.transformerUnits} × ${(eng?.selTrafo?.ratedCapacity ?? 2000)} kVA (${project.transformerType})`, `Peak Demand: ${(eng?.totalFacilityPeakKva ?? 0).toLocaleString()} kVA`);
+      drawBlock(300, 42, 245, 82, "2. CPCB IV+ DG & PESO Fuel", `${eng.dgUnitsCount} × ${(eng?.selDg?.ratedCapacity ?? 1500)} kVA (${eng.effectiveDgKva}kVA derated)`, `${project.dgAutonomyHours}h Autonomy (${totalHsdK(eng.totalHsdFuelLitres)} kL HSD)`);
+      drawBlock(575, 42, 245, 82, "3. Modular UPS & BESS", `${eng.upsContainersCount} × ${(eng?.selUps?.ratedCapacity ?? 1000)} kVA UPS (${project.uptimeTier})`, `${project.batteryRuntimeMin}m ${project.batteryChemistry} (${Math.round(eng.batteryKwhReq)} kWh)`, true);
+      drawBlock(850, 42, 215, 82, "4. Dual A/B Busways & rPDU", `Overhead ${INITIAL_STANDARDS.buswayAmperageA}A Track Busways`, `${(eng?.activeRacks?.length ?? 0)} Dual-Feed IT Racks`);
 
       // Bottom Row: DLC Hydraulic P&ID (M-301)
       ctx.fillStyle = "#000000";
       ctx.font = "bold 13px Roboto, sans-serif";
       ctx.fillText("M-301: DLC HYDRAULIC & THERMAL LOOP (P&ID)", 35, 165);
 
-      drawBlock(35, 180, 235, 88, "1. Yard Heat Rejection", `${eng.adiabaticUnits} × ${eng.selCooler.ratedCapacity}kW Coolers`, `${eng.trimChillerUnits} Trim Chillers (${eng.freeCoolMonths}m Free)`);
-      drawBlock(300, 180, 245, 88, "2. Water Tanks & RO/Glycol", `${eng.waterTankUnits} × ${eng.selTank.ratedCapacity}kL Tanks (${eng.totalWaterStorageKl} kL)`, `Peak Evap: ${eng.peakMonthWaterKl} kL/mo + PG25`);
+      drawBlock(35, 180, 235, 88, "1. Yard Heat Rejection", `${eng.adiabaticUnits} × ${(eng?.selCooler?.ratedCapacity ?? 1000)}kW Coolers`, `${eng.trimChillerUnits} Trim Chillers (${eng.freeCoolMonths}m Free)`);
+      drawBlock(300, 180, 245, 88, "2. Water Tanks & RO/Glycol", `${eng.waterTankUnits} × ${(eng?.selTank?.ratedCapacity ?? 25)}kL Tanks (${eng.totalWaterStorageKl} kL)`, `Peak Evap: ${eng.peakMonthWaterKl} kL/mo + PG25`);
       drawBlock(575, 180, 245, 88, "3. VFD Pump Skids & Strainer", `${eng.pumpSkidsCount} Skids (${project.pumpStagingMode})`, `${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar TDH`, true);
-      drawBlock(850, 180, 215, 88, "4. Yard CDUs & SS316 Loop", `${eng.extCduUnits} × ${eng.selCdu.ratedCapacity}kW Yard CDUs`, `Supply <= ${eng.effectiveSupplyTempC}°C (${eng.airSideUnits} ${project.airCoolingType})`);
+      drawBlock(850, 180, 215, 88, "4. Yard CDUs & SS316 Loop", `${eng.extCduUnits} × ${(eng?.selCdu?.ratedCapacity ?? 1350)}kW Yard CDUs`, `Supply <= ${eng.effectiveSupplyTempC}°C (${eng.airSideUnits} ${project.airCoolingType})`);
 
       // IBMS & Life-Safety Footer Strip
       drawBlock(35, 292, 1030, 68, "IBMS, LIFE-SAFETY & STRUCTURAL COMPLIANCE ENVELOPE", `IBMS/DCIM/EPMS + Addressable Leak Ropes  |  VESDA Laser Smoke + ${eng.novecGasKg} kg Novec 1230 Clean Agent  |  IP CCTV + Biometric Access`, `${project.seismicLabel}  |  EMI Shielding  |  Elevated Monsoon Plinth & Canopy  |  Boundary Acoustic <= 65 dBA`);
@@ -3450,12 +3649,12 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
         // SLIDE 5: Intra-Container 2-Row Pod Layout & Future Growth Reserve
         const s5 = pptx.addSlide();
-        addSlideHeader(s5, "Intra-Container 2-Row Architecture & Growth Reserve", `${eng.pods.length} Dedicated IT Pods • ${project.hallTopology} Assembly • ${project.futureGrowthReservePct}% Expansion Bay`, "04");
+        addSlideHeader(s5, "Intra-Container 2-Row Architecture & Growth Reserve", `${(eng?.pods?.length ?? 0)} Dedicated IT Pods • ${project.hallTopology} Assembly • ${project.futureGrowthReservePct}% Expansion Bay`, "04");
         s5.addImage({ data: podPng, x: 0.65, y: 1.26, w: 12.0, h: 3.05 });
 
         // SLIDE 6A: Dedicated Electrical Single-Line Diagram (E-201)
         const s6a = pptx.addSlide();
-        addSlideHeader(s6a, "Electrical Single-Line Diagram (E-201)", `${project.uptimeTier} Power Train • ${eng.totalFacilityPeakKva.toLocaleString()} kVA Peak • ${project.batteryRuntimeMin}m ${project.batteryChemistry} Backup`, "05");
+        addSlideHeader(s6a, "Electrical Single-Line Diagram (E-201)", `${project.uptimeTier} Power Train • ${(eng?.totalFacilityPeakKva ?? 0).toLocaleString()} kVA Peak • ${project.batteryRuntimeMin}m ${project.batteryChemistry} Backup`, "05");
         s6a.addImage({ data: sldPng, x: 0.65, y: 1.26, w: 12.0, h: 3.05 });
 
         // SLIDE 6B: Hydraulic P&ID (M-301) & IBMS Envelope
@@ -3572,9 +3771,9 @@ function V11EngineeringGovernanceCard({ project, eng }) {
         ["4. Max Inlet Coolant Temp Maintained", `${eng.effectiveSupplyTempC}°C Target Supply (Governing Active SKU Ceiling: ${eng.governingMaxInletTempC}°C) — ${eng.inletTempViolation ? "⚠ EXCEEDS RACK LIMIT" : "✓ Within Rack Envelope"}`],
         ["5. Extreme Weather & Hydraulics", `${eng.coolingMode} (${eng.freeCoolMonths}m Dry Free-Cool, ${eng.adiabaticMonths}m Adiabatic Spray, ${eng.trimChillerMonths}m Trim Chiller) | ${eng.totalWaterStorageKl} kL Water Tanks (${project.waterAutonomyDays}d buffer) | ${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar TDH (${project.pumpStagingMode})`],
         ["6. IT Container Dimensions", `${eng.pods[0] ? `${(eng.pods[0].extLengthMm/1000).toFixed(2)}m L × ${(eng.pods[0].extWidthMm/1000).toFixed(2)}m W × ${(eng.pods[0].extHeightMm/1000).toFixed(2)}m H (${project.metallurgy}, ${project.plenumHeightMm}mm plenum, ${(eng.pods[0].grossRiggingKg/1000).toFixed(1)}T gross)` : "Configure racks to size"}`],
-        ["7. Additional Non-IT Containers", `${eng.upsContainersCount} Modular UPS Pods (${eng.selUps.ratedCapacity} kVA)  |  ${eng.batteryContainersCount} ${project.batteryChemistry} BESS Pods (${project.batteryRuntimeMin}m ${project.upsRideThroughMode})  |  ${project.includeAdminModule ? "1 Admin/NOC Pod" : "No Admin Pod"}  |  ${project.includeStagingModule ? "1 Staging/Leak-Test Bay" : "No Staging Bay"}`],
+        ["7. Additional Non-IT Containers", `${eng.upsContainersCount} Modular UPS Pods (${(eng?.selUps?.ratedCapacity ?? 1000)} kVA)  |  ${eng.batteryContainersCount} ${project.batteryChemistry} BESS Pods (${project.batteryRuntimeMin}m ${project.upsRideThroughMode})  |  ${project.includeAdminModule ? "1 Admin/NOC Pod" : "No Admin Pod"}  |  ${project.includeStagingModule ? "1 Staging/Leak-Test Bay" : "No Staging Bay"}`],
         ["8. IT Container Layout & White-Space m²", `${Math.round(eng.totalItWhiteSpaceSqm)} m² Total White-Space (${Math.round(eng.activeRackFootprintSqm)} m² Racks + ${Math.round(eng.aisleServiceAreaSqm)} m² Containment Aisles + ${Math.round(eng.futureGrowthAreaSqm)} m² Future Growth Reserve [${project.futureGrowthReservePct}%])`],
-        ["9. Technical Yard Layout & Total m²", `${eng.totalNonItYardSqm} m² Separated Non-IT Yard (CDU/Pumps: ${eng.yardBreakdown.cduPumpSqm}m², Coolers: ${eng.yardBreakdown.coolerChillerSqm}m², Tanks: ${eng.yardBreakdown.waterTankSqm}m², Trafos/SWG: ${eng.yardBreakdown.substationSqm}m², UPS/BESS: ${eng.yardBreakdown.upsBessSqm}m², DGs/PESO: ${eng.yardBreakdown.dgPesoSqm}m², Support: ${eng.yardBreakdown.adminStagingSqm}m²) — Total Campus: ${eng.totalCampusOccupiedSqm} m² (${eng.plotUtilizationPct}% of net plot)`],
+        ["9. Technical Yard Layout & Total m²", `${eng.totalNonItYardSqm} m² Separated Non-IT Yard (CDU/Pumps: ${eng?.yardBreakdown?.cduPumpSqm ?? 0}m², Coolers: ${eng?.yardBreakdown?.coolerChillerSqm ?? 0}m², Tanks: ${eng?.yardBreakdown?.waterTankSqm ?? 0}m², Trafos/SWG: ${eng?.yardBreakdown?.substationSqm ?? 0}m², UPS/BESS: ${eng?.yardBreakdown?.upsBessSqm ?? 0}m², DGs/PESO: ${eng?.yardBreakdown?.dgPesoSqm ?? 0}m², Support: ${eng?.yardBreakdown?.adminStagingSqm ?? 0}m²) — Total Campus: ${eng.totalCampusOccupiedSqm} m² (${eng.plotUtilizationPct}% of net plot)`],
         ["10. Redundancy Management (Uptime Tier)", `${project.uptimeTier} — Trafos: ${eng.trafoCalc.activeN}+${eng.trafoCalc.redundantR} | UPS: ${eng.upsCalc.activeN}+${eng.upsCalc.redundantR} | DGs: ${eng.dgCalc.activeN}+${eng.dgCalc.redundantR} (${eng.effectiveDgKva}kVA derated) | Coolers: ${eng.coolerCalc.activeN}+${eng.coolerCalc.redundantR} | Pumps: ${eng.pumpCalc.activeN}+${eng.pumpCalc.redundantR}`],
         ["11. Cabling & Plumbing (Yard to Pods)", `Overhead Dual A/B ${INITIAL_STANDARDS.buswayAmperageA}A Track Busways + ${project.includeIntelligentRpdu ? "Dual Metered rPDUs" : "Standard PDUs"}  |  Underfloor/Header SS316L Supply/Return Manifolds + 50-Micron Duplex Strainer`],
         ["12. Data Center Management (IBMS)", `${project.includeIntegratedBms ? "Integrated IBMS, DCIM, EPMS & PLC/SCADA Telemetry" : "Basic Local Telemetry"}  |  ${project.includeLeakRope ? "Addressable Conductive Liquid Leak-Detection Ropes" : "Point Leak Sensors"}`],
@@ -3597,7 +3796,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
               </div>
             )}
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-1 px-1" style={{ WebkitOverflowScrolling: "touch" }}>
             <table className="w-full text-xs text-left border-collapse">
               <tbody>
                 {rows.map(([k, v], idx) => (
@@ -4027,13 +4226,13 @@ function V11EngineeringGovernanceCard({ project, eng }) {
             <div className="flex flex-wrap gap-2">
               <div className="bg-slate-900/60 p-1 rounded-lg flex">
                 <button onClick={() => setViewScope("Hall")} className={`px-3 py-1.5 rounded text-xs font-bold ${viewScope === "Hall" ? "coral-bg text-white" : "text-slate-300"}`}>
-                  Campus + Yard ({eng.pods.length} IT Pods)
+                  Campus + Yard ({(eng?.pods?.length ?? 0)} IT Pods)
                 </button>
                 <button onClick={() => setViewScope("SinglePod")} className={`px-3 py-1.5 rounded text-xs font-bold ${viewScope === "SinglePod" ? "coral-bg text-white" : "text-slate-300"}`}>
                   Single IT Pod
                 </button>
               </div>
-              {viewScope === "SinglePod" && eng.pods.length > 0 && (
+              {viewScope === "SinglePod" && (eng?.pods?.length ?? 0) > 0 && (
                 <select value={selectedPodIdx} onChange={e => setSelectedPodIdx(Number(e.target.value))} className="bg-slate-800 text-white text-xs rounded-lg px-2.5 py-1.5 border border-slate-600">
                   {eng.pods.map((p, idx) => (
                     <option key={p.id} value={idx}>{p.label} ({Math.round(p.designContKw)} kW | {Math.round(p.floorFootprintSqm)} m²)</option>
@@ -4079,7 +4278,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
             </div>
           </div>
 
-          {eng.pods.length === 0 ? (
+          {(eng?.pods?.length ?? 0) === 0 ? (
             <div className="h-[420px] bg-slate-950 text-slate-300 flex flex-col items-center justify-center p-6 text-center">
               <p className="text-base font-bold text-white">No IT Racks Placed Yet</p>
               <p className="text-xs text-slate-400 mt-1 max-w-md">Open the Requirements Wizard (Step 2) to add IT compute racks—the 3D container & yard layout will generate automatically.</p>
@@ -4217,9 +4416,9 @@ function V11EngineeringGovernanceCard({ project, eng }) {
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5">
                 <div className="font-bold navy-text uppercase">3-Zone Area Breakdown</div>
                 <div className="flex justify-between"><span>Net Buildable (72%):</span><span className="font-bold">{Math.round(eng.netBuildableSqm).toLocaleString()} m² ({(eng.netBuildableSqm/4046.8564).toFixed(2)} ac)</span></div>
-                <div className="flex justify-between text-blue-900"><span>Zone A (IT + Admin/Stage):</span><span className="font-bold">{Math.round(eng.totalItWhiteSpaceSqm + eng.yardBreakdown.adminStagingSqm).toLocaleString()} m²</span></div>
-                <div className="flex justify-between text-pink-900"><span>Zone B (UPS/BESS Pods):</span><span className="font-bold">{eng.yardBreakdown.upsBessSqm.toLocaleString()} m²</span></div>
-                <div className="flex justify-between text-slate-700"><span>Zone C (Open MEP/DG Yard):</span><span className="font-bold">{(eng.totalNonItYardSqm - eng.yardBreakdown.upsBessSqm - eng.yardBreakdown.adminStagingSqm).toLocaleString()} m²</span></div>
+                <div className="flex justify-between text-blue-900"><span>Zone A (IT + Admin/Stage):</span><span className="font-bold">{Math.round(eng.totalItWhiteSpaceSqm + eng?.yardBreakdown?.adminStagingSqm ?? 0).toLocaleString()} m²</span></div>
+                <div className="flex justify-between text-pink-900"><span>Zone B (UPS/BESS Pods):</span><span className="font-bold">{eng?.yardBreakdown?.upsBessSqm ?? 0.toLocaleString()} m²</span></div>
+                <div className="flex justify-between text-slate-700"><span>Zone C (Open MEP/DG Yard):</span><span className="font-bold">{(eng.totalNonItYardSqm - eng?.yardBreakdown?.upsBessSqm ?? 0 - eng?.yardBreakdown?.adminStagingSqm ?? 0).toLocaleString()} m²</span></div>
                 <div className="flex justify-between items-center pt-1 border-t border-slate-200">
                   <span>Total Campus Occupied:</span>
                   <span className={`px-2 py-0.5 rounded font-bold ${eng.plotUtilizationPct > 90 ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}`}>
@@ -4383,16 +4582,16 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                   <rect x="355" y="90" width="140" height="322" fill={palette.upsBess} />
                   <text x="425" y="235" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">ZONE B: UPS & BESS</text>
                   <text x="425" y="253" fill="#FFFFFF" fontSize="9.5" textAnchor="middle">{eng.upsContainersCount}× UPS + {eng.batteryContainersCount}× LFP</text>
-                  <text x="425" y="270" fill="#FFFFFF" fontSize="9" textAnchor="middle">({eng.yardBreakdown.upsBessSqm} m²)</text>
+                  <text x="425" y="270" fill="#FFFFFF" fontSize="9" textAnchor="middle">({eng?.yardBreakdown?.upsBessSqm ?? 0} m²)</text>
 
                   {/* Zone C: Open Outdoor Yard */}
                   <rect x="515" y="90" width="172" height="72" fill={palette.transformer} />
                   <text x="601" y="123" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">HT VCB & K-13 TRAFOS</text>
-                  <text x="601" y="139" fill="#FFFFFF" fontSize="9" textAnchor="middle">{eng.transformerUnits}×{eng.selTrafo?.ratedCapacity}kVA ({eng.yardBreakdown.substationSqm}m²)</text>
+                  <text x="601" y="139" fill="#FFFFFF" fontSize="9" textAnchor="middle">{eng.transformerUnits}×{eng.selTrafo?.ratedCapacity}kVA ({eng?.yardBreakdown?.substationSqm ?? 0}m²)</text>
 
                   <rect x="515" y="172" width="172" height="72" fill={palette.dgSet} />
                   <text x="601" y="205" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">CPCB IV+ DG & PESO</text>
-                  <text x="601" y="221" fill="#FFFFFF" fontSize="9" textAnchor="middle">{eng.dgUnitsCount}×{eng.selDg?.ratedCapacity}kVA ({eng.yardBreakdown.dgPesoSqm}m²)</text>
+                  <text x="601" y="221" fill="#FFFFFF" fontSize="9" textAnchor="middle">{eng.dgUnitsCount}×{eng.selDg?.ratedCapacity}kVA ({eng?.yardBreakdown?.dgPesoSqm ?? 0}m²)</text>
 
                   <rect x="515" y="254" width="172" height="72" fill={palette.coolerTank} />
                   <text x="601" y="287" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">ADIABATIC COOLERS</text>
@@ -4405,7 +4604,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                   {/* Right Side Schedule */}
                   <text x="745" y="75" fill={primary} fontSize="11" fontWeight="bold">CAMPUS AREA & LOGISTICS SCHEDULE</text>
                   <text x="745" y="100" fill={fg} fontSize="10">• Gross Plot: {Math.round(eng.grossPlotSqm).toLocaleString()} m² ({(eng.grossPlotSqm/4046.8564).toFixed(2)} Acres)</text>
-                  <text x="745" y="122" fill={fg} fontSize="10">• IT White-Space: {eng.totalItWhiteSpaceSqm} m² ({eng.pods.length} Pods/Bays)</text>
+                  <text x="745" y="122" fill={fg} fontSize="10">• IT White-Space: {eng.totalItWhiteSpaceSqm} m² ({(eng?.pods?.length ?? 0)} Pods/Bays)</text>
                   <text x="745" y="144" fill={fg} fontSize="10">• Non-IT Technical Yard: {eng.totalNonItYardSqm} m²</text>
                   <text x="745" y="166" fill={fg} fontSize="10">• Total Occupied: {eng.totalCampusOccupiedSqm} m² ({eng.plotUtilizationPct}% Net)</text>
                   <text x="745" y="188" fill={fg} fontSize="10">• Laydown Staging Yard: {eng.logistics?.laydownStagingSqm || 240} m²</text>
@@ -4527,7 +4726,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                   <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">FULL YARD-TO-HALL ELECTRICAL SINGLE-LINE DIAGRAM (IEC 60617 • CEIG & NBCS 2026)</text>
                   <rect x="330" y="56" width="380" height="40" rx="4" fill={primary} />
                   <text x="520" y="74" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">33kV / 66kV DUAL UTILITY INCOMING + HT VCB + TYPE 1+2 SPD</text>
-                  <text x="520" y="88" fill="#FFB600" fontSize="9" textAnchor="middle">IEEE C37 Relay Coordination • Peak Facility: {eng.totalFacilityPeakKva.toLocaleString()} kVA</text>
+                  <text x="520" y="88" fill="#FFB600" fontSize="9" textAnchor="middle">IEEE C37 Relay Coordination • Peak Facility: {(eng?.totalFacilityPeakKva ?? 0).toLocaleString()} kVA</text>
 
                   <line x1="520" y1="96" x2="520" y2="112" stroke={fg} strokeWidth="2" />
                   <line x1="250" y1="112" x2="790" y2="112" stroke={fg} strokeWidth="2" />
@@ -4555,7 +4754,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
                   <rect x="100" y="256" width="260" height="50" rx="4" fill={palette.upsBess} />
                   <text x="230" y="277" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">UPS A + IP55 BUSDUCT A</text>
-                  <text x="230" y="293" fill="#FFFFFF" fontSize="9" textAnchor="middle">{standards.buswayAmperageA}A Sandwich Busway</text>
+                  <text x="230" y="293" fill="#FFFFFF" fontSize="9" textAnchor="middle">{standards?.buswayAmperageA || 1600}A Sandwich Busway</text>
 
                   <rect x="385" y="256" width="270" height="50" rx="4" fill="#FFF7ED" stroke={accent} strokeWidth="1.8" />
                   <text x="520" y="277" fill="#C2410C" fontSize="10" fontWeight="bold" textAnchor="middle">20% LOAD-DROP SHIELD ({(eng.totalDesignContKw*0.20/1000).toFixed(2)} MW)</text>
@@ -4563,14 +4762,14 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
                   <rect x="680" y="256" width="260" height="50" rx="4" fill={palette.upsBess} />
                   <text x="810" y="277" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">UPS B + IP55 BUSDUCT B</text>
-                  <text x="810" y="293" fill="#FFFFFF" fontSize="9" textAnchor="middle">{standards.buswayAmperageA}A Sandwich Busway</text>
+                  <text x="810" y="293" fill="#FFFFFF" fontSize="9" textAnchor="middle">{standards?.buswayAmperageA || 1600}A Sandwich Busway</text>
 
                   <line x1="230" y1="306" x2="230" y2="330" stroke={palette.upsBess} strokeWidth="2" />
                   <line x1="810" y1="306" x2="810" y2="330" stroke={palette.upsBess} strokeWidth="2" />
 
                   <rect x="140" y="330" width="760" height="44" rx="4" fill={palette.itPod} />
                   <text x="520" y="349" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">INTERNAL SUB-MAIN LV PANELS + DUAL-CORDED rPDUs ({(eng.totalDesignContKw/1000).toFixed(2)} MW IT LOAD)</text>
-                  <text x="520" y="364" fill="#CBD5E1" fontSize="9" textAnchor="middle">{eng.activeRacks.length} Racks across {eng.pods.length} Pods/Bays • Exothermic Copper Earthing (NBCS 2026)</text>
+                  <text x="520" y="364" fill="#CBD5E1" fontSize="9" textAnchor="middle">{(eng?.activeRacks?.length ?? 0)} Racks across {(eng?.pods?.length ?? 0)} Pods/Bays • Exothermic Copper Earthing (NBCS 2026)</text>
                   {renderEngineeringTitleBlock("E-201", "YARD-TO-HALL ELECTRICAL SLD", "NTS")}
                 </g>
               )}
@@ -4589,7 +4788,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                     </g>
                   ))}
                   <rect x="210" y="168" width="680" height="130" rx="6" fill={primary} />
-                  <text x="550" y="222" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle">EQUIPOTENTIAL SIGNAL REFERENCE GRID (SRG) — {eng.pods.length} {eng.civil?.isBnM ? "BnM HALL BAYS" : "CORTEN-A PODS"}</text>
+                  <text x="550" y="222" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle">EQUIPOTENTIAL SIGNAL REFERENCE GRID (SRG) — {(eng?.pods?.length ?? 0)} {eng.civil?.isBnM ? "BnM HALL BAYS" : "CORTEN-A PODS"}</text>
                   <text x="550" y="244" fill="#FFB600" fontSize="10" textAnchor="middle">Dual Copper Down-Conductors • ESE Lightning Arresters • Online Earth Fault Monitoring</text>
                   {renderEngineeringTitleBlock("G-101", "EARTHING & LIGHTNING GRID (NBCS 2026)", "1 : 200")}
                 </g>
@@ -5418,7 +5617,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       return (
         <div className="min-h-[100dvh] lg:h-[100dvh] flex flex-col lg:overflow-hidden">
           {/* PINNED PERSISTENT TOP HEADER WITH BACK NAVIGATION + FOLDER SAVE */}
-          <header className="navy-bg text-white px-3 py-2 shadow-md flex-shrink-0 z-50 border-b border-blue-900">
+          <header className="navy-bg text-white px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-md flex-shrink-0 z-40 border-b border-blue-900">
             <div className="max-w-[1640px] w-full mx-auto flex flex-col md:flex-row items-center justify-between gap-1.5 md:gap-2">
               <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2 flex-shrink-0">
                 {screen !== "home" && (
@@ -6025,7 +6224,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                               </button>
                             </div>
                           </div>
-                          {currentProject.loadingMode === "ActualPerRack" && eng.activeRacks.length > 0 && (
+                          {currentProject.loadingMode === "ActualPerRack" && (eng?.activeRacks?.length ?? 0) > 0 && (
                             <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-lg border border-slate-200">
                               <span className="font-bold text-slate-700">Bulk Duplicate Actual Load (kW):</span>
                               <input type="number" value={bulkLoadValue} onChange={e => setBulkLoadValue(Number(e.target.value))} className="w-20 border rounded px-2 py-1 font-bold" />
@@ -6581,17 +6780,17 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                           [
                             "1. IT Load & Container Synthesis",
                             `Target ${currentProject.targetItMw || (eng.totalDesignContKw/1000).toFixed(2)} MW • ${eng.dlcRacks.length} DLC + ${eng.acRacks.length} AC Racks`,
-                            `${eng.pods.length} × ${currentProject.containerLengthMode === "AllInOne" ? "All-in-One" : currentProject.metallurgy} Pods (${Math.round(eng.totalItWhiteSpaceSqm)} m²)`
+                            `${(eng?.pods?.length ?? 0)} × ${currentProject.containerLengthMode === "AllInOne" ? "All-in-One" : currentProject.metallurgy} Pods (${Math.round(eng.totalItWhiteSpaceSqm)} m²)`
                           ],
                           [
                             "2. Thermal & Hydraulic Requirement",
                             `${currentProject.cityQuery} (${currentProject.peakDryBulb}°C DB) • Supply <= ${eng.effectiveSupplyTempC}°C`,
-                            `${eng.adiabaticUnits}×${eng.selCooler.ratedCapacity}kW Coolers + ${eng.extCduUnits}×${eng.selCdu.ratedCapacity}kW CDUs + ${eng.totalWaterStorageKl}kL Tanks`
+                            `${eng.adiabaticUnits}×${(eng?.selCooler?.ratedCapacity ?? 1000)}kW Coolers + ${eng.extCduUnits}×${(eng?.selCdu?.ratedCapacity ?? 1350)}kW CDUs + ${eng.totalWaterStorageKl}kL Tanks`
                           ],
                           [
                             "3. Redundancy, Runtime & Autonomy",
                             `${currentProject.uptimeTier} • ${currentProject.batteryRuntimeMin}m ${currentProject.batteryChemistry} • ${currentProject.dgAutonomyHours}h DG Fuel`,
-                            `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA Trafos • ${eng.upsContainersCount}×${eng.selUps.ratedCapacity}kVA UPS • ${eng.dgUnitsCount}×${eng.selDg.ratedCapacity}kVA DGs`
+                            `${eng.transformerUnits}×${(eng?.selTrafo?.ratedCapacity ?? 2000)}kVA Trafos • ${eng.upsContainersCount}×${(eng?.selUps?.ratedCapacity ?? 1000)}kVA UPS • ${eng.dgUnitsCount}×${(eng?.selDg?.ratedCapacity ?? 1500)}kVA DGs`
                           ]
                         ].map(([title, reqTxt, desTxt], i) => (
                           <div key={i} className="bg-white p-3 rounded-lg border border-emerald-200 space-y-1">
@@ -6627,7 +6826,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                                 <span>MV/LV Transformers</span>
                               </label>
                             </td>
-                            <td className="p-3 text-slate-600">Peak Facility: <strong>{eng.totalFacilityPeakKva.toLocaleString()} kVA</strong> ÷ {eng.selTrafo.ratedCapacity} kVA</td>
+                            <td className="p-3 text-slate-600">Peak Facility: <strong>{(eng?.totalFacilityPeakKva ?? 0).toLocaleString()} kVA</strong> ÷ {(eng?.selTrafo?.ratedCapacity ?? 2000)} kVA</td>
                             <td className="p-3">
                               <select
                                 value={currentProject.selectedTrafoId}
@@ -6658,7 +6857,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                                 <span>Modular UPS Pods</span>
                               </label>
                             </td>
-                            <td className="p-3 text-slate-600">Critical Bus: <strong>{eng.upsCriticalLoadKva.toLocaleString()} kVA</strong> ÷ {eng.selUps.ratedCapacity} kVA</td>
+                            <td className="p-3 text-slate-600">Critical Bus: <strong>{eng.upsCriticalLoadKva.toLocaleString()} kVA</strong> ÷ {(eng?.selUps?.ratedCapacity ?? 1000)} kVA</td>
                             <td className="p-3">
                               <select
                                 value={currentProject.selectedUpsId}
@@ -6689,7 +6888,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                                 <span>CPCB IV+ Diesel Generators</span>
                               </label>
                             </td>
-                            <td className="p-3 text-slate-600">Demand: <strong>{eng.totalFacilityPeakKva.toLocaleString()} kVA</strong> ÷ {eng.effectiveDgKva} kVA (derated)</td>
+                            <td className="p-3 text-slate-600">Demand: <strong>{(eng?.totalFacilityPeakKva ?? 0).toLocaleString()} kVA</strong> ÷ {eng.effectiveDgKva} kVA (derated)</td>
                             <td className="p-3">
                               <select
                                 value={currentProject.selectedDgId}
@@ -6720,7 +6919,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                                 <span>Yard Fluid Coolers</span>
                               </label>
                             </td>
-                            <td className="p-3 text-slate-600">Liquid Heat Rejection: <strong>{Math.round(eng.totalLiquidKw).toLocaleString()} kW</strong> ÷ {eng.selCooler.ratedCapacity} kW</td>
+                            <td className="p-3 text-slate-600">Liquid Heat Rejection: <strong>{Math.round(eng.totalLiquidKw).toLocaleString()} kW</strong> ÷ {(eng?.selCooler?.ratedCapacity ?? 1000)} kW</td>
                             <td className="p-3">
                               <select
                                 value={currentProject.selectedCoolerId}
@@ -6751,7 +6950,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                                 <span>Yard Liquid CDUs</span>
                               </label>
                             </td>
-                            <td className="p-3 text-slate-600">External-CDU Racks: <strong>{Math.round(eng.extCduRequiredKw).toLocaleString()} kW</strong> ÷ {eng.selCdu.ratedCapacity} kW</td>
+                            <td className="p-3 text-slate-600">External-CDU Racks: <strong>{Math.round(eng.extCduRequiredKw).toLocaleString()} kW</strong> ÷ {(eng?.selCdu?.ratedCapacity ?? 1350)} kW</td>
                             <td className="p-3">
                               <select
                                 value={currentProject.selectedCduId}
@@ -6782,7 +6981,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                                 <span>Water Storage Tanks</span>
                               </label>
                             </td>
-                            <td className="p-3 text-slate-600">{currentProject.waterAutonomyDays}-Day Peak Buffer + Loop Fill: <strong>{eng.reqWaterKl} kL</strong> ÷ {eng.selTank.ratedCapacity} kL</td>
+                            <td className="p-3 text-slate-600">{currentProject.waterAutonomyDays}-Day Peak Buffer + Loop Fill: <strong>{eng.reqWaterKl} kL</strong> ÷ {(eng?.selTank?.ratedCapacity ?? 25)} kL</td>
                             <td className="p-3">
                               <select
                                 value={currentProject.selectedTankId}
@@ -6794,7 +6993,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                                 ))}
                               </select>
                             </td>
-                            <td className="p-3 text-center font-mono text-slate-500">{Math.max(1, Math.ceil(eng.reqWaterKl / (eng.selTank.ratedCapacity || 25)))} Tanks</td>
+                            <td className="p-3 text-center font-mono text-slate-500">{Math.max(1, Math.ceil(eng.reqWaterKl / ((eng?.selTank?.ratedCapacity ?? 25) || 25)))} Tanks</td>
                             <td className="p-3 text-center">
                               <input
                                 type="number" min="0"
@@ -6920,7 +7119,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                       </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto -mx-1 px-1" style={{ WebkitOverflowScrolling: "touch" }}>
                       <table className="w-full text-xs text-left border-collapse">
                         <thead>
                           <tr className="navy-bg text-white">
