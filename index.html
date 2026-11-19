@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V11.1 Enterprise)</title>
+  <title>AI Modular Data Center Configurator (V12.0 Enterprise)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -22,7 +22,8 @@
   <style>
     * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     html { font-size: 14px; }
-    html, body, #root { height: 100dvh; min-height: 100dvh; margin: 0; overflow: hidden; background: #F4F6FA; color: #0F172A; touch-action: manipulation; }
+    html, body, #root { min-height: 100dvh; height: auto; margin: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #F4F6FA; color: #0F172A; touch-action: manipulation; }
+    @media (min-width: 1024px) { html, body, #root { height: 100dvh; overflow: hidden; } }
     body { -webkit-tap-highlight-color: transparent; }
     .navy-bg { background-color: #002870; }
     .navy-text { color: #002870; }
@@ -43,6 +44,952 @@
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
     const STORAGE_KEY = "ai_mdc_studio_v11_0_enterprise";
+
+// ============================================================================
+// MDC CONFIGURATOR V12.0 — STAGE A: MASTER CATALOG, STORAGE ADAPTER & PHYSICS
+// ============================================================================
+
+const STORAGE_KEY_V12 = "ai_mdc_studio_v12_0_enterprise";
+
+// 1. MODULAR STORAGE & WORKSPACE ADAPTER (Decouples Local Folder & Google Drive for future DB/RBAC)
+const WorkspaceStorageAdapter = {
+  mode: "local_and_drive",
+  loadState(fallback) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_V12) || localStorage.getItem("ai_mdc_studio_v11_0_enterprise") || localStorage.getItem("ai_mdc_studio_v10_5_enterprise");
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  },
+  autoCache(stateObj) {
+    try {
+      localStorage.setItem(STORAGE_KEY_V12, JSON.stringify(stateObj));
+      return { ok: true, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  },
+  async saveFilesToLocalDirectory(filesList) {
+    if (window.showDirectoryPicker) {
+      const dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+      for (const f of filesList) {
+        const fh = await dirHandle.getFileHandle(f.name, { create: true });
+        const wr = await fh.createWritable();
+        await wr.write(f.content);
+        await wr.close();
+      }
+      return { method: "directoryPicker", folderName: dirHandle.name, count: filesList.length };
+    }
+    // Fallback for mobile / Safari / Firefox: trigger explicit downloads with exact filenames
+    for (const f of filesList) {
+      const blob = new Blob([f.content], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = f.name;
+      a.click();
+    }
+    return { method: "downloadFallback", folderName: "Browser Downloads Folder", count: filesList.length };
+  }
+};
+
+// 2. EXPANDED HYPERSCALE NON-IT CATALOG (10s of MW Building Blocks + Missing Categories + MII %)
+const V12_CATALOG_EXPANSIONS = [
+  // Larger Hyperscale Cooling Blocks (Adiabatic Dry Coolers, Roof/Yard Chillers, Internal White-Space CDU Towers, PACs)
+  { id: "cooler-2000kw", group: "cooler", category: "Liquid Cooling & Heat Rejection", label: "Hyperscale Adiabatic / Dry Fluid Cooler (2000 kW)", ratedCapacity: 2000, capacityUnit: "kW", footprintSqm: 40, unit: "per 2000kW unit", cost: 9100000, make: "Guntner / Kelvion", model: "GFD-Adiabatic-2000", miiPct: 76, origin: "India Assembled" },
+  { id: "chiller-1000kw", group: "chiller", category: "Liquid Cooling & Heat Rejection", label: "Air-Cooled Magnetic-Bearing Chiller (1000 kW — Roof/Yard)", ratedCapacity: 1000, capacityUnit: "kW", footprintSqm: 26, unit: "per 1000kW chiller", cost: 8200000, make: "Trane / Carrier", model: "RTAF-1000-MAG", miiPct: 72, origin: "India Assembled" },
+  { id: "chiller-1500kw", group: "chiller", category: "Liquid Cooling & Heat Rejection", label: "Hyperscale Air-Cooled Chiller (1500 kW — Roof/Yard)", ratedCapacity: 1500, capacityUnit: "kW", footprintSqm: 34, unit: "per 1500kW chiller", cost: 11600000, make: "Trane / Climaveneta", model: "RTAF-1500-MAG", miiPct: 74, origin: "India Assembled" },
+  { id: "cooling-tower-1500kw", group: "ctower", category: "Liquid Cooling & Heat Rejection", label: "Closed-Circuit Induced-Draft Cooling Tower (1500 kW)", ratedCapacity: 1500, capacityUnit: "kW", footprintSqm: 22, unit: "per 1500kW tower", cost: 4950000, make: "Baltimore Aircoil / Paharpur", model: "FXV-1500-SS316", miiPct: 88, origin: "India" },
+  { id: "roomDehumPac80Kw", group: "pac", category: "Liquid Cooling & Heat Rejection", label: "High-Sensible White-Space Precision Air Cooler (PAC 80 kW)", ratedCapacity: 80, capacityUnit: "kW", footprintSqm: 2.2, unit: "per 80kW PAC", cost: 1480000, make: "Stulz / Vertiv", model: "CyberAir-3-80kW", miiPct: 82, origin: "India" },
+
+  // Switchgear, APFC, SPDs & Busducts
+  { id: "apfc-spd-panel", group: "apfc", category: "Power Distribution & Transformation", label: "Detuned APFC Capacitor Bank (500 kVAr) + Type 1+2 SPD Array", ratedCapacity: 500, capacityUnit: "kVAr", footprintSqm: 4, unit: "per bank", cost: 1350000, make: "ABB / Schneider", model: "APFC-500-SPD12", miiPct: 91, origin: "India" },
+  { id: "mcc-panel", group: "mcc", category: "Power Distribution & Transformation", label: "Intelligent VFD Motor Control Center (MCC) for Cooling Yard", ratedCapacity: 1, capacityUnit: "panel", footprintSqm: 5, unit: "per MCC", cost: 1850000, make: "L&T / Siemens", model: "iMCC-Form4B", miiPct: 92, origin: "India" },
+
+  // Grid Load-Drop Shield
+  { id: "grid-load-shield", group: "grid_shield", category: "Backup Power & Energy Storage", label: "20% Dynamic Load-Drop Shield (Fast Load Bank + Grid BESS Buffer)", ratedCapacity: 3000, capacityUnit: "kW", footprintSqm: 28, unit: "per 3MW block", cost: 18500000, make: "Sungrow / Crestchic", model: "GRID-SHIELD-3MW", miiPct: 75, origin: "India Assembled" },
+
+  // Environmental Hardening & Physical Security
+  { id: "k12-mantrap-pkg", group: "k12_security", category: "BMS, Fire Suppression & Security", label: "K12/M50 Anti-Ram Bollards, Biometric Mantrap & Access Portal", ratedCapacity: 1, capacityUnit: "campus", footprintSqm: 0, unit: "per campus", cost: 3400000, make: "Gunnebo / Avon Barrier", model: "K12-MANTRAP-PRO", miiPct: 84, origin: "India" },
+  { id: "rodent-repellent-pkg", group: "rodent", category: "Environmental Hardening & ZLD", label: "#316 SS Rodent Armor Mesh + Ultrasonic Repellent Transducers", ratedCapacity: 1, capacityUnit: "pod", footprintSqm: 0, unit: "per pod", cost: 480000, make: "Hilti / Pestrol Industrial", model: "SS316-ULTRA-GUARD", miiPct: 88, origin: "India" },
+  { id: "gas-scrubber-unit", group: "scrubber", category: "Environmental Hardening & ZLD", label: "ISA G1 Chemical Air Scrubber & Anti-Corrosive Curtain (H₂S/SO₂)", ratedCapacity: 1, capacityUnit: "pod", footprintSqm: 4, unit: "per pod", cost: 1350000, make: "Bry-Air / Camfil", model: "GBS-ISA-G1-CURTAIN", miiPct: 86, origin: "India" },
+  { id: "zld-water-plant", group: "zld", category: "Environmental Hardening & ZLD", label: "Zero Liquid Discharge (ZLD) RO Reject & PAC Condensate Recovery", ratedCapacity: 1, capacityUnit: "plant", footprintSqm: 16, unit: "per plant", cost: 3850000, make: "Thermax / Ion Exchange", model: "ZLD-RECOVER-PRO", miiPct: 90, origin: "India" },
+
+  // Pre-Loop Water Treatment & Separate Consumables (with Factory-Isolated PG25 Glycol)
+  { id: "preloop-water-treat", group: "water_treat", category: "Hydraulics, Piping & Water Storage", label: "Pre-Loop RO/DM Water Treatment & Chemical Dosing Skid", ratedCapacity: 1, capacityUnit: "plant", footprintSqm: 8, unit: "per plant", cost: 1650000, make: "Thermax / Grundfos", model: "RO-DM-DOSING-PRO", miiPct: 89, origin: "India" },
+  { id: "glycol-pg25-isolated", group: "glycol_fluid", category: "Consumables & Operational Chemicals", label: "Factory-Isolated Inhibited PG25 Glycol Fluid (5000L Drum Lot)", ratedCapacity: 5000, capacityUnit: "L", footprintSqm: 0, unit: "per 5000L lot", cost: 1150000, make: "Dow / Arteco (Factory-Supplied)", model: "DOWFROST-HD-PG25", miiPct: 85, origin: "Factory Isolated" },
+  { id: "ops-consumables-lot", group: "consumables", category: "Consumables & Operational Chemicals", label: "Water Treatment Chemicals, RO/DM Resins, PAC Filters & Scrubber Media", ratedCapacity: 1, capacityUnit: "lot", footprintSqm: 0, unit: "per pod/yr", cost: 440000, make: "Thermax / Camfil", model: "OPS-CHEM-MEDIA-LOT", miiPct: 92, origin: "India" },
+
+  // Brick-and-Mortar (BnM) Structural Wrapper & Customer Branding
+  { id: "bnm-hall-wrapper", group: "bnm_shell", category: "Modular Enclosures & Civil", label: "Brick-and-Mortar (BnM) RCC Column-Grid Fire-Rated Technical Hall", ratedCapacity: 1000, capacityUnit: "kW", footprintSqm: 45, unit: "per MW eq", cost: 14500000, make: "L&T / Tata Projects", model: "NBC-2HR-BNM-GRID", miiPct: 96, origin: "India" },
+  { id: "custom-branding-pkg", group: "branding", category: "Modular Enclosures & Civil", label: "Customer Exterior/Interior RAL Coating, Rack Bezel & Logo Prep", ratedCapacity: 1, capacityUnit: "pod", footprintSqm: 0, unit: "per pod", cost: 450000, make: "Jotun / AkzoNobel / 3M", model: "C5M-CUSTOM-BRAND", miiPct: 90, origin: "India" },
+
+  // Telecom MMR, Diverse Underground Fiber & GPU Fabric
+  { id: "telecom-mmr-room", group: "telecom_mmr", category: "Telecom, MMR & Connectivity", label: "Carrier-Neutral Meet-Me Room (MMR), 48U ODF Bays & -48V DC Plant", ratedCapacity: 1, capacityUnit: "MMR", footprintSqm: 22, unit: "per MMR", cost: 4200000, make: "Sterlite Tech / Delta", model: "MMR-576F-DC48", miiPct: 88, origin: "India" },
+  { id: "diverse-fiber-vaults", group: "telecom_vault", category: "Telecom, MMR & Connectivity", label: "Dual Diverse Underground Fiber Vaults (North/South) & 4-Way HDPE Ducts", ratedCapacity: 1, capacityUnit: "pair", footprintSqm: 12, unit: "per dual entry", cost: 2650000, make: "Sterlite / Finolex", model: "DUAL-VAULT-HDPE4", miiPct: 94, origin: "India" },
+  { id: "overhead-fiber-raceway", group: "telecom_tray", category: "Telecom, MMR & Connectivity", label: "Overhead Yellow LSZH Fiber Raceways & High-Density Trunk Cabling", ratedCapacity: 1, capacityUnit: "pod", footprintSqm: 0, unit: "per pod", cost: 980000, make: "Panduit / Corning", model: "FIBER-RUNNER-LSZH", miiPct: 82, origin: "India" },
+
+  // Logistics, Heavy-Lift & On-Site Rigging
+  { id: "logistics-transport-crane", group: "logistics_crane", category: "Logistics, Heavy-Lift & Rigging", label: "Multi-Axle Low-Bed Trailers & 250T/350T Mobile Crane Mobilization", ratedCapacity: 1, capacityUnit: "pod", footprintSqm: 0, unit: "per pod lift", cost: 1350000, make: "All-Terrain / Nakoda", model: "LOWBED-CRANE-250T", miiPct: 100, origin: "India" },
+  { id: "onsite-rigging-kit", group: "logistics_rigging", category: "Logistics, Heavy-Lift & Rigging", label: "Azobe Spreader Mats, 5T Forklifts, 15T Roller Skates, Toe Jacks & Shims", ratedCapacity: 1, capacityUnit: "site", footprintSqm: 0, unit: "per campus kit", cost: 1450000, make: "Enerpac / Toyota Material", model: "RIGGING-MASTER-KIT", miiPct: 86, origin: "India" }
+];
+
+// 3. DEFAULT GRADE-A OEM SUPPLY INTELLIGENCE DATASET (Auto-loaded if empty so Supply DB is immediately rich)
+const DEFAULT_SUPPLY_INTEL_V12 = {
+  schemaVersion: "MDC_SUPPLY_INTEL_V12",
+  lastRefreshed: "2026-11-19",
+  items: [
+    { id: "SI-01", category: "Transformers (K-Factor)", vendor: "ABB India", family: "Resibloc Dry-Type K-13", sku: "RESI-2500-K13", rating: 2500, unit: "kVA", basis: "Ex-Works Vadodara", lead: "14 Wks", baseLow: 5200000, baseHigh: 5950000, miiClass: "Class-I", miiPct: 88, lastSeen: "2026-11-19" },
+    { id: "SI-02", category: "Transformers (K-Factor)", vendor: "Siemens Energy India", family: "GEAFOL Cast-Resin K-13", sku: "GEAFOL-3150-K13", rating: 3150, unit: "kVA", basis: "Ex-Works Kalwa", lead: "16 Wks", baseLow: 6100000, baseHigh: 6900000, miiClass: "Class-I", miiPct: 86, lastSeen: "2026-11-19" },
+    { id: "SI-03", category: "HV/LV Switchgear & Busducts", vendor: "Schneider Electric India", family: "PIX 33kV VCB + BlokSeT LV PCC", sku: "PIX-BLOKSET-3200A", rating: 3200, unit: "A", basis: "Ex-Works Bangalore", lead: "12 Wks", baseLow: 2650000, baseHigh: 3100000, miiClass: "Class-I", miiPct: 90, lastSeen: "2026-11-19" },
+    { id: "SI-04", category: "HV/LV Switchgear & Busducts", vendor: "Legrand / Zucchini India", family: "IP55 Sandwich Busduct 2500A", sku: "ZUC-XCP-2500A-CU", rating: 2500, unit: "A", basis: "Per 25m Run", lead: "8 Wks", baseLow: 1450000, baseHigh: 1750000, miiClass: "Class-I", miiPct: 91, lastSeen: "2026-11-19" },
+    { id: "SI-05", category: "Modular UPS & BESS", vendor: "Vertiv Energy India", family: "Trinergy Cube Modular UPS", sku: "TRIN-1500-LFP", rating: 1500, unit: "kVA", basis: "Ex-Works Pune", lead: "12 Wks", baseLow: 11800000, baseHigh: 13200000, miiClass: "Class-I", miiPct: 78, lastSeen: "2026-11-19" },
+    { id: "SI-06", category: "Modular UPS & BESS", vendor: "Eaton Power Quality", family: "93PM Containerized UPS Block", sku: "93PM-2000-POD", rating: 2000, unit: "kVA", basis: "Ex-Works Puducherry", lead: "14 Wks", baseLow: 15200000, baseHigh: 16800000, miiClass: "Class-I", miiPct: 80, lastSeen: "2026-11-19" },
+    { id: "SI-07", category: "CPCB IV+ Diesel Generators", vendor: "Cummins India", family: "CPCB IV+ Acoustic Container DG", sku: "C2250D5-CPCB4+", rating: 2250, unit: "kVA", basis: "Ex-Works Pune", lead: "12 Wks", baseLow: 15600000, baseHigh: 16900000, miiClass: "Class-I", miiPct: 92, lastSeen: "2026-11-19" },
+    { id: "SI-08", category: "CPCB IV+ Diesel Generators", vendor: "Kirloskar Oil Engines (KOEL)", family: "Optiprime CPCB IV+ Twin-Pack", sku: "KOEL-3000-CPCB4", rating: 3000, unit: "kVA", basis: "Ex-Works Kagal", lead: "14 Wks", baseLow: 19800000, baseHigh: 21500000, miiClass: "Class-I", miiPct: 94, lastSeen: "2026-11-19" },
+    { id: "SI-09", category: "Liquid CDUs (White-Space)", vendor: "CoolIT Systems / Vertiv", family: "In-Row / Floor Liquid CDU Tower", sku: "XDU-1350-L2L", rating: 1350, unit: "kW", basis: "Landed India", lead: "10 Wks", baseLow: 6400000, baseHigh: 7100000, miiClass: "Class-II", miiPct: 42, lastSeen: "2026-11-19" },
+    { id: "SI-10", category: "Liquid CDUs (White-Space)", vendor: "Motivair / Schneider", family: "High-Density Floor CDU 2MW", sku: "MCDU-2000-N1", rating: 2000, unit: "kW", basis: "Landed India", lead: "12 Wks", baseLow: 8600000, baseHigh: 9400000, miiClass: "Class-II", miiPct: 40, lastSeen: "2026-11-19" },
+    { id: "SI-11", category: "Adiabatic Coolers & Chillers", vendor: "Kelvion / Alfa Laval India", family: "Adiabatic V-Bank Dry Cooler", sku: "GFD-2000-ADIA", rating: 2000, unit: "kW", basis: "Ex-Works Pune", lead: "12 Wks", baseLow: 8600000, baseHigh: 9500000, miiClass: "Class-I", miiPct: 82, lastSeen: "2026-11-19" },
+    { id: "SI-12", category: "Adiabatic Coolers & Chillers", vendor: "Trane Technologies India", family: "Air-Cooled Magnetic Bearing Chiller", sku: "RTAF-1500-MAG", rating: 1500, unit: "kW", basis: "Landed India", lead: "14 Wks", baseLow: 10900000, baseHigh: 12100000, miiClass: "Class-I", miiPct: 74, lastSeen: "2026-11-19" },
+    { id: "SI-13", category: "Precision Air Coolers (PAC)", vendor: "Stulz CHVAC India", family: "CyberAir 3 CW Perimeter PAC", sku: "ASD-800-CW-EC", rating: 80, unit: "kW", basis: "Ex-Works Mumbai", lead: "8 Wks", baseLow: 1380000, baseHigh: 1560000, miiClass: "Class-I", miiPct: 85, lastSeen: "2026-11-19" },
+    { id: "SI-14", category: "IBMS, Fire & Hardening", vendor: "Honeywell Automation India", family: "VESDA-VLP + Novec 1230 + EBI", sku: "HWELL-DC-SAFE", rating: 1, unit: "Pod", basis: "Turnkey Supply", lead: "8 Wks", baseLow: 3600000, baseHigh: 4150000, miiClass: "Class-I", miiPct: 81, lastSeen: "2026-11-19" },
+    { id: "SI-15", category: "IBMS, Fire & Hardening", vendor: "Bry-Air (Asia) Pvt Ltd", family: "ISA G1 H2S/SO2 Gas Scrubber", sku: "GBS-ISA-G1-IND", rating: 1, unit: "Pod", basis: "Ex-Works Gurugram", lead: "6 Wks", baseLow: 1250000, baseHigh: 1450000, miiClass: "Class-I", miiPct: 89, lastSeen: "2026-11-19" },
+    { id: "SI-16", category: "Consumables & PG25 Glycol", vendor: "Dow / Arteco (Factory Supply)", family: "Factory-Isolated Inhibited PG25", sku: "PG25-OAT-5000L", rating: 5000, unit: "L", basis: "Factory Drum Lot", lead: "3 Wks", baseLow: 1100000, baseHigh: 1220000, miiClass: "Class-I", miiPct: 85, lastSeen: "2026-11-19" }
+  ]
+};
+
+// 4. V12 PROJECT DEFAULTS
+function extendProjectDefaultsV12(proj) {
+  return {
+    shellArchitecture: "Container", // "Container" | "BnM_Hall"
+    // White-Space Airflow & Aisle Geometry
+    airflowDelivery: "UnderfloorPlenumUpward", // "UnderfloorPlenumUpward" | "FrontToRearContainment"
+    containmentType: "ColdAisleContainment", // "ColdAisleContainment" | "HotAisleContainment"
+    frontServiceClearanceMm: 1200,
+    rearServiceClearanceMm: 1000,
+    chillerPlacement: "ContainerRoof", // "ContainerRoof" | "DedicatedYardPad"
+    // Civil & BnM Structural Parameters
+    soilBearingCapacityKpa: 150,
+    historicalFloodLevelMm: 450,
+    bnmColumnGridM: "8m x 8m",
+    bnmSlabThicknessMm: 300,
+    bnmClearSoffitM: 5.8,
+    // City Weatherproofing & Environmental Hardening
+    includeMonsoonCanopy: true,
+    includeRadiantHeatBarrier: true,
+    includeGasScrubber: (proj.cityQuery || "").toLowerCase().match(/delhi|noida|gurgaon|vadodara|mumbai|chennai|kolkata/) ? true : false,
+    includeRodentRepellent: true,
+    includeZldRecovery: true,
+    includeK12Mantrap: true,
+    includeGridLoadShield: true,
+    costValidityDays: 60,
+    // Telecom & Carrier MMR
+    carrierCount: 3,
+    odfCoreDensity: 576,
+    diverseVaultSeparationM: 35,
+    fabricType: "InfiniBand NDR (800G OSFP)",
+    // Logistics & Heavy-Lift Rigging
+    approachRoadWidthM: 12,
+    overheadClearanceM: 5.5,
+    craneWorkingRadiusM: 10,
+    groundSurfaceType: "Compacted WMM + Concrete Apron",
+    // Customer Container & Rack Branding (Supports Deferred Artwork Caveat)
+    brandingMode: "custom_tbd", // "standard" | "custom_ready" | "custom_tbd"
+    exteriorColorHex: "#002870",
+    exteriorRalLabel: "RAL 5002 Ultramarine Blue",
+    interiorColorHex: "#F8FAFC",
+    interiorRalLabel: "RAL 9016 Traffic White",
+    rackBezelFinish: "Matte Black + Brand Orange Trim",
+    clientLogoDataUrl: "",
+    ...proj
+  };
+}
+
+// 5. V12 MASTER ENGINEERING & PHYSICS CALCULATOR
+function computeEngineeringV12(rawProject, skus, nonItCatalog, standards) {
+  const project = extendProjectDefaultsV12(rawProject);
+  const fullCatalog = [
+    ...nonItCatalog.map(i => ({ miiPct: i.miiPct ?? 82, origin: i.origin ?? "India", ...i })),
+    ...V12_CATALOG_EXPANSIONS
+  ];
+  const baseEng = computeEngineering(project, skus, fullCatalog, standards);
+
+  const isBnM = project.shellArchitecture === "BnM_Hall";
+  const podCount = Math.max(1, baseEng.pods.length);
+
+  // A. WHITE-SPACE INTERNAL EQUIPMENT (Internal CDU Towers + Mandatory PACs + PDUs + Aisle Geometry)
+  // Zero CDUs in the yard: Racks without integrated CDUs require floor-standing internal CDU towers inside white-space!
+  const selCdu = fullCatalog.find(c => c.id === project.selectedCduId) || fullCatalog.find(c => c.id === "cdu-1350kw");
+  const internalCduCalc = baseEng.extCduRequiredKw > 0
+    ? calcRedundantUnits(baseEng.extCduRequiredKw, selCdu?.ratedCapacity || 1350, project.uptimeTier)
+    : { activeN: 0, redundantR: 0, total: 0 };
+  const internalCduCount = internalCduCalc.total;
+  const internalCduFootprintSqm = Number((internalCduCount * 1.44).toFixed(1)); // 1.2m x 1.2m floor footprint per internal CDU tower
+
+  // Mandatory PAC in EVERY container/hall for room temperature & humidity control + AC rack residual loads
+  const pacCalc = baseEng.pods.length > 0
+    ? calcRedundantUnits(Math.max(baseEng.totalAirKw, baseEng.pods.length * 45), 80, project.uptimeTier)
+    : { activeN: 0, redundantR: 0, total: 0 };
+  const mandatoryPacCount = baseEng.pods.length > 0 ? Math.max(baseEng.pods.length, pacCalc.total) : 0;
+  const pacFootprintSqm = Number((mandatoryPacCount * 2.2).toFixed(1));
+  const pduFootprintSqm = Number((baseEng.pods.length * 1.8).toFixed(1));
+
+  // Roof/Yard Chillers required for all PACs + AC racks (In-Row / RDHX)
+  const totalChillerLoadKw = Math.round(baseEng.totalAirKw + (mandatoryPacCount * 35));
+  const chillerCalc = totalChillerLoadKw > 0
+    ? calcRedundantUnits(totalChillerLoadKw, 1000, project.uptimeTier)
+    : { activeN: 0, redundantR: 0, total: 0 };
+  const chillerUnitsCount = chillerCalc.total;
+
+  // Revised White-Space Area (m²) explicitly reserving space for Internal CDUs, PACs, PDUs & Service Aisles
+  const whiteSpaceSupportSqm = Number((internalCduFootprintSqm + pacFootprintSqm + pduFootprintSqm).toFixed(1));
+  const totalItWhiteSpaceSqm = Number((baseEng.totalItWhiteSpaceSqm + whiteSpaceSupportSqm).toFixed(1));
+
+  // B. CIVIL, PLINTH & STRUCTURAL ENGINEERING (Container Foundations vs BnM Column-Grid)
+  const floodPlinthMm = Math.max(
+    (project.historicalFloodLevelMm || 450) + 300,
+    (project.cityQuery || "").toLowerCase().match(/mumbai|chennai|kolkata|kochi/) ? 900 : 650
+  );
+  const roofChillerMassT = (project.chillerPlacement === "ContainerRoof" && !isBnM)
+    ? Number(((chillerUnitsCount * 11.5) / podCount).toFixed(1))
+    : 0;
+  const basePodMassT = Number(((baseEng.pods[0]?.grossRiggingKg || 28000) / 1000).toFixed(1));
+  const unitGrossTonnes = isBnM
+    ? Number(((baseEng.totalDesignContKw / podCount) * 0.014).toFixed(1))
+    : Number((basePodMassT + roofChillerMassT + (internalCduCount * 1.1 / podCount) + (mandatoryPacCount * 0.75 / podCount)).toFixed(1));
+  const floorPressureKpa = Number(((unitGrossTonnes * 9.81) / (isBnM ? 64.0 : 32.0)).toFixed(1));
+  const cornerNodeKn = Math.round((unitGrossTonnes * 9.81) / 4);
+  const sbc = Number(project.soilBearingCapacityKpa) || 150;
+  const foundationType = sbc < 110
+    ? "Bored Cast-in-Situ Friction Piles + RCC Pile Cap"
+    : `Isolated M35 RCC Pad Footing (${(cornerNodeKn / sbc * 1.35).toFixed(2)} m²/node) + Raised Plinth`;
+
+  // C. TELECOM, CARRIER MMR & DIVERSE UNDERGROUND FIBER
+  const mmrRoomsCount = Math.max(1, Math.ceil(podCount / 6));
+  const odfBaysCount = Math.max(2, (project.carrierCount || 3) * 2);
+  const totalFiberStrands = odfBaysCount * (project.odfCoreDensity || 576);
+  const overheadFiberMeters = podCount * 32;
+  const gpuFabricLinks = baseEng.activeRacks.length * 8;
+
+  // D. LOGISTICS, ROUTE SURVEY, CRANE & RIGGING MANIFEST
+  const trailerCount = isBnM ? Math.max(2, Math.ceil(podCount / 2)) : podCount;
+  const minTurningRadiusM = (project.approachRoadWidthM || 12) >= 12 ? 16.5 : 18.2;
+  const craneTonnage = unitGrossTonnes > 38 || (project.craneWorkingRadiusM || 10) > 12 ? 350 : 250;
+  const outriggerGroundKpa = Math.round((unitGrossTonnes * 9.81 * 1.40) / 4.8);
+  const laydownStagingSqm = Math.max(220, trailerCount * 75);
+
+  // E. PER-UNIT CONTAINER / HALL BAY DATASHEETS (Supports Deferred Artwork Caveat)
+  const unitDatasheets = baseEng.pods.map((p, idx) => {
+    const unitId = isBnM ? `BNM-BAY-${String(idx + 1).padStart(2, "0")}` : `MDC-POD-${String(idx + 1).padStart(2, "0")}`;
+    const artworkStatus = project.brandingMode === "standard"
+      ? "OEM Standard Finish"
+      : project.brandingMode === "custom_ready"
+        ? "Client Vector Logo Applied"
+        : "[CLIENT ARTWORK PENDING — FILES LATER]";
+    return {
+      unitId,
+      shellSpec: isBnM ? `BnM RCC Bay (${project.bnmColumnGridM} Grid)` : `${(p.extLengthMm / 1000).toFixed(2)}m ISO Corten-A Shell`,
+      itKw: Math.round(p.designContKw),
+      rackCount: p.racks.length,
+      internalEquip: `${Math.ceil(mandatoryPacCount / podCount)}× PAC + ${Math.ceil(internalCduCount / podCount)}× Internal CDU`,
+      grossTonnes: unitGrossTonnes,
+      coatingSpec: project.brandingMode === "standard" ? "RAL 7035 Industrial" : `Ext: ${project.exteriorRalLabel} / Int: ${project.interiorRalLabel}`,
+      rackFinish: project.rackBezelFinish,
+      artworkStatus
+    };
+  });
+
+  // F. CATEGORIZED BOM RE-SYNTHESIS & MII WEIGHTED SCORING
+  const catMap = Object.fromEntries(fullCatalog.map(i => [i.id, i]));
+  const makeBomRow = (key, qty, label, category, specs, overrideRate = null) => {
+    const base = catMap[key] || { cost: 500000, make: "Grade-A OEM", model: "STD-1", miiPct: 85 };
+    const masterUnitCost = overrideRate !== null ? overrideRate : Number(base.cost || 0);
+    const ov = project.dealOverrides?.[key];
+    let unitCost = masterUnitCost;
+    let isOverridden = false;
+    let discountPct = 0;
+    if (ov) {
+      if (ov.mode === "discount" && ov.discountPct !== "") {
+        discountPct = Number(ov.discountPct) || 0;
+        unitCost = Math.round(masterUnitCost * (1 - discountPct / 100));
+        isOverridden = true;
+      } else if (ov.mode === "price" && ov.specialPrice !== "") {
+        unitCost = Number(ov.specialPrice);
+        discountPct = masterUnitCost > 0 ? Number((((masterUnitCost - unitCost) / masterUnitCost) * 100).toFixed(1)) : 0;
+        isOverridden = true;
+      }
+    }
+    const rawCostTotal = unitCost * qty;
+    const withContingency = rawCostTotal * (1 + (project.contingencyPct || 7) / 100);
+    const sellingPreTax = withContingency / Math.max(0.05, 1 - (project.marginPct || 18) / 100);
+    const gstAmt = sellingPreTax * ((project.gstPct || 18) / 100);
+    return {
+      key, category, label, specs,
+      make: base.make, model: base.model, unit: base.unit || "unit",
+      qty, masterUnitCost, unitCost, isOverridden, discountPct,
+      validUntil: ov?.validUntil || "", comments: ov?.comments || "",
+      miiPct: base.miiPct ?? 84,
+      rawCostTotal, withContingency, sellingPreTax, gstAmt,
+      grandTotalInclGst: sellingPreTax + gstAmt
+    };
+  };
+
+  // Start from baseEng.bomItems and upgrade/inject V12 engineering line items cleanly
+  let v12Bom = baseEng.bomItems.filter(it => !["glycolDosingSkid", "roomDehumPac40Kw", "rdhxUnit45Kw", "inRowCooler40Kw", "shellPerSqm", "containerPodShell"].includes(it.key));
+
+  if (baseEng.pods.length > 0) {
+    if (isBnM) {
+      const mwQty = Math.max(1, Math.ceil(baseEng.totalDesignContKw / 1000));
+      v12Bom.unshift(makeBomRow("bnm-hall-wrapper", mwQty, `Brick-and-Mortar (BnM) Fire-Rated Technical Hall (${podCount} Bays)`, "Modular Enclosures & Civil", `${project.bnmColumnGridM} Grid • ${project.bnmSlabThicknessMm}mm RCC Slab • ${project.bnmClearSoffitM}m Soffit`));
+    } else {
+      const shellItems = baseEng.bomItems.filter(it => it.key === "shellPerSqm" || it.key === "containerPodShell");
+      v12Bom = [...shellItems, ...v12Bom];
+    }
+    if (project.brandingMode !== "standard") {
+      v12Bom.push(makeBomRow("custom-branding-pkg", podCount, "Customer Exterior/Interior RAL Coating, Rack Bezel & Logo Package", "Modular Enclosures & Civil", project.brandingMode === "custom_tbd" ? "Custom RAL & Vinyl Prep [CLIENT ARTWORK PENDING]" : `Custom RAL (${project.exteriorRalLabel}) & Logo Applied`));
+    }
+    // Mandatory PACs in every container/hall + Chillers
+    v12Bom.push(makeBomRow("roomDehumPac80Kw", mandatoryPacCount, "White-Space Precision Air Coolers (PAC 80 kW — Mandatory Room/Humidity)", "Liquid Cooling & Heat Rejection", `${mandatoryPacCount} PACs (${pacFootprintSqm} m² white-space) • ${project.airflowDelivery}`));
+    if (chillerUnitsCount > 0) {
+      v12Bom.push(makeBomRow("chiller-1000kw", chillerUnitsCount, `Air-Cooled Magnetic-Bearing Chillers (${project.chillerPlacement === "ContainerRoof" ? "Container Roof-Mounted" : "Yard Chiller Pad"})`, "Liquid Cooling & Heat Rejection", `Serves PACs + AC/RDHX loads (${totalChillerLoadKw} kW)`));
+    }
+    // Switchgear & Protection
+    v12Bom.push(makeBomRow("apfc-spd-panel", Math.max(1, Math.ceil(podCount / 2)), "Detuned APFC Capacitor Banks (500 kVAr) + Type 1+2 SPD Array", "Power Distribution & Transformation", "Harmonic & Surge Suppression (CEIG / NBCS 2026)"));
+    v12Bom.push(makeBomRow("mcc-panel", 1, "Intelligent VFD Motor Control Center (MCC) for Cooling Plant", "Power Distribution & Transformation", "Form-4B VFD Pump & Fan Controls"));
+    // Grid Protection
+    if (project.includeGridLoadShield) {
+      const shieldBlocks = Math.max(1, Math.ceil((baseEng.totalDesignContKw * 0.20) / 3000));
+      v12Bom.push(makeBomRow("grid-load-shield", shieldBlocks, "20% Dynamic Load-Drop Shield (Fast Load Bank + Grid BESS Buffer)", "Backup Power & Energy Storage", `Absorbs ${(baseEng.totalDesignContKw * 0.20 / 1000).toFixed(2)} MW sudden AI load drop`));
+    }
+    // Environmental Hardening & Security
+    if (project.includeK12Mantrap) {
+      v12Bom.push(makeBomRow("k12-mantrap-pkg", 1, "K12/M50 Anti-Ram Bollards & Dual-Door Biometric Mantrap Portal", "BMS, Fire Suppression & Security", "Crash-rated perimeter gates & interlocking security mantrap"));
+    }
+    if (project.includeRodentRepellent) {
+      v12Bom.push(makeBomRow("rodent-repellent-pkg", podCount, "#316 SS Rodent Armor Mesh + Ultrasonic Repellent Transducers", "Environmental Hardening & ZLD", "Complete cable/pipe ingress & subfloor rodent barrier"));
+    }
+    if (project.includeGasScrubber) {
+      v12Bom.push(makeBomRow("gas-scrubber-unit", podCount, "ISA G1 Chemical Air Scrubber & Anti-Corrosive Curtain (H₂S/SO₂)", "Environmental Hardening & ZLD", "Protects copper/electronics from industrial/sewage/landfill gases"));
+    }
+    if (project.includeZldRecovery) {
+      v12Bom.push(makeBomRow("zld-water-plant", 1, "Zero Liquid Discharge (ZLD) RO Reject & PAC Condensate Recovery", "Environmental Hardening & ZLD", "Zero untreated discharge + PAC condensate reuse"));
+    }
+    // Pre-Loop Water Treatment + Separate Consumables + Isolated PG25 Glycol
+    if (baseEng.hasDlcRacks) {
+      v12Bom.push(makeBomRow("preloop-water-treat", 1, "Pre-Loop RO/DM Water Treatment & Chemical Dosing Skid", "Hydraulics, Piping & Water Storage", "Pre-treats make-up water prior to DLC loop fill"));
+      const pg25Lots = Math.max(1, Math.ceil((baseEng.totalLiquidKw * 3.2) / 5000));
+      v12Bom.push(makeBomRow("glycol-pg25-isolated", pg25Lots, "Factory-Isolated Inhibited PG25 Glycol Fluid (5000L Drum Lot)", "Consumables & Operational Chemicals", "Factory-Supplied PG25 + OAT/Azole Inhibitor (Isolated Line Item)"));
+    }
+    v12Bom.push(makeBomRow("ops-consumables-lot", podCount, "Water Treatment Chemicals, RO/DM Resins, PAC Filters & Scrubber Media", "Consumables & Operational Chemicals", "Operational replenishment chemicals & filter media"));
+
+    // Telecom & Carrier MMR
+    v12Bom.push(makeBomRow("telecom-mmr-room", mmrRoomsCount, "Carrier-Neutral Meet-Me Room (MMR), 48U ODF Bays & -48V DC Plant", "Telecom, MMR & Connectivity", `${project.carrierCount} Carriers • ${odfBaysCount}× ${project.odfCoreDensity}F ODFs`));
+    v12Bom.push(makeBomRow("diverse-fiber-vaults", 1, "Dual Diverse Underground Fiber Vaults (North/South) & 4-Way HDPE Ducts", "Telecom, MMR & Connectivity", `>= ${project.diverseVaultSeparationM}m physical route separation`));
+    v12Bom.push(makeBomRow("overhead-fiber-raceway", podCount, "Overhead Yellow LSZH Fiber Raceways & High-Density Trunk Cabling", "Telecom, MMR & Connectivity", `${overheadFiberMeters}m segregated optical troughs + ${project.fabricType}`));
+
+    // Logistics, Heavy-Lift & Rigging
+    v12Bom.push(makeBomRow("logistics-transport-crane", podCount, `Multi-Axle Low-Bed Trailers & ${craneTonnage}T Mobile Crane Mobilization`, "Logistics, Heavy-Lift & Rigging", `Turning radius >= ${minTurningRadiusM}m • Outrigger bearing ${outriggerGroundKpa} kN/m²`));
+    v12Bom.push(makeBomRow("onsite-rigging-kit", 1, "Azobe Spreader Mats, 5T Forklifts, 15T Roller Skates, Toe Jacks & Shims", "Logistics, Heavy-Lift & Rigging", `Laydown yard ${laydownStagingSqm} m² • Full on-site rigging inventory`));
+  }
+
+  // Recompute Totals & Weighted Make-in-India (MII) Score
+  let totalWeightedMii = 0;
+  const totals = v12Bom.reduce((acc, it) => {
+    const meta = catMap[it.key];
+    if (meta && meta.miiPct) it.miiPct = meta.miiPct;
+    else if (!it.miiPct) it.miiPct = 85;
+    totalWeightedMii += it.sellingPreTax * it.miiPct;
+    return {
+      rawCost: acc.rawCost + it.rawCostTotal,
+      contingency: acc.contingency + (it.withContingency - it.rawCostTotal),
+      sellingPreTax: acc.sellingPreTax + it.sellingPreTax,
+      gst: acc.gst + it.gstAmt,
+      grandTotal: acc.grandTotal + it.grandTotalInclGst
+    };
+  }, { rawCost: 0, contingency: 0, sellingPreTax: 0, gst: 0, grandTotal: 0 });
+
+  const overallMiiPct = totals.sellingPreTax > 0 ? Number((totalWeightedMii / totals.sellingPreTax).toFixed(1)) : 86.0;
+  const miiClassLabel = overallMiiPct >= 50 ? `Class-I Local Supplier (${overallMiiPct}%)` : `Class-II Local Supplier (${overallMiiPct}%)`;
+
+  const commissioningSchedule = [
+    { level: "L1 — Factory Acceptance Test (FAT)", scope: "Shell hydro-test (1.5× MAWP), busway hi-pot, internal CDU, PAC & switchgear FAT", gate: "Pre-Dispatch Release" },
+    { level: "L2 — Site Acceptance & Civil Verification", scope: `+${floodPlinthMm}mm RCC plinth level check, M30 seismic anchor torque, ${craneTonnage}T crane rigging`, gate: "Installation Sign-Off" },
+    { level: "L3 — Pre-Functional & Cold Commissioning", scope: "RO/DM pre-treatment, SS316L flushing, factory PG25 glycol fill, IBMS point-to-point", gate: "Energization Permit (CEIG)" },
+    { level: "L4 — Functional Subsystem Testing", scope: "UPS battery discharge, CPCB IV+ DG auto-transfer, VESDA/Novec & mantrap interlocks", gate: "Subsystems Ready" },
+    { level: "L5 — Integrated Systems Testing (IST)", scope: `100% heat-load bank run + ${(baseEng.totalDesignContKw * 0.20 / 1000).toFixed(2)} MW sudden load-rejection simulation`, gate: "Handover & SLA Start" }
+  ];
+
+  return {
+    ...baseEng,
+    bomItems: v12Bom,
+    totals,
+    totalItWhiteSpaceSqm,
+    whiteSpace: {
+      internalCduCount, internalCduFootprintSqm,
+      mandatoryPacCount, pacFootprintSqm,
+      chillerUnitsCount, totalChillerLoadKw,
+      pduFootprintSqm, whiteSpaceSupportSqm
+    },
+    civil: {
+      isBnM, floodPlinthMm, unitGrossTonnes, floorPressureKpa, cornerNodeKn, sbc, foundationType
+    },
+    telecom: {
+      mmrRoomsCount, odfBaysCount, totalFiberStrands, overheadFiberMeters, gpuFabricLinks, fabricType: project.fabricType
+    },
+    logistics: {
+      trailerCount, minTurningRadiusM, craneTonnage, outriggerGroundKpa, laydownStagingSqm
+    },
+    unitDatasheets,
+    mii: { overallMiiPct, miiClassLabel },
+    commissioningSchedule
+  };
+}
+
+
+// ============================================================================
+// MDC CONFIGURATOR V12.0 — STAGE B: 10-MODULE UI PANELS, WORKSPACE MODAL & CAD
+// ============================================================================
+
+// 1. DEDICATED MODULE NAVIGATION BAR (10 Decoupled Engineering Modules)
+function V12ModuleNavBar({ activeScreen, onNavigate, eng }) {
+  const modules = [
+    ["home", "⌂ Hub"],
+    ["wizard", "1. Site & Racks"],
+    ["mod_whitespace", "2. Hall, PAC/CDU & Branding"],
+    ["mod_civil", "3. Civil, Plinth & BnM"],
+    ["solution", "4. Yard MEP & Grid Shield"],
+    ["mod_telecom", "5. Telecom & MMR"],
+    ["mod_logistics", "6. Logistics & Rigging"],
+    ["studio3d", "7. 360° 3D Studio"],
+    ["supply_intel", "8. Supply Chain (MII)"],
+    ["parameters", "9. Master CRUD"],
+    ["workspace", `10. MIS & BOM (${eng.bomItems?.length || 0})`]
+  ];
+  return (
+    <div className="bg-slate-900 text-slate-200 px-3 py-1.5 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-xs flex-shrink-0">
+      {modules.map(([id, label]) => (
+        <button
+          key={id}
+          onClick={() => onNavigate(id)}
+          className={`px-2.5 py-1.5 rounded-lg font-bold transition ${
+            activeScreen === id ? "coral-bg text-white shadow" : "hover:bg-slate-800 text-slate-300"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// 2. MODULE 2: CONTAINER / HALL, WHITE-SPACE (INTERNAL CDUs, PACs, AISLES) & BRANDING
+function V12WhiteSpaceAndBrandingModule({ project, eng, onUpdateProject, onNavigate }) {
+  const safeProj = extendProjectDefaultsV12(project);
+
+  const handleClientLogo = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      onUpdateProject({ clientLogoDataUrl: ev.target.result, brandingMode: "custom_ready" });
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const exportUnitDatasheets = () => {
+    const rowsHtml = (eng.unitDatasheets || []).map(u => `
+      <tr>
+        <td><b>${u.unitId}</b></td>
+        <td>${u.shellSpec}</td>
+        <td>${u.itKw} kW (${u.rackCount} Racks)</td>
+        <td>${u.internalEquip}</td>
+        <td>${u.grossTonnes} T</td>
+        <td>${u.coatingSpec}</td>
+        <td>${u.rackFinish}</td>
+        <td>${u.artworkStatus}</td>
+      </tr>
+    `).join("");
+    const w = window.open("", "_blank");
+    w.document.write(`
+      <html><head><title>Per-Unit Technical Datasheets - ${safeProj.name}</title>
+      <style>body{font-family:Inter,sans-serif;padding:24px;color:#0F172A;font-size:12px}h2{color:#002870;border-bottom:2px solid #FF5539;padding-bottom:6px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #CBD5E1;padding:8px;text-align:left}th{background:#002870;color:#fff}</style>
+      </head><body>
+      <h2>Individual Container / Bay Technical & Branding Datasheets — ${safeProj.name}</h2>
+      <p><b>Client:</b> ${safeProj.client || "Enterprise Authority"} | <b>Site:</b> ${safeProj.cityQuery} (${safeProj.seismicLabel}) | <b>Airflow:</b> ${safeProj.airflowDelivery} (${safeProj.containmentType})</p>
+      <table><thead><tr><th>Unit ID</th><th>Shell / Bay Spec</th><th>IT Load & Racks</th><th>Internal PAC & CDU</th><th>Gross Weight</th><th>Exterior / Interior Coating</th><th>Rack Branding</th><th>Artwork Status</th></tr></thead>
+      <tbody>${rowsHtml}</tbody></table>
+      <script>window.print();<\/script></body></html>
+    `);
+    w.document.close();
+  };
+
+  return (
+    <div className="space-y-5 text-xs">
+      <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div>
+            <span className="px-2.5 py-0.5 rounded bg-blue-100 text-blue-950 font-black uppercase text-[10px]">Module 02 • White-Space, Thermal Loop & Branding Engineering</span>
+            <h2 className="text-xl font-bold navy-text mt-1">Container / Hall White-Space Layout, Internal CDUs, PACs & Customer Branding</h2>
+            <p className="text-slate-500">Zero CDUs in the yard: External CDUs sit inside white-space; every pod/hall includes mandatory PACs + roof/yard chillers.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={exportUnitDatasheets} className="px-3.5 py-2 rounded-lg navy-bg text-white font-bold">
+              🖨 Export Per-Unit Datasheets (.PDF)
+            </button>
+            <button onClick={() => onNavigate("studio3d")} className="px-3.5 py-2 rounded-lg coral-bg text-white font-bold">
+              Inspect 3D White-Space →
+            </button>
+          </div>
+        </div>
+
+        {/* White-Space Equipment & Aisle Geometry Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Aisle Containment Topology</label>
+            <select value={safeProj.containmentType} onChange={e => onUpdateProject({ containmentType: e.target.value })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold navy-text">
+              <option value="ColdAisleContainment">Cold Aisle Containment (CAC)</option>
+              <option value="HotAisleContainment">Hot Aisle Containment (HAC)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Cold Air Delivery Direction</label>
+            <select value={safeProj.airflowDelivery} onChange={e => onUpdateProject({ airflowDelivery: e.target.value })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
+              <option value="UnderfloorPlenumUpward">Upward Cold Air via Raised Plenum ({safeProj.plenumHeightMm}mm)</option>
+              <option value="FrontToRearContainment">Front-to-Rear Flooded / In-Row Discharge</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">PAC & AC Chiller Location</label>
+            <select value={safeProj.chillerPlacement} onChange={e => onUpdateProject({ chillerPlacement: e.target.value })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
+              <option value="ContainerRoof">Container Roof-Mounted Chillers</option>
+              <option value="DedicatedYardPad">Dedicated Yard Chiller Pad</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Front / Rear Service Clearances</label>
+            <div className="flex items-center gap-1.5">
+              <input type="number" step="100" value={safeProj.frontServiceClearanceMm} onChange={e => onUpdateProject({ frontServiceClearanceMm: Number(e.target.value) })} className="w-20 border rounded px-2 py-1.5 bg-white font-bold text-center" />
+              <span>/</span>
+              <input type="number" step="100" value={safeProj.rearServiceClearanceMm} onChange={e => onUpdateProject({ rearServiceClearanceMm: Number(e.target.value) })} className="w-20 border rounded px-2 py-1.5 bg-white font-bold text-center" />
+              <span className="text-slate-400">mm</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Live White-Space Area Breakdown KPI Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+            <span className="text-slate-500 block">Total White-Space Area</span>
+            <span className="text-base font-black navy-text">{eng.totalItWhiteSpaceSqm} m²</span>
+            <span className="text-[10px] text-slate-500 block">Includes Racks + Aisles + Support</span>
+          </div>
+          <div className="p-3 rounded-xl bg-sky-50/70 border border-sky-200">
+            <span className="text-slate-500 block">Internal White-Space CDUs</span>
+            <span className="text-base font-black text-sky-900">{eng.whiteSpace?.internalCduCount || 0} Towers ({eng.whiteSpace?.internalCduFootprintSqm || 0} m²)</span>
+            <span className="text-[10px] text-slate-500 block">Secondary Loop (Zero Yard CDUs)</span>
+          </div>
+          <div className="p-3 rounded-xl bg-teal-50/70 border border-teal-200">
+            <span className="text-slate-500 block">Mandatory Room PACs</span>
+            <span className="text-base font-black text-teal-900">{eng.whiteSpace?.mandatoryPacCount || 0} × 80kW ({eng.whiteSpace?.pacFootprintSqm || 0} m²)</span>
+            <span className="text-[10px] text-slate-500 block">Ambient 24°C & Dew-Point Control</span>
+          </div>
+          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200">
+            <span className="text-slate-500 block">Roof / Yard Chillers</span>
+            <span className="text-base font-black text-amber-900">{eng.whiteSpace?.chillerUnitsCount || 0} × 1000kW ({eng.whiteSpace?.totalChillerLoadKw || 0} kW)</span>
+            <span className="text-[10px] text-slate-500 block">Serves PACs + AC/RDHX Loads</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-100 border border-slate-300">
+            <span className="text-slate-500 block">Service Aisles & PDUs</span>
+            <span className="text-base font-black text-slate-900">{Math.round(eng.aisleServiceAreaSqm + (eng.whiteSpace?.pduFootprintSqm || 0))} m²</span>
+            <span className="text-[10px] text-slate-500 block">{safeProj.frontServiceClearanceMm}mm F / {safeProj.rearServiceClearanceMm}mm R</span>
+          </div>
+        </div>
+
+        {/* Customer Container & Rack Branding Panel */}
+        <V11ShellAndBrandingPanel project={safeProj} eng={eng} onUpdateProject={onUpdateProject} />
+      </div>
+    </div>
+  );
+}
+
+// 3. MODULE 3: STRUCTURAL, PLINTH & BRICK-AND-MORTAR (BnM) PLANNING
+function V12CivilAndStructuralModule({ project, eng, onUpdateProject }) {
+  const safeProj = extendProjectDefaultsV12(project);
+  const isBnM = safeProj.shellArchitecture === "BnM_Hall";
+
+  return (
+    <div className="space-y-5 text-xs">
+      <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div>
+            <span className="px-2.5 py-0.5 rounded bg-amber-100 text-amber-950 font-black uppercase text-[10px]">Module 03 • Civil, Foundation & Structural Engineering</span>
+            <h2 className="text-xl font-bold navy-text mt-1">
+              {isBnM ? "Brick-and-Mortar (BnM) Column-Grid & Structural Slab Planning" : "Container Raised RCC Plinth, Soil Bearing & Seismic Foundation Engineering"}
+            </h2>
+          </div>
+          <select
+            value={safeProj.shellArchitecture}
+            onChange={e => onUpdateProject({ shellArchitecture: e.target.value })}
+            className="border-2 border-[#002870] rounded-lg px-3 py-1.5 bg-white font-bold navy-text"
+          >
+            <option value="Container">Mode: Modular ISO Corten-A Containers</option>
+            <option value="BnM_Hall">Mode: Brick-and-Mortar (BnM) Structural Hall</option>
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Site Soil Bearing Capacity (kN/m²)</label>
+            <input type="number" value={safeProj.soilBearingCapacityKpa} onChange={e => onUpdateProject({ soilBearingCapacityKpa: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">100-Yr Historical Flood Level (mm)</label>
+            <input type="number" step="50" value={safeProj.historicalFloodLevelMm} onChange={e => onUpdateProject({ historicalFloodLevelMm: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+          </div>
+          {isBnM ? (
+            <>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">BnM Structural Column Grid</label>
+                <select value={safeProj.bnmColumnGridM} onChange={e => onUpdateProject({ bnmColumnGridM: e.target.value })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
+                  <option value="8m x 8m">8m × 8m Wide-Span AI Hall Grid</option>
+                  <option value="6m x 6m">6m × 6m Standard RCC Column Grid</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">RCC Slab Thickness & Clear Soffit</label>
+                <div className="flex items-center gap-1.5">
+                  <input type="number" value={safeProj.bnmSlabThicknessMm} onChange={e => onUpdateProject({ bnmSlabThicknessMm: Number(e.target.value) })} className="w-20 border rounded px-2 py-1.5 bg-white font-bold" />
+                  <span>mm /</span>
+                  <input type="number" step="0.2" value={safeProj.bnmClearSoffitM} onChange={e => onUpdateProject({ bnmClearSoffitM: Number(e.target.value) })} className="w-16 border rounded px-2 py-1.5 bg-white font-bold" />
+                  <span>m</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Engineered RCC Plinth Lift</label>
+                <div className="px-3 py-1.5 bg-white border rounded-lg font-black text-brandOrange">+{eng.civil?.floodPlinthMm} mm Above FGL</div>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">8-Point ISO Corner Reaction</label>
+                <div className="px-3 py-1.5 bg-white border rounded-lg font-black navy-text">{eng.civil?.cornerNodeKn} kN / corner node</div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <strong>Recommended Foundation Design:</strong> {eng.civil?.foundationType} • <strong>Uniform Floor Pressure:</strong> {eng.civil?.floorPressureKpa} kN/m² • <strong>Unit Gross Mass:</strong> {eng.civil?.unitGrossTonnes} Tonnes
+          </div>
+          <span className="font-bold text-emerald-800">1:50 Perimeter Drainage Apron + M30 Seismic Hold-Downs Active</span>
+        </div>
+
+        {renderV11CivilPlinthSvg(safeProj, eng)}
+      </div>
+    </div>
+  );
+}
+
+// 4. MODULE 5: TELECOM, CARRIER-NEUTRAL MMR & DIVERSE FIBER INFRASTRUCTURE
+function V12TelecomAndMmrModule({ project, eng, onUpdateProject }) {
+  const safeProj = extendProjectDefaultsV12(project);
+  return (
+    <div className="space-y-5 text-xs">
+      <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
+        <div className="border-b border-slate-200 pb-3">
+          <span className="px-2.5 py-0.5 rounded bg-indigo-100 text-indigo-950 font-black uppercase text-[10px]">Module 05 • Telecom, Carrier MMR & Network Infrastructure</span>
+          <h2 className="text-xl font-bold navy-text mt-1">Carrier-Neutral Meet-Me Rooms (MMR), Diverse Fiber Vaults & GPU Fabric</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">External Telecom Carriers</label>
+            <input type="number" min="1" max="12" value={safeProj.carrierCount} onChange={e => onUpdateProject({ carrierCount: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">ODF Patch Density (Cores/Bay)</label>
+            <select value={safeProj.odfCoreDensity} onChange={e => onUpdateProject({ odfCoreDensity: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
+              <option value={288}>288-Core LC/APC ODF Bay</option>
+              <option value={576}>576-Core High-Density ODF Bay</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Diverse Vault Separation (m)</label>
+            <input type="number" min="20" max="200" value={safeProj.diverseVaultSeparationM} onChange={e => onUpdateProject({ diverseVaultSeparationM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">East-West GPU Compute Fabric</label>
+            <select value={safeProj.fabricType} onChange={e => onUpdateProject({ fabricType: e.target.value })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
+              <option>InfiniBand NDR (800G OSFP)</option>
+              <option>Eviden Bull BXI Exascale</option>
+              <option>800G RoCEv2 Spine-Leaf</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="font-bold navy-text text-sm">1. Carrier-Neutral MMR & Demarcation</div>
+            <div>• Dedicated MMR Rooms/Pods: <strong>{eng.telecom?.mmrRoomsCount} Biometric MMR(s)</strong></div>
+            <div>• Optical Distribution Frames: <strong>{eng.telecom?.odfBaysCount} × 48U ODF Bays ({eng.telecom?.totalFiberStrands?.toLocaleString()} Strands)</strong></div>
+            <div>• Telecom Power: <strong>Dual -48V DC Rectifiers + Isolated Battery Bank</strong></div>
+          </div>
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="font-bold navy-text text-sm">2. Diverse Underground Fiber Vaults</div>
+            <div>• Entry Topology: <strong>North & South Opposite Boundary Manholes</strong></div>
+            <div>• Physical Separation: <strong>{safeProj.diverseVaultSeparationM}m (&gt;= 30m Zero Single-Point Cut)</strong></div>
+            <div>• Duct Bank Spec: <strong>Concrete-Encased 4-Way 110mm HDPE Ducts</strong></div>
+          </div>
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="font-bold navy-text text-sm">3. Overhead Raceways & GPU Fabric</div>
+            <div>• Overhead Fiber Troughs: <strong>{eng.telecom?.overheadFiberMeters}m Yellow LSZH Raceways</strong></div>
+            <div>• EMI Segregation: <strong>300mm Above IP55 Sandwich Power Busducts</strong></div>
+            <div>• Backend GPU Interconnect: <strong>{eng.telecom?.gpuFabricLinks?.toLocaleString()} × 800G OSFP Links</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 5. MODULE 6: LOGISTICS, ROUTE SURVEY, HEAVY-LIFT CRANE & RIGGING PLANNING
+function V12LogisticsAndRiggingModule({ project, eng, onUpdateProject }) {
+  const safeProj = extendProjectDefaultsV12(project);
+  return (
+    <div className="space-y-5 text-xs">
+      <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
+        <div className="border-b border-slate-200 pb-3">
+          <span className="px-2.5 py-0.5 rounded bg-orange-100 text-orange-950 font-black uppercase text-[10px]">Module 06 • Logistics, Heavy-Lift & On-Site Rigging Engineering</span>
+          <h2 className="text-xl font-bold navy-text mt-1">Trailer Fleet, Swept Turning Radius, Mobile Crane Sizing & Rigging Manifest</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Approach Road Width (m)</label>
+            <select value={safeProj.approachRoadWidthM} onChange={e => onUpdateProject({ approachRoadWidthM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
+              <option value={12}>12m Wide Double-Lane Industrial Road</option>
+              <option value={8}>8m Single-Lane Road (Pilot Escort Req)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Overhead Bridge / Line Clearance (m)</label>
+            <input type="number" step="0.1" value={safeProj.overheadClearanceM} onChange={e => onUpdateProject({ overheadClearanceM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold" />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Crane Working Radius (m)</label>
+            <select value={safeProj.craneWorkingRadiusM} onChange={e => onUpdateProject({ craneWorkingRadiusM: Number(e.target.value) })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
+              <option value={10}>10m Standard Setback (250T Crane)</option>
+              <option value={16}>16m Extended Reach (350T Crane)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Crane Pad Ground Surface</label>
+            <select value={safeProj.groundSurfaceType} onChange={e => onUpdateProject({ groundSurfaceType: e.target.value })} className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold">
+              <option>Compacted WMM + Concrete Apron</option>
+              <option>Natural Soil (Double Azobe Mats Req)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-slate-500 block">Hydraulic Low-Bed Trailers</span>
+            <span className="text-base font-black navy-text">{eng.logistics?.trailerCount} Multi-Axle Moves</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-slate-500 block">Swept Turning Radius</span>
+            <span className="text-base font-black text-brandBlue">{eng.logistics?.minTurningRadiusM} m Min Circle</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-slate-500 block">Crane & Outrigger Pressure</span>
+            <span className="text-base font-black text-brandOrange">{eng.logistics?.craneTonnage}T • {eng.logistics?.outriggerGroundKpa} kN/m²</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-slate-500 block">Laydown & Staging Yard</span>
+            <span className="text-base font-black text-teal-800">{eng.logistics?.laydownStagingSqm} m² Reserved</span>
+          </div>
+        </div>
+
+        <table className="w-full text-left border-collapse border border-slate-200">
+          <thead>
+            <tr className="navy-bg text-white">
+              <th className="p-2">On-Site Rigging & Heavy-Lift Equipment</th>
+              <th className="p-2">Engineering Specification</th>
+              <th className="p-2 text-right">Required Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b"><td className="p-2 font-bold">Mobile Telescopic Crane</td><td className="p-2">{eng.logistics?.craneTonnage}T Capacity @ {safeProj.craneWorkingRadiusM}m radius with certified spreader beam</td><td className="p-2 text-right font-bold">1 Unit</td></tr>
+            <tr className="border-b"><td className="p-2 font-bold">Azobe Hardwood Spreader Mats</td><td className="p-2">2.0m × 1.0m × 150mm heavy outrigger load-distribution pads</td><td className="p-2 text-right font-bold">8 Nos</td></tr>
+            <tr className="border-b"><td className="p-2 font-bold">Counterbalance Heavy Forklifts</td><td className="p-2">5-Tonne & 10-Tonne low-mast forklifts for palletized CDU/UPS/rack unloading</td><td className="p-2 text-right font-bold">2 Units</td></tr>
+            <tr className="border-b"><td className="p-2 font-bold">Steerable Hydraulic Roller Skates</td><td className="p-2">15-Tonne heavy machinery skates for precision pod alignment on plinths</td><td className="p-2 text-right font-bold">4 Sets</td></tr>
+            <tr><td className="p-2 font-bold">Low-Profile Toe Jacks & SS316 Shims</td><td className="p-2">10-Tonne hydraulic toe jacks + laser-cut SS316 leveling plates</td><td className="p-2 text-right font-bold">4 Jacks + {(eng.pods?.length || 1) * 16} Shims</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// 6. EXPLICIT SAVE / OPEN WORKSPACE MODAL (LOCAL DIRECTORY + GOOGLE DRIVE FOLDER BROWSER)
+function V12WorkspaceSaveOpenModal({
+  isOpen, onClose, mode, currentProject, skus, containerCatalog, nonItCatalog, standards,
+  driveToken, onGoogleSignIn, driveFolderStack, setDriveFolderStack,
+  driveFolderList, driveFileList, fetchDriveFolderContents,
+  newFolderName, setNewFolderName, createDriveSubfolder,
+  saveToSelectedDriveFolder, loadFileFromGoogleDrive, deleteFileFromGoogleDrive,
+  onImportLocalFile
+}) {
+  const [localStatus, setLocalStatus] = useState("");
+  if (!isOpen) return null;
+
+  const handleExplicitLocalSave = async () => {
+    const cleanName = (currentProject.name || "MDC_Deal").replace(/[^a-zA-Z0-9_-]+/g, "_");
+    const files = [
+      { name: `${cleanName}.json`, content: JSON.stringify(currentProject, null, 2) },
+      { name: "mdc_master_catalog.json", content: JSON.stringify({ skus, containerCatalog, nonItCatalog, standards, exportedAt: new Date().toISOString() }, null, 2) }
+    ];
+    try {
+      const res = await WorkspaceStorageAdapter.saveFilesToLocalDirectory(files);
+      setLocalStatus(`✓ Saved ${res.count} files (${cleanName}.json + mdc_master_catalog.json) into "${res.folderName}"`);
+    } catch (err) {
+      if (err?.name !== "AbortError") setLocalStatus("Save cancelled or blocked by browser.");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/65 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-xs max-h-[90dvh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div>
+            <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-950 font-black uppercase text-[10px]">
+              Explicit Workspace Storage Control
+            </span>
+            <h3 className="text-base font-bold navy-text mt-1">
+              {mode === "save" ? "Choose Local Folder or Google Drive Directory to Save" : "Open Deal or Master Catalog from Local Folder or Google Drive"}
+            </h3>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-800 font-bold text-base">✕</button>
+        </div>
+
+        {/* Option 1: Local Folder Selection */}
+        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="font-bold navy-text text-sm">1. Local Computer / Device Folder</div>
+              <div className="text-slate-500">Pick an exact local folder to save/load <code>.json</code> deal and catalog files.</div>
+            </div>
+            {mode === "save" ? (
+              <button onClick={handleExplicitLocalSave} className="px-4 py-2 rounded-lg navy-bg text-white font-bold">
+                📁 Choose Local Folder & Save
+              </button>
+            ) : (
+              <label className="px-4 py-2 rounded-lg navy-bg text-white font-bold cursor-pointer">
+                📂 Browse Local .JSON File
+                <input type="file" accept=".json" onChange={(e) => { onImportLocalFile(e); onClose(); }} className="hidden" />
+              </label>
+            )}
+          </div>
+          {localStatus && <div className="text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded">{localStatus}</div>}
+        </div>
+
+        {/* Option 2: Google Drive Folder Browser & Creator */}
+        <div className="p-3.5 rounded-xl bg-blue-50/40 border border-blue-200 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="font-bold navy-text text-sm">2. Google Drive Folder Browser</div>
+              <div className="text-slate-600">
+                {driveToken ? `Target Directory: ${driveFolderStack.map(f => f.name).join(" / ")}` : "Connect Google Drive to browse or create project folders."}
+              </div>
+            </div>
+            {!driveToken && (
+              <button onClick={onGoogleSignIn} className="px-4 py-2 rounded-lg coral-bg text-white font-bold">
+                ☁ Connect Google Drive
+              </button>
+            )}
+          </div>
+
+          {driveToken && (
+            <>
+              <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-lg border border-slate-200">
+                {driveFolderStack.length > 1 && (
+                  <button
+                    onClick={() => {
+                      const next = driveFolderStack.slice(0, -1);
+                      setDriveFolderStack(next);
+                      fetchDriveFolderContents(next[next.length - 1].id);
+                    }}
+                    className="px-2.5 py-1 rounded bg-slate-100 border border-slate-300 font-bold"
+                  >
+                    ↑ Parent Folder
+                  </button>
+                )}
+                <input
+                  type="text"
+                  placeholder="New Google Drive subfolder name..."
+                  value={newFolderName}
+                  onChange={e => setNewFolderName(e.target.value)}
+                  className="flex-1 border rounded px-2 py-1"
+                />
+                <button onClick={createDriveSubfolder} className="px-3 py-1 rounded navy-bg text-white font-bold">
+                  + New Folder
+                </button>
+              </div>
+
+              <div className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg p-2 space-y-1">
+                {driveFolderList.map(folder => (
+                  <div
+                    key={folder.id}
+                    onClick={() => {
+                      const next = [...driveFolderStack, { id: folder.id, name: folder.name }];
+                      setDriveFolderStack(next);
+                      fetchDriveFolderContents(folder.id);
+                    }}
+                    className="cursor-pointer flex items-center justify-between p-1.5 rounded hover:bg-blue-50"
+                  >
+                    <span className="font-bold navy-text">📁 {folder.name}</span>
+                    <span className="text-slate-400">Open →</span>
+                  </div>
+                ))}
+                {driveFileList.map(file => (
+                  <div key={file.id} className="flex items-center justify-between gap-2 p-1.5 rounded bg-slate-50 border border-slate-100">
+                    <span className="font-medium text-slate-800 truncate">📄 {file.name}</span>
+                    <div className="flex items-center gap-1">
+                      {mode === "open" && (
+                        <button onClick={() => loadFileFromGoogleDrive(file.id, file.name)} className="px-2.5 py-0.5 rounded navy-bg text-white font-bold">
+                          Open
+                        </button>
+                      )}
+                      <button onClick={() => deleteFileFromGoogleDrive(file.id, file.name)} className="px-2 py-0.5 rounded bg-red-50 text-red-700 font-bold">
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {driveFolderList.length === 0 && driveFileList.length === 0 && (
+                  <div className="text-center text-slate-400 py-4">Empty directory. Create a folder above or save directly here.</div>
+                )}
+              </div>
+
+              {mode === "save" && (
+                <div className="flex justify-end">
+                  <button onClick={saveToSelectedDriveFolder} className="px-4 py-2 rounded-lg coral-bg text-white font-bold">
+                    ☁ Save Deal & Catalog in "{driveFolderStack[driveFolderStack.length - 1].name}"
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 
 // ============================================================================
 // MDC CONFIGURATOR V11.0 — PART 1: CORE ENGINE, STORAGE ADAPTER & DATA MODELS
@@ -3377,12 +4324,8 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       const [newFolderName, setNewFolderName] = useState("");
 
       // External Supply Chain Intelligence State (loaded from mdc_supply_intel.json)
-      const [supplyIntel, setSupplyIntel] = useState({
-        schemaVersion: "MDC_SUPPLY_INTEL_V9",
-        lastRefreshed: "2026-11-17",
-        items: []
-      });
-      const [intelCatFilter, setIntelCatFilter] = useState("UPS");
+      const [supplyIntel, setSupplyIntel] = useState(() => DEFAULT_SUPPLY_INTEL_V12);
+      const [intelCatFilter, setIntelCatFilter] = useState("Transformers (K-Factor)");
       const [intelRatingFilter, setIntelRatingFilter] = useState("");
       const [intelUrlInput, setIntelUrlInput] = useState("./mdc_supply_intel.json");
 
@@ -3415,7 +4358,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
       useEffect(() => {
         try {
-          const parsed = StorageAdapter.loadState(null);
+          const parsed = WorkspaceStorageAdapter.loadState(null);
           if (parsed) {
             if (parsed.projects?.length) setProjects(parsed.projects.map(p => sanitizeProject(p, parsed.standards || INITIAL_STANDARDS)));
             if (parsed.editingId) setEditingId(parsed.editingId);
@@ -3444,7 +4387,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       );
 
       const eng = useMemo(
-        () => computeEngineeringV11(currentProject, skus, nonItCatalog, standards),
+        () => computeEngineeringV12(currentProject, skus, nonItCatalog, standards),
         [currentProject, skus, nonItCatalog, standards]
       );
 
@@ -3954,11 +4897,12 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       };
 
       const openDriveFolderModal = async (mode) => {
-        if (!driveToken) { handleGoogleSignIn(); return; }
         setDriveModalMode(mode);
         setDriveFolderStack([{ id: "root", name: "My Drive" }]);
         setShowDriveModal(true);
-        await fetchDriveFolderContents("root");
+        if (driveToken) {
+          await fetchDriveFolderContents("root");
+        }
       };
 
       const createDriveSubfolder = async () => {
@@ -4122,7 +5066,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       }, [supplyIntel, intelCatFilter]);
 
       return (
-        <div className="h-screen flex flex-col overflow-hidden">
+        <div className="min-h-[100dvh] lg:h-[100dvh] flex flex-col lg:overflow-hidden">
           {/* PINNED PERSISTENT TOP HEADER WITH BACK NAVIGATION + FOLDER SAVE */}
           <header className="navy-bg text-white px-3 py-2 shadow-md flex-shrink-0 z-50 border-b border-blue-900">
             <div className="max-w-[1640px] w-full mx-auto flex flex-col md:flex-row items-center justify-between gap-1.5 md:gap-2">
@@ -4193,8 +5137,11 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                   ✎ Wizard
                 </button>
 
-                <button onClick={saveCurrentDealToLocalFolder} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold flex-shrink-0" title="Save Active Deal to Chosen Local Folder">
-                  💾 Save
+                <button onClick={() => openDriveFolderModal("save")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex-shrink-0" title="Choose Local Folder or Google Drive Directory to Save">
+                  💾 Save As...
+                </button>
+                <button onClick={() => openDriveFolderModal("open")} className="touch-btn px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex-shrink-0" title="Open Deal or Catalog from Local Folder or Google Drive">
+                  📂 Open...
                 </button>
 
                 {driveToken ? (
@@ -4217,8 +5164,9 @@ function V11EngineeringGovernanceCard({ project, eng }) {
               </div>
             </div>
           </header>
+          <V12ModuleNavBar activeScreen={screen} onNavigate={navigateTo} eng={eng} />
 
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
             <div className="max-w-[1640px] w-full mx-auto p-3 sm:p-5">
 
               {/* 1. UNIFIED HUB-AND-SPOKE HOME DASHBOARD */}
@@ -4346,6 +5294,26 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                 </div>
               )}
 
+              {/* DEDICATED MODULE 02: WHITE-SPACE, INTERNAL CDUs, PACs & BRANDING */}
+              {screen === "mod_whitespace" && (
+                <V12WhiteSpaceAndBrandingModule project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} onNavigate={navigateTo} />
+              )}
+
+              {/* DEDICATED MODULE 03: CIVIL, PLINTH & BRICK-AND-MORTAR (BnM) PLANNING */}
+              {screen === "mod_civil" && (
+                <V12CivilAndStructuralModule project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
+              )}
+
+              {/* DEDICATED MODULE 05: TELECOM, CARRIER MMR & DIVERSE FIBER */}
+              {screen === "mod_telecom" && (
+                <V12TelecomAndMmrModule project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
+              )}
+
+              {/* DEDICATED MODULE 06: LOGISTICS, HEAVY-LIFT & RIGGING */}
+              {screen === "mod_logistics" && (
+                <V12LogisticsAndRiggingModule project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
+              )}
+
               {/* STANDALONE 15-POINT EXECUTIVE SOLUTION SUMMARY SCREEN */}
               {screen === "summary" && (
                 <div className="space-y-5">
@@ -4398,7 +5366,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {projects.map(p => {
-                      const pEng = computeEngineeringV11(p, skus, nonItCatalog, standards);
+                      const pEng = computeEngineeringV12(p, skus, nonItCatalog, standards);
                       return (
                         <div key={p.id} className="bg-white rounded-xl p-5 card-shadow border border-slate-200 space-y-3">
                           <div className="flex justify-between items-start">
@@ -6090,98 +7058,31 @@ function V11EngineeringGovernanceCard({ project, eng }) {
             </div>
           </main>
 
-          {/* GOOGLE DRIVE FOLDER BROWSER & CREATOR MODAL */}
-          {showDriveModal && (
-            <div className="fixed inset-0 bg-slate-950/60 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-xs">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                  <div>
-                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-black uppercase text-[10px]">
-                      {driveModalMode === "save" ? "Save Deal & Master Catalog to Google Drive" : "Open File from Google Drive"}
-                    </span>
-                    <h3 className="text-base font-bold navy-text mt-1">
-                      Current Folder: {driveFolderStack.map(f => f.name).join(" / ")}
-                    </h3>
-                  </div>
-                  <button onClick={() => setShowDriveModal(false)} className="text-slate-400 hover:text-slate-700 font-bold text-base">✕</button>
-                </div>
-
-                {/* Folder Breadcrumb Back + Create New Folder */}
-                <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                  {driveFolderStack.length > 1 && (
-                    <button
-                      onClick={() => {
-                        const next = driveFolderStack.slice(0, -1);
-                        setDriveFolderStack(next);
-                        fetchDriveFolderContents(next[next.length - 1].id);
-                      }}
-                      className="px-2.5 py-1.5 rounded bg-white border border-slate-300 font-bold"
-                    >
-                      ↑ Up Folder
-                    </button>
-                  )}
-                  <input
-                    type="text"
-                    placeholder="New folder name (e.g., Customer_Proposals)..."
-                    value={newFolderName}
-                    onChange={e => setNewFolderName(e.target.value)}
-                    className="flex-1 border rounded px-2.5 py-1.5 bg-white"
-                  />
-                  <button onClick={createDriveSubfolder} className="px-3 py-1.5 rounded navy-bg text-white font-bold">
-                    + Create Folder
-                  </button>
-                </div>
-
-                {/* Subfolders & Files List */}
-                <div className="space-y-1.5 max-h-60 overflow-y-auto border border-slate-200 rounded-xl p-2.5">
-                  {driveFolderList.map(folder => (
-                    <div
-                      key={folder.id}
-                      onClick={() => {
-                        const next = [...driveFolderStack, { id: folder.id, name: folder.name }];
-                        setDriveFolderStack(next);
-                        fetchDriveFolderContents(folder.id);
-                      }}
-                      className="cursor-pointer flex items-center justify-between p-2 rounded-lg hover:bg-blue-50 border border-transparent hover:border-blue-200"
-                    >
-                      <span className="font-bold navy-text">📁 {folder.name}</span>
-                      <span className="text-slate-400">Open Folder →</span>
-                    </div>
-                  ))}
-                  {driveFileList.map(file => (
-                    <div key={file.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold text-slate-800 truncate">📄 {file.name}</div>
-                        <div className="text-[10px] text-slate-400">{new Date(file.modifiedTime).toLocaleString()}</div>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {driveModalMode === "open" && (
-                          <button onClick={() => loadFileFromGoogleDrive(file.id, file.name)} className="px-3 py-1 rounded navy-bg text-white font-bold">
-                            Load
-                          </button>
-                        )}
-                        <button onClick={() => deleteFileFromGoogleDrive(file.id, file.name)} className="px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold" title="Move JSON to Google Drive Trash">
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {driveFolderList.length === 0 && driveFileList.length === 0 && (
-                    <div className="text-center text-slate-400 py-6">Folder is empty. Create a subfolder above or save directly here.</div>
-                  )}
-                </div>
-
-                {driveModalMode === "save" && (
-                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                    <button onClick={() => setShowDriveModal(false)} className="px-4 py-2 rounded-lg border border-slate-300 font-bold">Cancel</button>
-                    <button onClick={saveToSelectedDriveFolder} className="px-4 py-2 rounded-lg coral-bg text-white font-bold">
-                      ☁ Save Deal & Master JSON in "{driveFolderStack[driveFolderStack.length - 1].name}"
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* EXPLICIT SAVE / OPEN WORKSPACE MODAL (LOCAL DIRECTORY + GOOGLE DRIVE FOLDER BROWSER) */}
+          <V12WorkspaceSaveOpenModal
+            isOpen={showDriveModal}
+            onClose={() => setShowDriveModal(false)}
+            mode={driveModalMode}
+            currentProject={currentProject}
+            skus={skus}
+            containerCatalog={containerCatalog}
+            nonItCatalog={nonItCatalog}
+            standards={standards}
+            driveToken={driveToken}
+            onGoogleSignIn={handleGoogleSignIn}
+            driveFolderStack={driveFolderStack}
+            setDriveFolderStack={setDriveFolderStack}
+            driveFolderList={driveFolderList}
+            driveFileList={driveFileList}
+            fetchDriveFolderContents={fetchDriveFolderContents}
+            newFolderName={newFolderName}
+            setNewFolderName={setNewFolderName}
+            createDriveSubfolder={createDriveSubfolder}
+            saveToSelectedDriveFolder={saveToSelectedDriveFolder}
+            loadFileFromGoogleDrive={loadFileFromGoogleDrive}
+            deleteFileFromGoogleDrive={deleteFileFromGoogleDrive}
+            onImportLocalFile={importDealFromLocalFile}
+          />
 
           {/* DEAL-LEVEL SPECIAL VENDOR PRICING DIALOG BOX */}
           {quoteModalItem && (
