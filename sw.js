@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mdc-configurator-v10.5';
+const CACHE_NAME = 'mdc-configurator-v11.0';
 const ASSETS = [
   './',
   './index.html',
