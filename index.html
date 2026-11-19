@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V12.3 Enterprise)</title>
+  <title>AI Modular Data Center Configurator (V12.4 Enterprise)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -3324,7 +3324,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       const openYardBlocks = [
         { label: `Open-Pad Trafos (${eng?.yardBreakdown?.substationSqm ?? 0}m²)`, col: palette.transformer, y: 104 },
         { label: `Canopy DGs/PESO (${eng?.yardBreakdown?.dgPesoSqm ?? 0}m²)`, col: palette.dgSet, y: 168 },
-        { label: `Yard Coolers/Tanks (${eng?.yardBreakdown?.coolerChillerSqm ?? 0 + eng?.yardBreakdown?.waterTankSqm ?? 0}m²)`, col: palette.coolerTank, y: 232 },
+        { label: `Yard Coolers/Tanks (${(eng?.yardBreakdown?.coolerChillerSqm ?? 0) + (eng?.yardBreakdown?.waterTankSqm ?? 0)}m²)`, col: palette.coolerTank, y: 232 },
         { label: `CDU/Pump Skids (${eng?.yardBreakdown?.cduPumpSqm ?? 0}m²)`, col: palette.cduPump, y: 296 }
       ];
       openYardBlocks.forEach(b => {
@@ -4417,8 +4417,8 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                 <div className="font-bold navy-text uppercase">3-Zone Area Breakdown</div>
                 <div className="flex justify-between"><span>Net Buildable (72%):</span><span className="font-bold">{Math.round(eng.netBuildableSqm).toLocaleString()} m² ({(eng.netBuildableSqm/4046.8564).toFixed(2)} ac)</span></div>
                 <div className="flex justify-between text-blue-900"><span>Zone A (IT + Admin/Stage):</span><span className="font-bold">{Math.round(eng.totalItWhiteSpaceSqm + eng?.yardBreakdown?.adminStagingSqm ?? 0).toLocaleString()} m²</span></div>
-                <div className="flex justify-between text-pink-900"><span>Zone B (UPS/BESS Pods):</span><span className="font-bold">{eng?.yardBreakdown?.upsBessSqm ?? 0.toLocaleString()} m²</span></div>
-                <div className="flex justify-between text-slate-700"><span>Zone C (Open MEP/DG Yard):</span><span className="font-bold">{(eng.totalNonItYardSqm - eng?.yardBreakdown?.upsBessSqm ?? 0 - eng?.yardBreakdown?.adminStagingSqm ?? 0).toLocaleString()} m²</span></div>
+                <div className="flex justify-between text-pink-900"><span>Zone B (UPS/BESS Pods):</span><span className="font-bold">{(eng?.yardBreakdown?.upsBessSqm ?? 0).toLocaleString()} m²</span></div>
+                <div className="flex justify-between text-slate-700"><span>Zone C (Open MEP/DG Yard):</span><span className="font-bold">{Math.max(0, (eng?.totalNonItYardSqm ?? 0) - (eng?.yardBreakdown?.upsBessSqm ?? 0) - (eng?.yardBreakdown?.adminStagingSqm ?? 0)).toLocaleString()} m²</span></div>
                 <div className="flex justify-between items-center pt-1 border-t border-slate-200">
                   <span>Total Campus Occupied:</span>
                   <span className={`px-2 py-0.5 rounded font-bold ${eng.plotUtilizationPct > 90 ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}`}>
