@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V10.5)</title>
+  <title>AI Modular Data Center Configurator (V11.0 Enterprise)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -42,7 +42,574 @@
 
     const DEFAULT_CLIENT_ID = "941977076757-tknvrhuu59prsnu3lrb7gms61012vcld.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const STORAGE_KEY = "ai_mdc_studio_v10_5_enterprise";
+    const STORAGE_KEY = "ai_mdc_studio_v11_0_enterprise";
+
+// ============================================================================
+// MDC CONFIGURATOR V11.0 — PART 1: CORE ENGINE, STORAGE ADAPTER & DATA MODELS
+// ============================================================================
+
+
+// 1. MODULAR STORAGE & AUTH ADAPTER (Decouples LocalStorage & Drive for future DB/RBAC)
+const StorageAdapter = {
+  mode: "local_drive", // Ready to swap to "postgres_rbac" in Phase 2
+  loadState(fallback) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("ai_mdc_studio_v10_5_enterprise");
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  },
+  saveState(stateObj) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateObj));
+      return { ok: true, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  },
+  async syncToDrive(driveToken, folderId, filesPayload) {
+    if (!driveToken) throw new Error("Not authenticated with Google Drive");
+    const results = [];
+    for (const f of filesPayload) {
+      const meta = { name: f.name, mimeType: "application/json", parents: [folderId] };
+      const form = new FormData();
+      form.append("metadata", new Blob([JSON.stringify(meta)], { type: "application/json" }));
+      form.append("file", new Blob([JSON.stringify(f.data, null, 2)], { type: "application/json" }));
+      const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${driveToken}` },
+        body: form
+      });
+      results.push({ name: f.name, ok: res.ok });
+    }
+    return results;
+  }
+};
+
+// 2. UPGRADED NON-IT CATALOG WITH MII %, ISOLATED PG25 GLYCOL, TELECOM, LOGISTICS & HARDENING
+const V11_CATALOG_ADDITIONS = [
+  // Factory-Isolated PG25 Glycol & Separate Operational Consumables
+  { id: "glycol-pg25-lot", group: "glycol_fluid", category: "Consumables & Operational Chemicals", label: "Factory-Isolated Inhibited PG25 Glycol Fluid (5000L Lot)", ratedCapacity: 5000, capacityUnit: "L", footprintSqm: 0, unit: "per 5000L lot", cost: 1150000, make: "Dow / Arteco", model: "DOWFROST-HD-PG25", miiPct: 85, origin: "India Blended" },
+  { id: "chem-consumables-lot", group: "consumables", category: "Consumables & Operational Chemicals", label: "RO/DM Resins, Anti-Scalants, Biocides & Scrubber Media Lot", ratedCapacity: 1, capacityUnit: "lot", footprintSqm: 0, unit: "per pod/yr", cost: 420000, make: "Thermax / Ion Exchange", model: "INDION-DC-CHEM", miiPct: 92, origin: "India" },
+
+  // Container & Rack Branding Engine (Supports Deferred Artwork Workflow)
+  { id: "custom-branding-pkg", group: "branding", category: "Modular Enclosures & Civil", label: "Customer Exterior/Interior RAL Coating, Rack Bezel & Logo Prep", ratedCapacity: 1, capacityUnit: "pod", footprintSqm: 0, unit: "per pod", cost: 450000, make: "Jotun / AkzoNobel / 3M", model: "C5M-CUSTOM-BRAND", miiPct: 90, origin: "India" },
+
+  // Brick & Mortar (BnM) Hall Wrapper Alternative
+  { id: "bnm-hall-wrapper", group: "bnm_shell", category: "Modular Enclosures & Civil", label: "Brick-and-Mortar (BnM) Fire-Rated Technical Hall Structure", ratedCapacity: 1000, capacityUnit: "kW", footprintSqm: 45, unit: "per MW eq", cost: 14000000, make: "L&T / Tata Projects", model: "NBC-2HR-BNM-HALL", miiPct: 96, origin: "India" },
+
+  // Grid Protection (20% Load-Drop Shield: Fast Load Bank + LFP BESS Buffer)
+  { id: "grid-load-shield", group: "grid_shield", category: "Backup Power & Energy Storage", label: "20% Dynamic Load-Drop Shield (Fast Load Bank + Grid BESS Buffer)", ratedCapacity: 3000, capacityUnit: "kW", footprintSqm: 28, unit: "per 3MW block", cost: 18500000, make: "Sungrow / Crestchic", model: "GRID-SHIELD-3MW", miiPct: 74, origin: "India Assembled" },
+
+  // Perimeter Hardening (K12/M50 Anti-Ram & Dual-Door Mantraps + H2S/SO2 Scrubbers + #316 Rodent Mesh)
+  { id: "k12-mantrap-pkg", group: "k12_security", category: "BMS, Fire Suppression & Security", label: "K12/M50 Anti-Ram Bollards, Biometric Mantrap & #316 Rodent Armor", ratedCapacity: 1, capacityUnit: "site", footprintSqm: 0, unit: "per campus", cost: 3400000, make: "Gunnebo / Avon Barrier", model: "K12-MANTRAP-PRO", miiPct: 82, origin: "India" },
+  { id: "gas-scrubber-unit", group: "scrubber", category: "Liquid Cooling & Heat Rejection", label: "ISA G1 Chemical Air Scrubber (H2S / SO2 / NOx Filtration)", ratedCapacity: 1, capacityUnit: "pod", footprintSqm: 4, unit: "per pod", cost: 1250000, make: "Bry-Air / Camfil", model: "GBS-ISA-G1", miiPct: 86, origin: "India" },
+
+  // Telecom, Carrier MMR & Backend AI Fabric
+  { id: "telecom-mmr-fabric", group: "telecom", category: "Telecom, MMR & AI Fabric", label: "Carrier-Neutral MMR ODF Bays, Diverse Dual Fiber Vaults & Raceways", ratedCapacity: 1, capacityUnit: "system", footprintSqm: 18, unit: "per MMR", cost: 4800000, make: "Sterlite Tech / Corning", model: "MMR-288F-LSZH", miiPct: 88, origin: "India" },
+
+  // Logistics, Heavy-Lift Cranes & Rigging Manifest
+  { id: "logistics-rigging-pkg", group: "logistics", category: "Logistics & Heavy-Lift Rigging", label: "Low-Bed Trailers, 250T Mobile Crane, Azobe Mats, Skates & Shims", ratedCapacity: 1, capacityUnit: "pod", footprintSqm: 0, unit: "per pod move", cost: 1650000, make: "All-Terrain / Nakoda", model: "HEAVY-RIG-250T", miiPct: 100, origin: "India" }
+];
+
+// 3. V11 PROJECT DEFAULTS (Adds Shell Type, Deferred Branding, Civil, Telecom, Logistics & Hardening)
+function extendProjectDefaultsV11(proj) {
+  return {
+    shellArchitecture: "Container", // "Container" | "BnM_Hall"
+    // Branding Engine (Supports Deferred Artwork Caveat)
+    brandingMode: "custom_tbd", // "standard" | "custom_ready" | "custom_tbd"
+    exteriorColorHex: "#002870",
+    exteriorRalLabel: "RAL 5002 Ultramarine Blue",
+    interiorColorHex: "#F8FAFC",
+    interiorRalLabel: "RAL 9016 Traffic White",
+    rackBezelFinish: "Matte Black + Brand Orange Trim",
+    clientLogoDataUrl: "",
+    // Site Hardening & Telecom & Logistics
+    includeK12Mantrap: true,
+    includeGasScrubber: proj.cityQuery?.toLowerCase().includes("delhi") || proj.cityQuery?.toLowerCase().includes("vadodara"),
+    includeGridLoadShield: true,
+    includeTelecomMmr: true,
+    includeLogisticsRigging: true,
+    fabricType: "InfiniBand NDR (800G OSFP)",
+    approachRoadWidthM: 12,
+    craneWorkingRadiusM: 10,
+    ...proj
+  };
+}
+
+// 4. V11 EXTENDED ENGINEERING CALCULATOR (Wraps V10.5 computeEngineering)
+function computeEngineeringV11(rawProject, skus, nonItCatalog, standards) {
+  const project = extendProjectDefaultsV11(rawProject);
+  const fullCatalog = [
+    ...nonItCatalog.map(i => ({ miiPct: i.miiPct ?? 82, origin: i.origin ?? "India", ...i })),
+    ...V11_CATALOG_ADDITIONS
+  ];
+  const baseEng = computeEngineering(project, skus, fullCatalog, standards);
+
+  // A. Civil & Structural Point-Load Engineering
+  const isBnM = project.shellArchitecture === "BnM_Hall";
+  const floodPlinthMm = (project.cityQuery || "").toLowerCase().match(/mumbai|chennai|kolkata|kochi/) ? 900 : (project.seismicZone === "Zone IV" || project.seismicZone === "Zone V" ? 750 : 600);
+  const unitGrossTonnes = isBnM
+    ? Number(((baseEng.totalDesignContKw / Math.max(1, baseEng.pods.length)) * 0.012).toFixed(1))
+    : Number(((baseEng.pods[0]?.grossRiggingKg || 28000) / 1000).toFixed(1));
+  const floorPressureKpa = Number(((unitGrossTonnes * 9.81) / (isBnM ? 45.0 : 29.7)).toFixed(1));
+  const cornerNodeKn = Math.round((unitGrossTonnes * 9.81) / 4);
+
+  // B. Grid Protection (20% Sudden Load-Drop Shield)
+  const loadDropShieldMw = Number(((baseEng.totalDesignContKw / 1000) * 0.20).toFixed(2));
+
+  // C. Telecom MMR & AI Fabric Sizing
+  const mmrOdfBays = Math.max(2, Math.ceil(baseEng.pods.length / 2));
+  const fabricTransceivers = baseEng.activeRacks.length * 8;
+  const overheadFiberMeters = baseEng.pods.length * 28;
+
+  // D. Logistics, Turning Radius & Crane Ground Bearing Pressure
+  const trailerCount = isBnM ? Math.max(2, Math.ceil(baseEng.pods.length / 2)) : baseEng.pods.length;
+  const minTurningRadiusM = project.approachRoadWidthM >= 12 ? 16.5 : 18.0;
+  const craneTonnage = project.craneWorkingRadiusM <= 10 ? 250 : 350;
+  const outriggerGroundKpa = Math.round((unitGrossTonnes * 9.81 * 1.35) / 4.5);
+  const laydownStagingSqm = Math.max(180, trailerCount * 65);
+
+  // E. Per-Container / Hall Bay Datasheet Generator (Respects Deferred Branding Caveat)
+  const unitDatasheets = baseEng.pods.map((p, idx) => {
+    const unitId = isBnM ? `BNM-BAY-${String(idx + 1).padStart(2, "0")}` : `MDC-POD-${String(idx + 1).padStart(2, "0")}`;
+    const artworkStatus = project.brandingMode === "standard"
+      ? "OEM Standard Finish"
+      : project.brandingMode === "custom_ready"
+        ? "Client Vector Logo Applied"
+        : "[CLIENT ARTWORK PENDING — FILES LATER]";
+    return {
+      unitId,
+      shellSpec: isBnM ? "2-Hr Fire-Rated RCC Technical Bay" : `${(p.extLengthMm / 1000).toFixed(2)}m ISO Corten-A Shell`,
+      itKw: Math.round(p.designContKw),
+      rackCount: p.racks.length,
+      grossTonnes: isBnM ? unitGrossTonnes : Number((p.grossRiggingKg / 1000).toFixed(1)),
+      coatingSpec: project.brandingMode === "standard" ? "RAL 7035 Standard Industrial" : `Ext: ${project.exteriorRalLabel} / Int: ${project.interiorRalLabel}`,
+      rackFinish: project.rackBezelFinish,
+      artworkStatus
+    };
+  });
+
+  // F. Make-in-India (MII) Weighted Local Content Scoring across BOM
+  let totalWeightedMii = 0;
+  let totalPreTax = 0;
+  baseEng.bomItems.forEach(item => {
+    const catMeta = fullCatalog.find(c => c.id === item.key) || { miiPct: 84 };
+    item.miiPct = catMeta.miiPct;
+    totalWeightedMii += item.sellingPreTax * catMeta.miiPct;
+    totalPreTax += item.sellingPreTax;
+  });
+  const overallMiiPct = totalPreTax > 0 ? Number((totalWeightedMii / totalPreTax).toFixed(1)) : 85.0;
+  const miiClassLabel = overallMiiPct >= 50 ? `Class-I Local Supplier (${overallMiiPct}%)` : `Class-II Local Supplier (${overallMiiPct}%)`;
+
+  // G. L1-L5 Commissioning & Load-Bank IST Sign-Off Matrix
+  const commissioningSchedule = [
+    { level: "L1 — Factory Acceptance Test (FAT)", scope: "Container hydro-test (1.5× MAWP), busway hi-pot, CDU & switchgear FAT", gate: "Pre-Dispatch Release" },
+    { level: "L2 — Site Acceptance & Civil Verification", scope: `+${floodPlinthMm}mm RCC plinth level check, M30 seismic anchor torque, crane rigging`, gate: "Installation Sign-Off" },
+    { level: "L3 — Pre-Functional & Cold Commissioning", scope: "SS316L flushing, 50μ strainer check, factory PG25 glycol fill, IBMS point-to-point", gate: "Energization Permit (CEIG)" },
+    { level: "L4 — Functional Subsystem Testing", scope: "UPS battery discharge, CPCB IV+ DG auto-transfer, VESDA/Novec interlocks", gate: "Subsystems Ready" },
+    { level: "L5 — Integrated Systems Testing (IST)", scope: `100% heat-load bank run + ${loadDropShieldMw} MW sudden load-rejection simulation`, gate: "Handover & SLA Start" }
+  ];
+
+  return {
+    ...baseEng,
+    civil: { isBnM, floodPlinthMm, unitGrossTonnes, floorPressureKpa, cornerNodeKn },
+    gridShield: { loadDropShieldMw },
+    telecom: { mmrOdfBays, fabricTransceivers, overheadFiberMeters, fabricType: project.fabricType },
+    logistics: { trailerCount, minTurningRadiusM, craneTonnage, outriggerGroundKpa, laydownStagingSqm },
+    unitDatasheets,
+    mii: { overallMiiPct, miiClassLabel },
+    commissioningSchedule
+  };
+}
+
+
+// ============================================================================
+// MDC CONFIGURATOR V11.0 — PART 2: UI MODULES, CAD BLUEPRINTS & SLD ENGINE
+// ============================================================================
+
+// 1. CRASH-HARDENED FULL YARD-TO-HALL ELECTRICAL SLD (E-201) + CIVIL PLINTH CAD (C-101)
+function renderV11ElectricalSldSvg(project, eng, palette) {
+  const safeProj = extendProjectDefaultsV11(project || {});
+  const itMw = Number(((eng?.totalDesignContKw || 0) / 1000).toFixed(2));
+  const shieldMw = eng?.gridShield?.loadDropShieldMw ?? Number((itMw * 0.20).toFixed(2));
+  const trafoCount = eng?.transformerUnits || 2;
+  const trafoKva = eng?.selTrafo?.ratedCapacity || 2500;
+  const dgCount = eng?.dgUnitsCount || 2;
+  const dgKva = eng?.selDg?.ratedCapacity || 2250;
+  const upsCount = eng?.upsContainersCount || 2;
+  const upsKva = eng?.selUps?.ratedCapacity || 1500;
+  const podCount = eng?.pods?.length || 1;
+  const cPod = palette?.itPod || "#002870";
+  const cTrafo = palette?.transformer || "#1C38F5";
+  const cUps = palette?.upsBess || "#00B290";
+  const cDg = palette?.dgSet || "#DC2626";
+
+  return (
+    <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border border-slate-300 bg-white">
+      <rect x="0" y="0" width="1100" height="460" fill="#FFFFFF" />
+      <rect x="14" y="14" width="1072" height="432" fill="none" stroke="#002870" strokeWidth="2" />
+      <text x="32" y="40" fill="#FF5539" fontSize="14" fontWeight="bold">
+        SHEET E-201: YARD-TO-HALL ELECTRICAL SLD — {safeProj.name} ({safeProj.uptimeTier} • CEIG & NBCS 2026)
+      </text>
+
+      {/* 1. EHV / HT Utility Incoming Feed */}
+      <rect x="380" y="54" width="340" height="42" rx="4" fill="#002870" />
+      <text x="550" y="72" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle">
+        33kV / 66kV DUAL UTILITY SUBSTATION INCOMING
+      </text>
+      <text x="550" y="88" fill="#FFB600" fontSize="9.5" textAnchor="middle">
+        RoCoF & Vector-Shift Grid Relays • Type 1+2 SPD
+      </text>
+
+      {/* Bus Split to Path A & Path B */}
+      <line x1="550" y1="96" x2="550" y2="114" stroke="#0F172A" strokeWidth="2" />
+      <line x1="280" y1="114" x2="820" y2="114" stroke="#0F172A" strokeWidth="2" />
+      <line x1="280" y1="114" x2="280" y2="132" stroke="#0F172A" strokeWidth="2" />
+      <line x1="820" y1="114" x2="820" y2="132" stroke="#0F172A" strokeWidth="2" />
+
+      {/* 2. HT VCB + K-Factor Step-Down Transformers */}
+      <rect x="130" y="132" width="300" height="52" rx="4" fill={cTrafo} />
+      <text x="280" y="153" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">
+        PATH A: HT VCB + {Math.ceil(trafoCount / 2)}×{trafoKva}kVA K-13 Tx
+      </text>
+      <text x="280" y="170" fill="#E0E7FF" fontSize="9.5" textAnchor="middle">
+        200% Neutral • Solidly Grounded • CEIG Certified
+      </text>
+
+      <rect x="670" y="132" width="300" height="52" rx="4" fill={cTrafo} />
+      <text x="820" y="153" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">
+        PATH B: HT VCB + {Math.floor(trafoCount / 2) || 1}×{trafoKva}kVA K-13 Tx
+      </text>
+      <text x="820" y="170" fill="#E0E7FF" fontSize="9.5" textAnchor="middle">
+        200% Neutral • Solidly Grounded • CEIG Certified
+      </text>
+
+      <line x1="280" y1="184" x2="280" y2="206" stroke="#0F172A" strokeWidth="2" />
+      <line x1="820" y1="184" x2="820" y2="206" stroke="#0F172A" strokeWidth="2" />
+
+      {/* 3. Main LV PCC + CPCB IV+ DG Auto-Sync */}
+      <rect x="130" y="206" width="840" height="44" rx="4" fill="#F1F5F9" stroke="#0F172A" strokeWidth="2" />
+      <text x="550" y="225" fill="#002870" fontSize="11" fontWeight="bold" textAnchor="middle">
+        415V MAIN LV PCC SWITCHGEAR + {dgCount}×{dgKva}kVA CPCB IV+ DG AUTO-SYNC BUS
+      </text>
+      <text x="550" y="241" fill="#475569" fontSize="9.5" textAnchor="middle">
+        IEEE C37 Selective Breaker Coordination • Form-4B Drawout Switchboard
+      </text>
+
+      {/* Branch Lines */}
+      <line x1="250" y1="250" x2="250" y2="278" stroke="#0F172A" strokeWidth="2" />
+      <line x1="550" y1="250" x2="550" y2="278" stroke="#FF5539" strokeWidth="2.5" />
+      <line x1="850" y1="250" x2="850" y2="278" stroke="#0F172A" strokeWidth="2" />
+
+      {/* 4A. Modular UPS + IP55 Sandwich Busduct A */}
+      <rect x="110" y="278" width="280" height="58" rx="4" fill={cUps} />
+      <text x="250" y="300" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">
+        UPS A ({Math.ceil(upsCount / 2)}×{upsKva}kVA) + IP55 BUSDUCT A
+      </text>
+      <text x="250" y="317" fill="#ECFDF5" fontSize="9.5" textAnchor="middle">
+        1600A/2500A Sandwich Busway to Hall PDUs
+      </text>
+
+      {/* 4B. 20% Grid Load-Drop Shield (BESS + Dynamic Load Bank) */}
+      <rect x="415" y="278" width="270" height="58" rx="4" fill="#FFF7ED" stroke="#FF5539" strokeWidth="2" />
+      <text x="550" y="300" fill="#C2410C" fontSize="10.5" fontWeight="bold" textAnchor="middle">
+        20% LOAD-DROP SHIELD ({shieldMw} MW)
+      </text>
+      <text x="550" y="317" fill="#7C2D12" fontSize="9.5" textAnchor="middle">
+        Grid LFP BESS + Fast Dynamic Load Bank
+      </text>
+
+      {/* 4C. Modular UPS + IP55 Sandwich Busduct B */}
+      <rect x="710" y="278" width="280" height="58" rx="4" fill={cUps} />
+      <text x="850" y="300" fill="#FFFFFF" fontSize="10.5" fontWeight="bold" textAnchor="middle">
+        UPS B ({Math.floor(upsCount / 2) || 1}×{upsKva}kVA) + IP55 BUSDUCT B
+      </text>
+      <text x="850" y="317" fill="#ECFDF5" fontSize="9.5" textAnchor="middle">
+        1600A/2500A Sandwich Busway to Hall PDUs
+      </text>
+
+      {/* 5. Final IT Hall Racks */}
+      <line x1="250" y1="336" x2="250" y2="365" stroke={cUps} strokeWidth="2" />
+      <line x1="850" y1="336" x2="850" y2="365" stroke={cUps} strokeWidth="2" />
+      <rect x="160" y="365" width="780" height="46" rx="4" fill={cPod} />
+      <text x="550" y="385" fill="#FFFFFF" fontSize="11" fontWeight="bold" textAnchor="middle">
+        CRITICAL AI COMPUTE HALLS: {itMw} MW IT LOAD ACROSS {podCount} {eng?.civil?.isBnM ? "BnM BAYS" : "MODULAR PODS"}
+      </text>
+      <text x="550" y="401" fill="#CBD5E1" fontSize="9.5" textAnchor="middle">
+        Dual-Corded Intelligent rPDUs • Exothermic Welded Copper Earthing Grid (NBCS 2026)
+      </text>
+    </svg>
+  );
+}
+
+function renderV11CivilPlinthSvg(project, eng) {
+  const safeProj = extendProjectDefaultsV11(project || {});
+  const plinthMm = eng?.civil?.floodPlinthMm || 750;
+  const isBnM = eng?.civil?.isBnM || false;
+  const extHex = safeProj.exteriorColorHex || "#002870";
+  const weightT = eng?.civil?.unitGrossTonnes || 32;
+  const kpa = eng?.civil?.floorPressureKpa || 18.5;
+  const nodeKn = eng?.civil?.cornerNodeKn || 85;
+
+  return (
+    <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border border-slate-300 bg-white">
+      <rect x="0" y="0" width="1100" height="460" fill="#FFFFFF" />
+      <rect x="14" y="14" width="1072" height="432" fill="none" stroke="#002870" strokeWidth="2" />
+      <text x="32" y="40" fill="#FF5539" fontSize="14" fontWeight="bold">
+        SHEET C-101: STRUCTURAL & RAISED RCC PLINTH BLUEPRINT — {safeProj.seismicLabel}
+      </text>
+
+      {/* Shell / Bay Elevation */}
+      <rect x="220" y="72" width="520" height="145" fill={extHex} fillOpacity="0.14" stroke={extHex} strokeWidth="2.5" />
+      <text x="480" y="132" fill="#002870" fontSize="13" fontWeight="bold" textAnchor="middle">
+        {isBnM ? "BRICK-AND-MORTAR (BnM) 2-HR FIRE-RATED HALL BAY" : "40ft HC CORTEN-A MODULAR CONTAINER POD"}
+      </text>
+      <text x="480" y="154" fill="#334155" fontSize="11" textAnchor="middle">
+        Gross Weight: {weightT} Tonnes • Floor Loading: {kpa} kN/m² • Corner Reaction: {nodeKn} kN/node
+      </text>
+      <text x="480" y="176" fill="#00B290" fontSize="10.5" fontWeight="bold" textAnchor="middle">
+        Coating: {safeProj.brandingMode === "standard" ? "RAL 7035 OEM Standard" : `${safeProj.exteriorRalLabel} / ${safeProj.interiorRalLabel}`}
+      </text>
+
+      {/* M30 Seismic Hold-Down Shear Plates */}
+      <rect x="215" y="207" width="28" height="16" fill="#FF5539" />
+      <rect x="717" y="207" width="28" height="16" fill="#FF5539" />
+      <text x="229" y="199" fill="#FF5539" fontSize="10" fontWeight="bold" textAnchor="middle">M30 Seismic Anchor</text>
+      <text x="731" y="199" fill="#FF5539" fontSize="10" fontWeight="bold" textAnchor="middle">M30 Seismic Anchor</text>
+
+      {/* Raised RCC Plinth */}
+      <rect x="190" y="223" width="580" height="58" fill="#CBD5E1" stroke="#334155" strokeWidth="2" />
+      <text x="480" y="256" fill="#0F172A" fontSize="12" fontWeight="bold" textAnchor="middle">
+        M35 REINFORCED CEMENT CONCRETE (RCC) PLINTH (+{plinthMm} mm FLOOD LIFT)
+      </text>
+
+      {/* Flood Height Callout */}
+      <line x1="165" y1="223" x2="165" y2="281" stroke="#FF5539" strokeWidth="2.5" />
+      <text x="155" y="256" fill="#FF5539" fontSize="11" fontWeight="bold" textAnchor="end">+{plinthMm} mm</text>
+
+      {/* 1:50 Sloping Perimeter Apron & Storm Trenches */}
+      <line x1="60" y1="288" x2="190" y2="281" stroke="#00B290" strokeWidth="3" />
+      <line x1="770" y1="281" x2="900" y2="288" stroke="#00B290" strokeWidth="3" />
+      <text x="125" y="274" fill="#00B290" fontSize="10" fontWeight="bold" textAnchor="middle">1:50 Apron Slope</text>
+      <text x="835" y="274" fill="#00B290" fontSize="10" fontWeight="bold" textAnchor="middle">1:50 Apron Slope</text>
+
+      <rect x="35" y="288" width="45" height="40" fill="#E0F2FE" stroke="#0284C7" strokeWidth="1.5" />
+      <text x="57" y="344" fill="#0284C7" fontSize="10" fontWeight="bold" textAnchor="middle">Storm Drain</text>
+      <rect x="880" y="288" width="45" height="40" fill="#E0F2FE" stroke="#0284C7" strokeWidth="1.5" />
+      <text x="902" y="344" fill="#0284C7" fontSize="10" fontWeight="bold" textAnchor="middle">Storm Drain</text>
+
+      {/* Compacted WMM Sub-Base */}
+      <rect x="170" y="281" width="620" height="46" fill="#E2E8F0" stroke="#64748B" strokeDasharray="4" />
+      <text x="480" y="308" fill="#475569" fontSize="10.5" textAnchor="middle">
+        Compacted WMM Sub-Base + Waterproof HDPE Geo-Membrane + Exothermic Copper Earth Mat
+      </text>
+
+      {/* Right Side Structural & Logistics Callout */}
+      <rect x="785" y="72" width="280" height="175" rx="6" fill="#F8FAFC" stroke="#CBD5E1" />
+      <text x="800" y="96" fill="#002870" fontSize="11.5" fontWeight="bold">Civil & Heavy-Lift Rigging Specs</text>
+      <text x="800" y="120" fill="#334155" fontSize="10.5">• Crane: {eng?.logistics?.craneTonnage || 250}T Mobile Telescopic</text>
+      <text x="800" y="142" fill="#334155" fontSize="10.5">• Outrigger Bearing: {eng?.logistics?.outriggerGroundKpa || 180} kN/m²</text>
+      <text x="800" y="164" fill="#334155" fontSize="10.5">• Swept Turning Circle: {eng?.logistics?.minTurningRadiusM || 16.5}m</text>
+      <text x="800" y="186" fill="#334155" fontSize="10.5">• Laydown Staging: {eng?.logistics?.laydownStagingSqm || 240} m²</text>
+      <text x="800" y="208" fill="#334155" fontSize="10.5">• Telecom MMR: {eng?.telecom?.mmrOdfBays || 4}× ODF Bays</text>
+      <text x="800" y="230" fill="#00B290" fontSize="10.5" fontWeight="bold">• MII Score: {eng?.mii?.miiClassLabel || "Class-I (85%)"}</text>
+    </svg>
+  );
+}
+
+// 2. CONTAINER VS. BnM SHELL & CUSTOMER BRANDING PANEL (WITH DEFERRED ARTWORK CAVEAT)
+function V11ShellAndBrandingPanel({ project, eng, onUpdateProject }) {
+  const safeProj = extendProjectDefaultsV11(project);
+
+  const handleClientLogo = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      onUpdateProject({ clientLogoDataUrl: ev.target.result, brandingMode: "custom_ready" });
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const exportUnitDatasheets = () => {
+    const rowsHtml = (eng.unitDatasheets || []).map(u => `
+      <tr>
+        <td><b>${u.unitId}</b></td>
+        <td>${u.shellSpec}</td>
+        <td>${u.itKw} kW (${u.rackCount} Racks)</td>
+        <td>${u.grossTonnes} T</td>
+        <td>${u.coatingSpec}</td>
+        <td>${u.rackFinish}</td>
+        <td>${u.artworkStatus}</td>
+      </tr>
+    `).join("");
+    const w = window.open("", "_blank");
+    w.document.write(`
+      <html><head><title>Per-Unit Container & Rack Datasheets - ${safeProj.name}</title>
+      <style>body{font-family:Inter,sans-serif;padding:24px;color:#0F172A;font-size:12px}h2{color:#002870;border-bottom:2px solid #FF5539;padding-bottom:6px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #CBD5E1;padding:8px;text-align:left}th{background:#002870;color:#fff}</style>
+      </head><body>
+      <h2>Individual Unit Technical & Branding Datasheets — ${safeProj.name}</h2>
+      <p><b>Client:</b> ${safeProj.client || "Enterprise Authority"} | <b>Site:</b> ${safeProj.cityQuery} (${safeProj.seismicLabel}) | <b>MII Status:</b> ${eng.mii?.miiClassLabel}</p>
+      <table><thead><tr><th>Unit ID</th><th>Enclosure / Bay Spec</th><th>IT Load & Racks</th><th>Gross Weight</th><th>Exterior / Interior Coating</th><th>Rack Branding</th><th>Artwork Status</th></tr></thead>
+      <tbody>${rowsHtml}</tbody></table>
+      <script>window.print();<\/script></body></html>
+    `);
+    w.document.close();
+  };
+
+  return (
+    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+        <div>
+          <h4 className="font-bold navy-text text-sm">Enclosure Wrapper (Container vs. Brick-and-Mortar) & Customer Branding</h4>
+          <p className="text-slate-500">Supports deferred customer logo uploads while locking custom RAL coating & rack bezel costs into the BOQ.</p>
+        </div>
+        <button onClick={exportUnitDatasheets} className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold">
+          🖨 Export Per-Unit Datasheets (.PDF)
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="block font-bold text-slate-700 mb-1">1. Structural Wrapper Mode</label>
+          <select
+            value={safeProj.shellArchitecture}
+            onChange={e => onUpdateProject({ shellArchitecture: e.target.value })}
+            className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold navy-text"
+          >
+            <option value="Container">Modular ISO Corten-A Containers</option>
+            <option value="BnM_Hall">Brick-and-Mortar (BnM) Fire-Rated Hall Wrapper</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block font-bold text-slate-700 mb-1">2. Customer Branding & Artwork Status</label>
+          <select
+            value={safeProj.brandingMode}
+            onChange={e => onUpdateProject({ brandingMode: e.target.value })}
+            className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold"
+          >
+            <option value="standard">Standard OEM Finish (RAL 7035)</option>
+            <option value="custom_ready">Customer Branding (Vector Logo Ready)</option>
+            <option value="custom_tbd">Customer Branding Requested (Artwork Files Later)</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block font-bold text-slate-700 mb-1">3. Rack Enclosure / Bezel Branding</label>
+          <select
+            value={safeProj.rackBezelFinish}
+            onChange={e => onUpdateProject({ rackBezelFinish: e.target.value })}
+            className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white"
+          >
+            <option value="Matte Black + Brand Orange Trim">Matte Black + Brand Orange Trim</option>
+            <option value="Sovereign White Enclosure (RAL 9016)">Sovereign White Enclosure (RAL 9016)</option>
+            <option value="Custom Client RAL & Door Emblem (TBD)">Custom Client RAL & Door Emblem (TBD)</option>
+          </select>
+        </div>
+      </div>
+
+      {safeProj.brandingMode !== "standard" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+          <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200">
+            <input type="color" value={safeProj.exteriorColorHex} onChange={e => onUpdateProject({ exteriorColorHex: e.target.value })} className="w-7 h-7 cursor-pointer" />
+            <div className="flex-1">
+              <span className="text-[10px] text-slate-400 block">Exterior Shell RAL</span>
+              <input type="text" value={safeProj.exteriorRalLabel} onChange={e => onUpdateProject({ exteriorRalLabel: e.target.value })} className="w-full font-bold text-xs outline-none" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200">
+            <input type="color" value={safeProj.interiorColorHex} onChange={e => onUpdateProject({ interiorColorHex: e.target.value })} className="w-7 h-7 cursor-pointer" />
+            <div className="flex-1">
+              <span className="text-[10px] text-slate-400 block">Interior Wall RAL</span>
+              <input type="text" value={safeProj.interiorRalLabel} onChange={e => onUpdateProject({ interiorRalLabel: e.target.value })} className="w-full font-bold text-xs outline-none" />
+            </div>
+          </div>
+          <div className="bg-white p-2 rounded-lg border border-slate-200">
+            <span className="text-[10px] text-slate-400 block">Upload Client Vector / PNG Logo (Optional Now)</span>
+            <input type="file" accept="image/*" onChange={handleClientLogo} className="text-[11px] w-full mt-0.5" />
+          </div>
+        </div>
+      )}
+
+      {safeProj.brandingMode === "custom_tbd" && (
+        <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-950 font-medium">
+          <strong>Deferred Artwork Caveat Active:</strong> Custom paint booth & decal prep is priced in the BOQ, while per-unit datasheets and CAD blocks carry <code>[CLIENT ARTWORK PENDING — FILES LATER]</code> until files are uploaded.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 3. L1-L5 COMMISSIONING, TELECOM, LOGISTICS & MII SUMMARY CARD
+function V11EngineeringGovernanceCard({ project, eng }) {
+  return (
+    <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+        <div>
+          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-black uppercase text-[10px]">V11.0 Hyperscale Engineering & Governance</span>
+          <h3 className="text-base font-bold navy-text mt-1">Civil, Grid Shield, Telecom MMR, Heavy-Lift Logistics & L1–L5 Commissioning</h3>
+        </div>
+        <span className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold">
+          Make-in-India Score: {eng.mii?.miiClassLabel}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <div className="font-bold navy-text">Civil & Structural Plinth</div>
+          <div>• Flood Lift: <strong>+{eng.civil?.floodPlinthMm} mm RCC</strong></div>
+          <div>• Floor Load: <strong>{eng.civil?.floorPressureKpa} kN/m²</strong></div>
+          <div>• Corner Node: <strong>{eng.civil?.cornerNodeKn} kN / casting</strong></div>
+        </div>
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <div className="font-bold navy-text">Grid Protection & Hardening</div>
+          <div>• Load-Drop Shield: <strong>{eng.gridShield?.loadDropShieldMw} MW (20%)</strong></div>
+          <div>• Security: <strong>K12 Anti-Ram + Mantrap</strong></div>
+          <div>• Scrubbers: <strong>ISA G1 H₂S/SO₂ + #316 Mesh</strong></div>
+        </div>
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <div className="font-bold navy-text">Telecom MMR & AI Fabric</div>
+          <div>• Fiber Entry: <strong>Dual Diverse Vaults</strong></div>
+          <div>• Carrier MMR: <strong>{eng.telecom?.mmrOdfBays} × 288F ODF Bays</strong></div>
+          <div>• Fabric: <strong>{eng.telecom?.fabricTransceivers} × 800G OSFP</strong></div>
+        </div>
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <div className="font-bold navy-text">Logistics & Crane Rigging</div>
+          <div>• Crane: <strong>{eng.logistics?.craneTonnage}T Telescopic Mobile</strong></div>
+          <div>• Outrigger Load: <strong>{eng.logistics?.outriggerGroundKpa} kN/m²</strong></div>
+          <div>• Turning Circle: <strong>{eng.logistics?.minTurningRadiusM}m • {eng.logistics?.laydownStagingSqm}m² Yard</strong></div>
+        </div>
+      </div>
+
+      <div>
+        <div className="font-bold navy-text mb-1.5">L1–L5 Commissioning & Load-Bank IST Sign-Off Matrix</div>
+        <table className="w-full text-left border-collapse border border-slate-200">
+          <thead>
+            <tr className="bg-slate-100 text-slate-700">
+              <th className="p-2 border-b">Commissioning Level</th>
+              <th className="p-2 border-b">Verification & Load-Bank Test Scope</th>
+              <th className="p-2 border-b">Sign-Off Gate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(eng.commissioningSchedule || []).map((c, i) => (
+              <tr key={i} className="border-b border-slate-200">
+                <td className="p-2 font-bold navy-text">{c.level}</td>
+                <td className="p-2 text-slate-700">{c.scope}</td>
+                <td className="p-2"><span className="px-2 py-0.5 rounded bg-blue-50 text-brandBlue font-bold">{c.gate}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+
 
     // DEFAULT COLOR PALETTES FOR 3D, 2D & POWERPOINT DRAWINGS
     const COLOR_THEMES = {
@@ -2548,7 +3115,8 @@
       const sheets = [
         ["A-101", "Master Site & Yard Layout (m²)"],
         ["A-102", "Intra-Container 2-Row Floor Plan"],
-        ["E-201", "Electrical SLD (IEC 60617)"],
+        ["C-101", "Civil Plinth, Seismic & Rigging"],
+        ["E-201", "Full Yard-to-Hall SLD (IEC 60617)"],
         ["M-301", "DLC Hydraulics & Tank P&ID"]
       ];
 
@@ -2572,6 +3140,11 @@
           {palette && <ColorLegendBar palette={palette} onUpdatePalette={onUpdatePalette} onApplyTheme={onApplyTheme} eng={eng} />}
 
           <div className="p-4 flex justify-center" style={{ backgroundColor: bg }}>
+            {sheet === "C-101" ? (
+              renderV11CivilPlinthSvg(project, eng)
+            ) : sheet === "E-201" ? (
+              renderV11ElectricalSldSvg(project, eng, palette)
+            ) : (
             <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border" style={{ borderColor: primary }}>
               <rect x="0" y="0" width="1100" height="460" fill={bg} />
               <rect x="16" y="16" width="1068" height="428" fill="none" stroke={primary} strokeWidth="2" />
@@ -2668,6 +3241,7 @@
                 </g>
               )}
             </svg>
+            )}
           </div>
         </div>
       );
@@ -2738,9 +3312,8 @@
 
       useEffect(() => {
         try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
+          const parsed = StorageAdapter.loadState(null);
+          if (parsed) {
             if (parsed.projects?.length) setProjects(parsed.projects.map(p => sanitizeProject(p, parsed.standards || INITIAL_STANDARDS)));
             if (parsed.editingId) setEditingId(parsed.editingId);
             if (parsed.skus?.length) setSkus(parsed.skus);
@@ -2768,7 +3341,7 @@
       );
 
       const eng = useMemo(
-        () => computeEngineering(currentProject, skus, nonItCatalog, standards),
+        () => computeEngineeringV11(currentProject, skus, nonItCatalog, standards),
         [currentProject, skus, nonItCatalog, standards]
       );
 
@@ -3672,6 +4245,7 @@
               {screen === "summary" && (
                 <div className="space-y-5">
                   <ExecutiveSolutionSummaryCard project={currentProject} eng={eng} onNavigate={navigateTo} />
+                  <V11EngineeringGovernanceCard project={currentProject} eng={eng} />
 
                   {/* Embedded 12-Month ASHRAE Microclimate & Water Consumption Table */}
                   <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-3">
@@ -3719,7 +4293,7 @@
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {projects.map(p => {
-                      const pEng = computeEngineering(p, skus, nonItCatalog, standards);
+                      const pEng = computeEngineeringV11(p, skus, nonItCatalog, standards);
                       return (
                         <div key={p.id} className="bg-white rounded-xl p-5 card-shadow border border-slate-200 space-y-3">
                           <div className="flex justify-between items-start">
@@ -4166,6 +4740,8 @@
                             </div>
                           </div>
                         </div>
+
+                        <V11ShellAndBrandingPanel project={currentProject} eng={eng} onUpdateProject={updateCurrentProject} />
                       </div>
                     )}
 
@@ -4916,7 +5492,7 @@
                                 <td className="p-2.5">
                                   <span className="text-[10px] uppercase font-bold text-slate-400 block">{it.category}</span>
                                   <div className="font-bold navy-text">{it.label}</div>
-                                  <div className="text-[11px] text-slate-500">{it.specs}</div>
+                                  <div className="text-[11px] text-slate-500">{it.specs} {it.miiPct ? <span className="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold text-[10px]">MII: {it.miiPct}%</span> : null}</div>
                                   {it.isOverridden && (
                                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
                                       <span className="px-1.5 py-0.5 rounded bg-amber-200 text-amber-950 font-bold">
@@ -4999,6 +5575,7 @@
                   </div>
 
                   <ExecutiveSolutionSummaryCard project={currentProject} eng={eng} />
+                  <V11EngineeringGovernanceCard project={currentProject} eng={eng} />
                   <CadBlueprintViewer project={currentProject} eng={eng} palette={palette} onUpdatePalette={updatePaletteKey} onApplyTheme={applyColorTheme} />
                 </div>
               )}
@@ -5031,16 +5608,17 @@
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <div className="flex flex-wrap gap-1.5">
-                        {intelCategories.map(cat => (
-                          <button
-                            key={cat}
-                            onClick={() => { setIntelCatFilter(cat); setIntelRatingFilter(""); }}
-                            className={`px-3 py-1.5 rounded-lg font-bold ${intelCatFilter === cat ? "coral-bg text-white" : "bg-white border border-slate-300 text-slate-700"}`}
-                          >
-                            {cat}
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-600">Equipment Category:</span>
+                        <select
+                          value={intelCatFilter}
+                          onChange={e => { setIntelCatFilter(e.target.value); setIntelRatingFilter(""); }}
+                          className="border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-bold navy-text"
+                        >
+                          {intelCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-600">Filter Rating:</span>
