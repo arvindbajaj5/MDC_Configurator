@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Modular Data Center Configurator (V11.0 Enterprise)</title>
+  <title>AI Modular Data Center Configurator (V11.1 Enterprise)</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#002870" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -22,7 +22,7 @@
   <style>
     * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     html { font-size: 14px; }
-    html, body, #root { height: 100%; margin: 0; overflow: hidden; background: #F4F6FA; color: #0F172A; }
+    html, body, #root { height: 100dvh; min-height: 100dvh; margin: 0; overflow: hidden; background: #F4F6FA; color: #0F172A; touch-action: manipulation; }
     body { -webkit-tap-highlight-color: transparent; }
     .navy-bg { background-color: #002870; }
     .navy-text { color: #002870; }
@@ -604,6 +604,37 @@ function V11EngineeringGovernanceCard({ project, eng }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-1">
+        <div>
+          <div className="font-bold navy-text mb-1">Zone Structural Point-Load & Foundation Matrix</div>
+          <table className="w-full text-left border-collapse border border-slate-200 text-[11px]">
+            <thead>
+              <tr className="bg-slate-100 text-slate-700"><th className="p-1.5 border-b">Zone</th><th className="p-1.5 border-b">Typical Load</th><th className="p-1.5 border-b">Foundation Spec</th></tr>
+            </thead>
+            <tbody>
+              <tr className="border-b"><td className="p-1.5 font-bold">Yard Substation</td><td className="p-1.5">8–15 T / pad</td><td className="p-1.5">Isolated RCC pad + oil pit</td></tr>
+              <tr className="border-b"><td className="p-1.5 font-bold">Yard Cooling</td><td className="p-1.5">12–25 T / skid</td><td className="p-1.5">Spring-isolated slab + wind anchors</td></tr>
+              <tr className="border-b"><td className="p-1.5 font-bold">CPCB IV+ DGs</td><td className="p-1.5">15–30 T / set</td><td className="p-1.5">Inertia concrete block + acoustic clearance</td></tr>
+              <tr><td className="p-1.5 font-bold">IT White-Space</td><td className="p-1.5">{eng.civil?.floorPressureKpa} kN/m²</td><td className="p-1.5">+{eng.civil?.floodPlinthMm}mm RCC plinth + M30 shear bolts</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div className="font-bold navy-text mb-1">On-Site Heavy-Lift & Rigging Equipment Inventory</div>
+          <table className="w-full text-left border-collapse border border-slate-200 text-[11px]">
+            <thead>
+              <tr className="bg-slate-100 text-slate-700"><th className="p-1.5 border-b">Rigging Asset</th><th className="p-1.5 border-b">Specification</th><th className="p-1.5 border-b text-right">Qty</th></tr>
+            </thead>
+            <tbody>
+              <tr className="border-b"><td className="p-1.5 font-bold">Mobile Crane</td><td className="p-1.5">{eng.logistics?.craneTonnage}T Telescopic ({eng.logistics?.outriggerGroundKpa} kN/m²)</td><td className="p-1.5 text-right font-bold">1 Unit</td></tr>
+              <tr className="border-b"><td className="p-1.5 font-bold">Azobe Timber Mats</td><td className="p-1.5">2.0m × 1.0m Outrigger Spreader Pads</td><td className="p-1.5 text-right font-bold">8 Nos</td></tr>
+              <tr className="border-b"><td className="p-1.5 font-bold">Forklifts & Skates</td><td className="p-1.5">5T Forklifts + 15T Hydraulic Roller Skates</td><td className="p-1.5 text-right font-bold">2 + 4 Sets</td></tr>
+              <tr><td className="p-1.5 font-bold">Toe Jacks & Shims</td><td className="p-1.5">10T Toe Jacks + SS316 Laser Leveling Shims</td><td className="p-1.5 text-right font-bold">4 + {(eng.pods?.length || 1) * 16}</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -1500,10 +1531,17 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
       if (pods.length > 0) {
         const netShellSqm = Math.max(40, Math.round(pods.reduce((s, p) => s + p.shellAreaSqm, 0) - sharedWallSavingsSqm));
-        if (project.bespokeContainerPriceInr !== "" && Number(project.bespokeContainerPriceInr) > 0) {
+        if (project.shellArchitecture === "BnM_Hall") {
+          const mwQty = Math.max(1, Math.ceil(totalDesignContKw / 1000));
+          bomItems.push(getItemPrice("bnm-hall-wrapper", mwQty, `Brick-and-Mortar (BnM) Fire-Rated Technical Hall (${pods.length} Bays)`, "Modular Enclosures & Civil", `2-Hr Fire-Rated RCC Column Grid | ${Math.round(totalItWhiteSpaceSqm)} m² White-Space`));
+        } else if (project.bespokeContainerPriceInr !== "" && Number(project.bespokeContainerPriceInr) > 0) {
           bomItems.push(getItemPrice("containerPodShell", pods.length, `Modular IT Compute Containers (${pods.length} Pods, ${project.metallurgy})`, "Modular Enclosures & Civil", `${(pods[0].extLengthMm/1000).toFixed(2)}m L × ${(pods[0].extWidthMm/1000).toFixed(2)}m W | Dedicated White-Space`, Number(project.bespokeContainerPriceInr)));
         } else {
           bomItems.push(getItemPrice("shellPerSqm", netShellSqm, `Custom Modular IT Enclosures (${pods.length} Pods, ${project.metallurgy})`, "Modular Enclosures & Civil", `${project.hallTopology} | ${Math.round(totalItWhiteSpaceSqm)} m² White-Space`));
+        }
+        if (project.brandingMode && project.brandingMode !== "standard") {
+          const brandNote = project.brandingMode === "custom_tbd" ? "Custom RAL Paint & Decal Prep [CLIENT ARTWORK PENDING]" : `Custom RAL (${project.exteriorRalLabel}) & Client Vector Applied`;
+          bomItems.push(getItemPrice("custom-branding-pkg", pods.length, "Customer Exterior/Interior RAL Coating, Rack Bezel & Logo Package", "Modular Enclosures & Civil", brandNote));
         }
 
         if (isHighSeismic || project.emiShielding) {
@@ -1530,7 +1568,17 @@ function V11EngineeringGovernanceCard({ project, eng }) {
 
       if (pumpSkidsCount > 0) bomItems.push(getItemPrice("primaryPumpSkid", pumpSkidsCount, `VFD Circulating Pump Skids (${project.pumpStagingMode})`, "Hydraulics, Piping & Water Storage", `${Math.round(totalFlowLpm)} LPM @ ${pumpDesignHeadBar} bar TDH + 50μ Strainer`));
       if (waterTankUnits > 0) bomItems.push(getItemPrice(selTank.id, waterTankUnits, `${selTank.label} (${totalWaterStorageKl} kL Total)`, "Hydraulics, Piping & Water Storage", `${project.waterAutonomyDays}-day peak evap buffer + loop fill`));
-      if (hasDlcRacks && project.includeGlycolDosing && pods.length > 0) bomItems.push(getItemPrice("glycolDosingSkid", 1, "Automated PG25 Glycol Dosing, RO/DM & Expansion Vessel", "Hydraulics, Piping & Water Storage", `${standards.coolantType}`));
+      if (hasDlcRacks && project.includeGlycolDosing && pods.length > 0) {
+        bomItems.push(getItemPrice("glycolDosingSkid", 1, "Automated Glycol Dosing, RO/DM & Expansion Skid", "Hydraulics, Piping & Water Storage", "Closed-Loop Pressurization & Make-Up"));
+        const pg25Lots = Math.max(1, Math.ceil((totalLiquidKw * 3.2) / 5000));
+        bomItems.push(getItemPrice("glycol-pg25-lot", pg25Lots, "Factory-Isolated Inhibited PG25 Glycol Fluid (5000L Lot)", "Consumables & Operational Chemicals", "Factory-Supplied PG25 + OAT/Azole Inhibitor (Isolated Line Item)"));
+      }
+      if (pods.length > 0) {
+        bomItems.push(getItemPrice("chem-consumables-lot", pods.length, "Operational Water Treatment Chemicals, RO/DM Resins & Filter Media", "Consumables & Operational Chemicals", "Anti-scalants, biocides, 50μ cartridges & scrubber media"));
+      }
+      if (project.includeGasScrubber && pods.length > 0) {
+        bomItems.push(getItemPrice("gas-scrubber-unit", pods.length, "ISA G1 Chemical Air Scrubber (H₂S / SO₂ / NOx Filtration)", "Liquid Cooling & Heat Rejection", "Protects copper/electronics in industrial/coastal microclimates"));
+      }
 
       if (transformerUnits > 0) bomItems.push(getItemPrice(selTrafo.id, transformerUnits, `${selTrafo.label} (${project.transformerType})`, "Power Distribution & Transformation", `${transformerUnits} × ${selTrafo.ratedCapacity} kVA (${totalFacilityPeakKva} kVA peak)`));
       if (project.includeHtVcb && transformerUnits > 0) bomItems.push(getItemPrice("htVcbPanel", Math.max(1, Math.ceil(transformerUnits / 2)), "11kV/33kV Indoor HT VCB Ring Main & Metering Panel", "Power Distribution & Transformation", "SF6/Vacuum Circuit Breaker Switchboard"));
@@ -1539,6 +1587,10 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       if (upsContainersCount > 0) bomItems.push(getItemPrice(selUps.id, upsContainersCount, selUps.label, "Backup Power & Energy Storage", `${project.uptimeTier} Modular UPS (${upsCalc.activeN}+${upsCalc.redundantR})`));
       if (batteryContainersCount > 0) bomItems.push(getItemPrice("batteryContainer15Min", batteryContainersCount, `Containerized ${project.batteryChemistry} Battery Pods (${project.batteryRuntimeMin} min)`, "Backup Power & Energy Storage", `${Math.round(batteryKwhReq)} kWh (${project.upsRideThroughMode})`));
       if (dgUnitsCount > 0) bomItems.push(getItemPrice(selDg.id, dgUnitsCount, selDg.label, "Backup Power & Energy Storage", `${dgUnitsCount} × ${selDg.ratedCapacity} kVA (${totalHsdFuelLitres.toLocaleString()}L PESO fuel)`));
+      if (project.includeGridLoadShield && totalDesignContKw > 0) {
+        const shieldBlocks = Math.max(1, Math.ceil((totalDesignContKw * 0.20) / 3000));
+        bomItems.push(getItemPrice("grid-load-shield", shieldBlocks, "20% Dynamic Load-Drop Shield (Fast Load Bank + Grid BESS Buffer)", "Backup Power & Energy Storage", `Absorbs ${(totalDesignContKw * 0.20 / 1000).toFixed(2)} MW sudden AI load rejection`));
+      }
 
       if (project.includeIntegratedBms && pods.length > 0) bomItems.push(getItemPrice("integratedBmsPod", pods.length, "Integrated IBMS, DCIM, EPMS & PLC Telemetry Suite", "BMS, Fire Suppression & Security", "SCADA, branch power, CDU & thermal telemetry"));
       if (project.includeLeakRope && pods.length > 0) {
@@ -1547,6 +1599,15 @@ function V11EngineeringGovernanceCard({ project, eng }) {
       }
       if (project.includeVesdaFire && pods.length > 0) bomItems.push(getItemPrice("vesdaFirePod", pods.length, `VESDA Aspirating Smoke + Novec 1230 Clean Agent (${novecGasKg} kg)`, "BMS, Fire Suppression & Security", "Early warning laser detection + clean-agent flooding"));
       if (project.includeCctvSecurity && pods.length > 0) bomItems.push(getItemPrice("cctvSecuritySite", Math.max(1, Math.ceil(pods.length / 2)), "IP CCTV Surveillance, 90-Day NVR & Biometric Access", "BMS, Fire Suppression & Security", "Internal aisle domes + perimeter PTZ & turnstiles"));
+      if (project.includeK12Mantrap && pods.length > 0) {
+        bomItems.push(getItemPrice("k12-mantrap-pkg", 1, "K12/M50 Anti-Ram Bollards, Biometric Mantrap & #316 Rodent Armor", "BMS, Fire Suppression & Security", "Crash-rated perimeter bollards, interlocking mantrap & rodent mesh"));
+      }
+      if (project.includeTelecomMmr && pods.length > 0) {
+        bomItems.push(getItemPrice("telecom-mmr-fabric", Math.max(1, Math.ceil(pods.length / 4)), "Carrier-Neutral MMR ODF Bays, Diverse Dual Fiber Vaults & Raceways", "Telecom, MMR & AI Fabric", `${project.fabricType || "InfiniBand NDR"} + Dual Segregated Entry Manholes`));
+      }
+      if (project.includeLogisticsRigging && pods.length > 0) {
+        bomItems.push(getItemPrice("logistics-rigging-pkg", pods.length, "Low-Bed Trailers, 250T Mobile Crane, Azobe Mats, Skates & Shims", "Logistics & Heavy-Lift Rigging", `Turning radius >= ${project.approachRoadWidthM >= 12 ? "16.5m" : "18.0m"} • Full on-site rigging manifest`));
+      }
 
       if (project.includeAcousticBarrier) bomItems.push(getItemPrice("acousticBarrierMeter", 85, "CPCB Neighbor-Boundary Acoustic Louver & Barrier Wall", "Modular Enclosures & Civil", "Attenuates yard noise to <= 65 dBA at boundary"));
       if (project.includeAdminModule) bomItems.push(getItemPrice("adminSparesModule", 1, "Operations NOC, Admin & ESD Spares Workshop Container", "Modular Enclosures & Civil", "Operator consoles, diagnostic bench & spare manifolds"));
@@ -2624,9 +2685,12 @@ function V11EngineeringGovernanceCard({ project, eng }) {
         const isUShaped = viewScope === "Hall" && project.hallTopology === "GangedUShaped";
         const spacing = isGanged ? 0.08 : 2.6;
 
+        const activeShellColor = (project.brandingMode && project.brandingMode !== "standard" && project.exteriorColorHex)
+          ? project.exteriorColorHex
+          : (palette.itPod || "#0F172A");
         const matWall = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(palette.itPod || "#0F172A"),
-          roughness: 0.45, metalness: 0.65, transparent: true, opacity: 0.25, side: THREE.DoubleSide
+          color: new THREE.Color(activeShellColor),
+          roughness: 0.45, metalness: 0.65, transparent: true, opacity: 0.30, side: THREE.DoubleSide
         });
         const matFrame = new THREE.MeshStandardMaterial({ color: 0xFF5539, roughness: 0.4, metalness: 0.5 });
         const matPlinth = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
@@ -3117,6 +3181,8 @@ function V11EngineeringGovernanceCard({ project, eng }) {
         ["A-102", "Intra-Container 2-Row Floor Plan"],
         ["C-101", "Civil Plinth, Seismic & Rigging"],
         ["E-201", "Full Yard-to-Hall SLD (IEC 60617)"],
+        ["G-101", "Earthing & Lightning Grid (NBCS 2026)"],
+        ["R-101", "Cable Tray & Roxtec Penetration Plan"],
         ["M-301", "DLC Hydraulics & Tank P&ID"]
       ];
 
@@ -3144,6 +3210,43 @@ function V11EngineeringGovernanceCard({ project, eng }) {
               renderV11CivilPlinthSvg(project, eng)
             ) : sheet === "E-201" ? (
               renderV11ElectricalSldSvg(project, eng, palette)
+            ) : sheet === "G-101" ? (
+              <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border border-slate-300 bg-white">
+                <rect x="0" y="0" width="1100" height="460" fill="#FFFFFF" />
+                <rect x="14" y="14" width="1072" height="432" fill="none" stroke="#002870" strokeWidth="2" />
+                <text x="32" y="40" fill="#FF5539" fontSize="14" fontWeight="bold">SHEET G-101: EXOTHERMIC COPPER EARTHING & LIGHTNING PROTECTION GRID (NBCS 2026 / IS 3043)</text>
+                <rect x="70" y="65" width="960" height="340" fill="#FFFBEB" stroke="#D97706" strokeWidth="2.5" strokeDasharray="8,4" />
+                <text x="550" y="88" fill="#B45309" fontSize="11" fontWeight="bold" textAnchor="middle">50×6mm BARE COPPER RING MAIN EARTH MAT (EXOTHERMIC CADWELD JOINTS • &lt; 0.5 Ω GRID RESISTANCE)</text>
+                {[120, 330, 550, 770, 980].map((px, i) => (
+                  <g key={i}>
+                    <circle cx={px} cy="115" r="10" fill="#059669" />
+                    <text x={px} y="140" fill="#065F46" fontSize="9.5" fontWeight="bold" textAnchor="middle">Chem Pit #{i+1}</text>
+                    <circle cx={px} cy="365" r="10" fill="#059669" />
+                    <text x={px} y="390" fill="#065F46" fontSize="9.5" fontWeight="bold" textAnchor="middle">Chem Pit #{i+6}</text>
+                  </g>
+                ))}
+                <rect x="220" y="175" width="660" height="145" rx="6" fill="#002870" />
+                <text x="550" y="232" fill="#FFFFFF" fontSize="13" fontWeight="bold" textAnchor="middle">EQUIPOTENTIAL BONDING BUSBAR (SRG) — {eng.pods.length} {eng.civil?.isBnM ? "BnM HALL BAYS" : "CORTEN-A PODS"}</text>
+                <text x="550" y="256" fill="#FFB600" fontSize="10.5" textAnchor="middle">Dual Copper Down-Conductors • ESE Lightning Arresters • Dedicated Clean IT Signal Reference Grid</text>
+              </svg>
+            ) : sheet === "R-101" ? (
+              <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border border-slate-300 bg-white">
+                <rect x="0" y="0" width="1100" height="460" fill="#FFFFFF" />
+                <rect x="14" y="14" width="1072" height="432" fill="none" stroke="#002870" strokeWidth="2" />
+                <text x="32" y="40" fill="#FF5539" fontSize="14" fontWeight="bold">SHEET R-101: SEGREGATED CABLE TRAY, FIBER RACEWAY & ROXTEC TRANSIT PLAN</text>
+                <rect x="60" y="75" width="980" height="65" rx="4" fill="#FEF3C7" stroke="#D97706" strokeWidth="2" />
+                <text x="550" y="103" fill="#92400E" fontSize="11.5" fontWeight="bold" textAnchor="middle">TIER 1 (TOP +3200mm): YELLOW LSZH CORRUGATED OPTICAL FIBER TROUGH ({eng.telecom?.overheadFiberMeters || 224}m)</text>
+                <text x="550" y="122" fill="#78350F" fontSize="10" textAnchor="middle">Zero-EMI Optical Isolation • {eng.telecom?.fabricTransceivers || 960}× 800G OSFP Links to Carrier MMR ({eng.telecom?.mmrOdfBays || 4}× ODF Bays)</text>
+                <rect x="60" y="165" width="980" height="65" rx="4" fill="#DBEAFE" stroke="#1D4ED8" strokeWidth="2" />
+                <text x="550" y="193" fill="#1E3A8A" fontSize="11.5" fontWeight="bold" textAnchor="middle">TIER 2 (MID +2750mm): IP55 SANDWICH POWER BUSDUCTS (DUAL A+B REDUNDANT TRACKS)</text>
+                <text x="550" y="212" fill="#1E40AF" fontSize="10" textAnchor="middle">300mm Vertical & Horizontal EMI Separation from Fiber Troughs • Plug-in Tap-Off Boxes</text>
+                <rect x="60" y="255" width="980" height="65" rx="4" fill="#DCFCE7" stroke="#059669" strokeWidth="2" />
+                <text x="550" y="283" fill="#065F46" fontSize="11.5" fontWeight="bold" textAnchor="middle">TIER 3 (WALL / PLINTH BULKHEAD): IP68 / FIRE-RATED ROXTEC MULTI-CABLE & PIPE TRANSIT FRAMES</text>
+                <text x="550" y="302" fill="#047857" fontSize="10" textAnchor="middle">Watertight, Gas-Tight & Rodent-Proof Bulkhead Seals for HV/LV Armored Cables & SS316L Manifolds</text>
+                <rect x="60" y="345" width="980" height="65" rx="4" fill="#F1F5F9" stroke="#475569" strokeWidth="2" />
+                <text x="550" y="373" fill="#0F172A" fontSize="11.5" fontWeight="bold" textAnchor="middle">TIER 4 (UNDERFLOOR PLENUM): SS316L SUPPLY/RETURN COOLANT HEADERS + CONDUCTIVE LEAK ROPES</text>
+                <text x="550" y="392" fill="#334155" fontSize="10" textAnchor="middle">Diverse North/South Underground 4-Way HDPE Telecom Entry Ducts (&gt;= 30m Physical Separation)</text>
+              </svg>
             ) : (
             <svg viewBox="0 0 1100 460" className="w-full max-w-5xl border" style={{ borderColor: primary }}>
               <rect x="0" y="0" width="1100" height="460" fill={bg} />
@@ -3490,7 +3593,9 @@ function V11EngineeringGovernanceCard({ project, eng }) {
           monthlyClimate: synthesizeMonthlyClimate(finalDb, finalWb, finalRh),
           seismicZone: seis.zone,
           seismicZFactor: seis.zFactor,
-          seismicLabel: seis.label
+          seismicLabel: seis.label,
+          includeGasScrubber: /delhi|noida|gurgaon|vadodara|ahmedabad|mumbai|chennai|kolkata/i.test(name),
+          exteriorRalLabel: /mumbai|chennai|kolkata|kochi|mangalore|visakhapatnam/i.test(name) ? "RAL 5002 Marine C5-M Coating" : currentProject.exteriorRalLabel
         });
         setCityMatches([]);
         setWeatherMsg(`✓ Resolved ${name}${admin1 ? ", " + admin1 : ""}: ${finalDb}°C DB / ${finalWb}°C WB (${climateSource}), Elev ${elev}m, ${seis.label}`);
@@ -4536,24 +4641,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                               <h3 className="font-bold navy-text text-sm">A. Liquid-Cooled (DLC) Compute Racks</h3>
                               <span className="px-2 py-0.5 rounded bg-sky-200 text-sky-950 font-bold">{(eng.dlcDesignKw/1000).toFixed(2)} MW</span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-lg border border-sky-200">
-                              <select id="dlc-sku-picker" className="flex-1 min-w-[180px] border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold navy-text">
-                                {skus.filter(s => s.coolingType === "DLC").map(s => (
-                                  <option key={s.id} value={s.id}>{s.name} ({s.peakKw} kW • Max {s.maxInletTempC}°C)</option>
-                                ))}
-                              </select>
-                              <input id="dlc-qty-picker" type="number" min="1" defaultValue="16" className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 font-bold text-center" />
-                              <button
-                                onClick={() => {
-                                  const sid = document.getElementById("dlc-sku-picker")?.value;
-                                  const qty = Number(document.getElementById("dlc-qty-picker")?.value) || 0;
-                                  if (sid && qty > 0) updateRackQuantitiesWithAutoCooling({ ...currentProject.rackQuantities, [sid]: qty });
-                                }}
-                                className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold"
-                              >
-                                Set DLC
-                              </button>
-                            </div>
+
                             <div className="space-y-1.5">
                               {skus.filter(s => s.coolingType === "DLC").map(s => (
                                 <div key={s.id} className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
@@ -4581,24 +4669,7 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                               <h3 className="font-bold navy-text text-sm">B. Air-Cooled (AC) Storage, Spine & Mgmt Racks</h3>
                               <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-950 font-bold">{(eng.acDesignKw/1000).toFixed(2)} MW</span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-lg border border-amber-200">
-                              <select id="ac-sku-picker" className="flex-1 min-w-[180px] border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold navy-text">
-                                {skus.filter(s => s.coolingType !== "DLC").map(s => (
-                                  <option key={s.id} value={s.id}>{s.name} ({s.peakKw} kW)</option>
-                                ))}
-                              </select>
-                              <input id="ac-qty-picker" type="number" min="1" defaultValue="8" className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 font-bold text-center" />
-                              <button
-                                onClick={() => {
-                                  const sid = document.getElementById("ac-sku-picker")?.value;
-                                  const qty = Number(document.getElementById("ac-qty-picker")?.value) || 0;
-                                  if (sid && qty > 0) updateRackQuantitiesWithAutoCooling({ ...currentProject.rackQuantities, [sid]: qty });
-                                }}
-                                className="px-3 py-1.5 rounded-lg coral-bg text-white font-bold"
-                              >
-                                Set AC
-                              </button>
-                            </div>
+
                             <div className="space-y-1.5">
                               {skus.filter(s => s.coolingType !== "DLC").map(s => (
                                 <div key={s.id} className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
@@ -4876,6 +4947,51 @@ function V11EngineeringGovernanceCard({ project, eng }) {
                               <input type="checkbox" checked={!!currentProject.includeStagingModule} onChange={e => updateCurrentProject({ includeStagingModule: e.target.checked })} className="w-4 h-4" />
                               <span>Staging & Leak-Test Bay</span>
                             </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={currentProject.includeGridLoadShield !== false} onChange={e => updateCurrentProject({ includeGridLoadShield: e.target.checked })} className="w-4 h-4" />
+                              <span>20% Load-Drop Shield (BESS + Load Bank)</span>
+                            </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={currentProject.includeK12Mantrap !== false} onChange={e => updateCurrentProject({ includeK12Mantrap: e.target.checked })} className="w-4 h-4" />
+                              <span>K12 Anti-Ram, Mantrap & #316 Mesh</span>
+                            </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={!!currentProject.includeGasScrubber} onChange={e => updateCurrentProject({ includeGasScrubber: e.target.checked })} className="w-4 h-4" />
+                              <span>ISA G1 H₂S / SO₂ Air Scrubbers</span>
+                            </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={currentProject.includeTelecomMmr !== false} onChange={e => updateCurrentProject({ includeTelecomMmr: e.target.checked })} className="w-4 h-4" />
+                              <span>Carrier MMR & Dual Fiber Vaults</span>
+                            </label>
+                            <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 font-medium">
+                              <input type="checkbox" checked={currentProject.includeLogisticsRigging !== false} onChange={e => updateCurrentProject({ includeLogisticsRigging: e.target.checked })} className="w-4 h-4" />
+                              <span>250T Crane & Heavy-Lift Rigging</span>
+                            </label>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 pt-1">
+                            <div>
+                              <span className="text-slate-500 block">GPU Fabric</span>
+                              <select value={currentProject.fabricType || "InfiniBand NDR (800G OSFP)"} onChange={e => updateCurrentProject({ fabricType: e.target.value })} className="w-full border rounded px-1.5 py-1 bg-white font-bold">
+                                <option>InfiniBand NDR (800G OSFP)</option>
+                                <option>Eviden Bull BXI Exascale</option>
+                                <option>800G RoCEv2 Spine-Leaf</option>
+                              </select>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block">Approach Road</span>
+                              <select value={currentProject.approachRoadWidthM || 12} onChange={e => updateCurrentProject({ approachRoadWidthM: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1 bg-white font-bold">
+                                <option value={12}>12m Double-Lane</option>
+                                <option value={8}>8m Single-Lane</option>
+                              </select>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block">Crane Radius</span>
+                              <select value={currentProject.craneWorkingRadiusM || 10} onChange={e => updateCurrentProject({ craneWorkingRadiusM: Number(e.target.value) })} className="w-full border rounded px-1.5 py-1 bg-white font-bold">
+                                <option value={10}>10m (250T Crane)</option>
+                                <option value={16}>16m (350T Crane)</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
