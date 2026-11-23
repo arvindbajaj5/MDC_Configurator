@@ -208,9 +208,19 @@ export const App: React.FC = () => {
       {/* Minimal Sharp Top Bar */}
       <header className="h-11 bg-brand-navy text-white border-b border-slate-800 px-2.5 sm:px-3 flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-6 h-6 rounded-cad bg-brand-orange flex items-center justify-center shrink-0">
-            <Cpu className="w-3.5 h-3.5 text-white" />
-          </div>
+          {activeDeal.branding.logoUrl ? (
+            <div className="h-7 bg-white rounded-cad px-1.5 flex items-center shrink-0">
+              <img
+                src={activeDeal.branding.logoUrl}
+                alt={activeDeal.branding.clientName || 'Logo'}
+                className="h-5 max-w-[96px] object-contain"
+              />
+            </div>
+          ) : (
+            <div className="w-6 h-6 rounded-cad bg-brand-orange flex items-center justify-center shrink-0">
+              <Cpu className="w-3.5 h-3.5 text-white" />
+            </div>
+          )}
           <span className="font-bold text-xs sm:text-sm tracking-tight truncate">
             MDC Studio <span className="text-brand-orange font-mono">V13</span>
           </span>
