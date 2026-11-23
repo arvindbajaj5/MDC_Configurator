@@ -316,7 +316,119 @@ async function parseDriveError(resp: Response, context: string): Promise<DriveAp
   let detail = resp.statusText;
   let reason = `HTTP_${resp.status}`;
   try {
-    const body =
+    const body = (await resp.json()) as { error?: { message?: string; errors?: Array<{ reason?: string }> } };
+    if (body.error?.message) detail = body.error.message;
+    if (body.error?.errors?.[0]?.reason) reason = body.error.errors[0].reason;
+  } catch {
+    // Keep statusText if response body isn't JSON
+  }
+
+  let hint = 'Retry the operation or reconnect your Google Drive session.';
+  if (resp.status === 401) {
+    hint = 'OAuth access token expired. Click "Reconnect Google Drive" to refresh your session.';
+  } else if (resp.status === 403) {
+    hint = 'Permission denied on this folder/file. Re-select the folder using Google Picker or enable drive.readonly scope.';
+  } else if (resp.status === 404) {
+    hint = 'Target folder or file was moved/deleted or is outside the active drive.file grant. Pick the folder again.';
+  }
+
+  return new DriveApiError(reason, `${context}: ${detail}`, hint, resp.status);
+}
+
+/**
+ * Lists child folders and JSON files inside a selected Drive folder.
+ */
+export async function listDriveFolderContents(
+  accessToken: string,
+  folderId: string
+): Promise<DriveFileSummary[]> {
+  const query = encodeURIComponent(
+    `'${folderId}' in parents and trashed = false and (mimeType = 'application/vnd.google-apps.folder' or mimeType = 'application/json')`
+  );
+  const url =
+    `https://www.googleapis.com/drive/v3/files` +
+    `?q=${query}&fields=files(id,name,mimeType,modifiedTime)&orderBy=folder,modifiedTime desc` +
+    `&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!resp.ok) {
+    throw await parseDriveError(resp, 'Failed to list Drive folder contents');
+  }
+  const data = (await resp.json()) as { files?: DriveFileSummary[] };
+  return data.files ?? [];
+}
+
+/**
+ * Creates a new subfolder inside the chosen parent folder (or My Drive root).
+ */
+export async function createDriveSubfolder(
+  accessToken: string,
+  parentFolderId: string | null,
+  folderName: string
+): Promise<DriveFileSummary> {
+  const metadata: Record<string, unknown> = {
+    name: folderName.trim(),
+    mimeType: 'application/vnd.google-apps.folder'
+  };
+  if (parentFolderId && parentFolderId !== 'root') {
+    metadata.parents = [parentFolderId];
+  }
+
+  const resp = await fetch(
+    'https://www.googleapis.com/drive/v3/files?fields=id,name,mimeType&supportsAllDrives=true',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(metadata)
+    }
+  );
+  if (!resp.ok) {
+    throw await parseDriveError(resp, `Failed to create folder "${folderName}"`);
+  }
+  return (await resp.json()) as DriveFileSummary;
+}
+
+/**
+ * Saves (or updates in-place if filename already exists in folder) a JSON payload into Google Drive.
+ */
+export async function saveJsonToDriveFolder(
+  accessToken: string,
+  folderId: string | null,
+  filename: string,
+  payload: unknown
+): Promise<DriveFileSummary> {
+  const safeName = filename.endsWith('.json') ? filename : `${filename}.json`;
+  const parent = folderId || 'root';
+
+  // Check if file already exists in target folder to update cleanly rather than duplicating
+  const searchQ = encodeURIComponent(
+    `'${parent}' in parents and name = '${safeName.replace(/'/g, "\'")}' and trashed = false`
+  );
+  const existingResp = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${searchQ}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  let existingFileId: string | null = null;
+  if (existingResp.ok) {
+    const existingData = (await existingResp.json()) as { files?: Array<{ id: string }> };
+    existingFileId = existingData.files?.[0]?.id ?? null;
+  }
+
+  const boundary = '-------mdc-v13-multipart-boundary';
+  const metadata: Record<string, unknown> = {
+    name: safeName,
+    mimeType: 'application/json'
+  };
+  if (!existingFileId && folderId && folderId !== 'root') {
+    metadata.parents = [folderId];
+  }
+
+  const body =
     `--${boundary}\r\n` +
     `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
     `${JSON.stringify(metadata)}\r\n` +
