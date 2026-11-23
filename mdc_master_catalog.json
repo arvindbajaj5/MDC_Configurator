@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "12.4",
+  "items": [
+    {
+      "id": "CAT-POD-2MW",
+      "code": "POD-DLC-2000",
+      "name": "2.0 MW High-Density DLC Modular Pod (20 Racks @ 100kW)",
+      "category": "Modular Pod",
+      "ratingKw": 2000,
+      "footprintM2": 82,
+      "weightTons": 38,
+      "unitCostInrLakhs": 185,
+      "miiPercent": 91,
+      "active": true
+    },
+    {
+      "id": "CAT-POD-1MW",
+      "code": "POD-DLC-1000",
+      "name": "1.0 MW Compact DLC Modular Pod (10 Racks @ 100kW)",
+      "category": "Modular Pod",
+      "ratingKw": 1000,
+      "footprintM2": 46,
+      "weightTons": 24,
+      "unitCostInrLakhs": 118,
+      "miiPercent": 91,
+      "active": true
+    },
+    {
+      "id": "CAT-POD-05MW",
+      "code": "POD-AC-500",
+      "name": "0.5 MW Air-Cooled Edge/Inference Modular Pod",
+      "category": "Modular Pod",
+      "ratingKw": 500,
+      "footprintM2": 36,
+      "weightTons": 18,
+      "unitCostInrLakhs": 78,
+      "miiPercent": 90,
+      "active": true
+    },
+    {
+      "id": "CAT-CDU-1350",
+      "code": "CDU-INT-1350",
+      "name": "1.35 MW Internal Liquid-to-Liquid CDU Tower",
+      "category": "Cooling - Internal",
+      "ratingKw": 1350,
+      "footprintM2": 2.4,
+      "weightTons": 1.6,
+      "unitCostInrLakhs": 92,
+      "miiPercent": 42,
+      "active": true
+    },
+    {
+      "id": "CAT-PAC-80",
+      "code": "PAC-CW-80",
+      "name": "80 kW Mandatory White-Space Chilled-Water PAC",
+      "category": "Cooling - Internal",
+      "ratingKw": 80,
+      "footprintM2": 2.1,
+      "weightTons": 0.9,
+      "unitCostInrLakhs": 26,
+      "miiPercent": 74,
+      "active": true
+    },
+    {
+      "id": "CAT-CHL-2200",
+      "code": "CHL-ADB-2200",
+      "name": "2.2 MW Free-Cooling Adiabatic Chiller (Yard/Roof)",
+      "category": "Cooling - Plant",
+      "ratingKw": 2200,
+      "footprintM2": 34,
+      "weightTons": 16.5,
+      "unitCostInrLakhs": 235,
+      "miiPercent": 58,
+      "active": true
+    },
+    {
+      "id": "CAT-TRF-3150",
+      "code": "TRF-K13-3150",
+      "name": "3.15 MVA K-13 Dry-Type Cast Resin Transformer",
+      "category": "Electrical",
+      "ratingKw": 2835,
+      "footprintM2": 14,
+      "weightTons": 9.8,
+      "unitCostInrLakhs": 64,
+      "miiPercent": 82,
+      "active": true
+    },
+    {
+      "id": "CAT-BESS-2500",
+      "code": "BESS-LFP-2500",
+      "name": "2.5 MW / 1.25 MWh AI Grid Load-Drop BESS Skid",
+      "category": "Electrical",
+      "ratingKw": 2500,
+      "footprintM2": 28,
+      "weightTons": 24,
+      "unitCostInrLakhs": 310,
+      "miiPercent": 56,
+      "active": true
+    }
+  ]
+}
