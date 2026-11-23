@@ -15,7 +15,11 @@ export default defineConfig({
       : [
           VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['data/mdc_supply_intel.json', 'data/mdc_master_catalog.json'],
+            includeAssets: [
+              'data/mdc_supply_intel.json',
+              'data/mdc_master_catalog.json',
+              'data/sample_navi_mumbai_15mw.json'
+            ],
             manifest: {
               name: 'AI Modular Data Center Configurator V13',
               short_name: 'MDC Studio V13',
@@ -28,6 +32,7 @@ export default defineConfig({
             workbox: {
               cacheId: 'mdc-configurator-v13',
               globPatterns: ['**/*.{js,css,html,json,svg,png,woff2}'],
+              maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
               runtimeCaching: [
                 {
                   urlPattern: /^https:\/\/archive-api\.open-meteo\.com\/.*/i,
@@ -45,13 +50,16 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: !isSingleFile,
+    chunkSizeWarningLimit: 900,
     rollupOptions: isSingleFile
       ? undefined
       : {
           output: {
             manualChunks: {
               react: ['react', 'react-dom'],
-              icons: ['lucide-react']
+              icons: ['lucide-react'],
+              three: ['three'],
+              exporters: ['pptxgenjs', 'jspdf']
             }
           }
         }

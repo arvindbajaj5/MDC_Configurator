@@ -1,6 +1,6 @@
 {
   "name": "mdc-configurator-v13",
-  "version": "13.0.0-batch2",
+  "version": "13.0.0",
   "private": true,
   "type": "module",
   "description": "AI Modular Data Center (MDC) Configurator \u2014 Modular Vite + React + TypeScript Build",
@@ -16,7 +16,10 @@
   "dependencies": {
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "jspdf": "^2.5.2",
+    "pptxgenjs": "^3.12.0",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",
@@ -30,6 +33,7 @@
     "vite": "^6.0.7",
     "vite-plugin-pwa": "^0.21.1",
     "vite-plugin-singlefile": "^2.1.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "@types/three": "^0.170.0"
   }
 }
