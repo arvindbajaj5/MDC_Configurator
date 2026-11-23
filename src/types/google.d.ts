@@ -89,5 +89,5 @@ declare namespace google {
 }
 
 declare namespace gapi {
-  function load(apiName: string, callback: () => void | { callback: () => void; onerror?: (err: unknown) => void }): void;
+  function load(apiName: string, callback: (() => void) | { callback: () => void; onerror?: (err: unknown) => void }): void;
 }
