@@ -155,6 +155,8 @@ export interface DealConfig {
   commercial: CommercialConfig;
   standards?: Partial<ElectricalStandards>;
   specialQuotes: Record<string, SpecialVendorQuote>;
+  commissioningCompletedIds?: string[];
+  riggingManifest?: RiggingManifestRow[];
   driveFolderId?: string;
   driveFolderPath?: string;
 }
@@ -360,3 +362,41 @@ export interface FullEngineeringOutput {
   supplyChain: SupplyChainScoreResult;
   commercial: CommercialTcoResult;
 }
+
+
+export interface RiggingManifestRow {
+  id: string;
+  equipment: string;
+  quantity: number;
+  unitWeightTons: number;
+  transportMode: string;
+  craneSpec: string;
+  spreaderRequired: boolean;
+}
+
+export interface CommissioningStep {
+  id: string;
+  level: 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+  phaseTitle: string;
+  checkpoint: string;
+  owner: string;
+  completed: boolean;
+}
+
+export interface AuditCheckItem {
+  id: string;
+  domain: 'Uptime Tier' | 'BIS / IS Codes' | 'NBC Fire & Life Safety' | 'PPP-MII & Telecom';
+  codeRef: string;
+  requirement: string;
+  status: 'PASS' | 'WARN' | 'FAIL';
+  evidence: string;
+}
+
+export interface ExecutiveSummaryPoint {
+  index: number;
+  category: string;
+  headline: string;
+  detail: string;
+}
+
+export type CadSheetId = 'A-101' | 'A-102' | 'C-101' | 'E-201' | 'G-101' | 'R-101' | 'M-301';
