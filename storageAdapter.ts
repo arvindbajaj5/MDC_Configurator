@@ -1,332 +1,366 @@
-import {
-  DEFAULT_MASTER_CATALOG,
-  DEFAULT_NAVI_MUMBAI_DEAL,
-  DEFAULT_SUPPLY_INTEL
-} from '../data/defaults';
-import { resolveElectricalStandards } from '../engines/electricalSld';
+import { COLOR_THEMES, INITIAL_CONTAINER_CATALOG, INITIAL_NON_IT_CATALOG, INITIAL_SKUS, INITIAL_STANDARDS } from '../data/masterCatalog';
+import { DEFAULT_SUPPLY_CHAIN_V13 } from '../data/supplyChainSeed';
 import type {
-  DealConfig,
-  MasterCatalogItem,
-  SupplyIntelSku,
-  WorkspaceState
-} from '../types/schema';
+  ColorPalette,
+  ContainerSpec,
+  MasterStandards,
+  NonItCatalogItem,
+  ProjectDeal,
+  RackSku,
+  SupplyChainDataset
+} from '../types/mdc';
+import { synthesizeMonthlyClimate } from './climateSeismic';
 
-export const CANONICAL_STORAGE_KEY = 'ai_mdc_studio_v13_enterprise';
-export const LEGACY_V12_STORAGE_KEY = 'ai_mdc_studio_v12_0_enterprise';
-export const LEGACY_V11_STORAGE_KEY = 'ai_mdc_studio_v11_0_enterprise';
+export const STORAGE_KEY_V13 = 'ai_mdc_studio_v13_1_enterprise';
+export const LEGACY_STORAGE_KEYS = [
+  'ai_mdc_studio_v13_0_enterprise',
+  'ai_mdc_studio_v12_0_enterprise',
+  'ai_mdc_studio_v11_0_enterprise',
+  'ai_mdc_studio_v10_5_enterprise'
+];
 
-export interface ImportSummary {
-  detectedKind: 'deal' | 'catalog' | 'supply_intel' | 'workspace_bundle' | 'localstorage_dump';
-  dealsImported: number;
-  catalogItemsImported: number;
-  supplySkusImported: number;
-  sourceSchemaVersion: string;
+export interface PersistedWorkspaceState {
+  schemaVersion: string;
+  projects: ProjectDeal[];
+  editingId: string;
+  skus: RackSku[];
+  containerCatalog: ContainerSpec[];
+  nonItCatalog: NonItCatalogItem[];
+  standards: MasterStandards;
+  palette: ColorPalette;
+  supplyIntel: SupplyChainDataset;
+  logoDataUrl: string;
+  clientId: string;
 }
 
-function safeJsonParse<T>(raw: string | null): T | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Normalizes any legacy V11 / V12 / V12.4 deal JSON into a strict V13 DealConfig,
- * backfilling missing fields (like `standards`, `civil`, `telecom`, `specialQuotes`)
- * without discarding existing customer settings.
- */
-export function normalizeLegacyDeal(raw: Partial<DealConfig> & Record<string, unknown>): DealConfig {
-  const base = DEFAULT_NAVI_MUMBAI_DEAL;
+export function makeBlankProject(id: string, indexNum: number, std: MasterStandards = INITIAL_STANDARDS): ProjectDeal {
   return {
-    ...base,
-    ...raw,
-    id: typeof raw.id === 'string' && raw.id.trim() ? raw.id : `deal-${Date.now()}`,
-    schemaVersion: typeof raw.schemaVersion === 'string' ? raw.schemaVersion : '12.4-migrated',
-    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : base.name,
-    customer: typeof raw.customer === 'string' ? raw.customer : base.customer,
-    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString(),
-    targetItLoadMw:
-      typeof raw.targetItLoadMw === 'number' && Number.isFinite(raw.targetItLoadMw)
-        ? raw.targetItLoadMw
-        : base.targetItLoadMw,
-    climate: { ...base.climate, ...(raw.climate ?? {}) },
-    civil: { ...base.civil, ...(raw.civil ?? {}) },
-    telecom: { ...base.telecom, ...(raw.telecom ?? {}) },
-    logistics: { ...base.logistics, ...(raw.logistics ?? {}) },
-    branding: { ...base.branding, ...(raw.branding ?? {}) },
-    commercial: { ...base.commercial, ...(raw.commercial ?? {}) },
-    standards: resolveElectricalStandards(raw.standards),
-    specialQuotes:
-      raw.specialQuotes && typeof raw.specialQuotes === 'object' ? { ...raw.specialQuotes } : {}
+    id,
+    name: `New AI MDC Project #${indexNum}`,
+    client: '',
+    status: 'Draft',
+    updatedAt: new Date().toISOString().slice(0, 10),
+    archetype: 'Sovereign AI Training Factory',
+    shellArchitecture: 'Container',
+    deploymentMode: 'OneShot',
+    day1SharePct: 50,
+    targetItMw: 0,
+    currency: 'INR',
+    marginPct: std.defaultMarginPct,
+    contingencyPct: std.defaultContingencyPct,
+    gstPct: std.defaultGstPct,
+    cityQuery: 'Navi Mumbai',
+    lat: 19.03,
+    lon: 73.02,
+    elevationM: 14,
+    peakDryBulb: 38.0,
+    peakWetBulb: 29.2,
+    relHumidityPct: 78,
+    monthlyClimate: synthesizeMonthlyClimate(38.0, 29.2, 78),
+    seismicZone: 'Zone III',
+    seismicZFactor: 0.16,
+    seismicLabel: 'IS 1893 Zone III (Moderate Seismicity — 0.16g)',
+    rackQuantities: {},
+    loadingMode: 'Standard',
+    actualRackLoads: {},
+    futureGrowthReservePct: 10,
+    containerCatalogId: 'custom',
+    containerLengthMode: 'CustomOptimum',
+    maxCustomLengthMm: std.defaultCustomMaxLenMm,
+    containerHeightMm: std.defaultHeightMm,
+    containerWidthMm: std.defaultWidthMm,
+    metallurgy: std.defaultMetallurgy,
+    wallThicknessMm: std.wallThicknessMm,
+    roofThicknessMm: std.roofThicknessMm,
+    floorThicknessMm: std.floorThicknessMm,
+    plenumHeightMm: std.plenumHeightMm,
+    topClearanceMm: std.topClearanceMm,
+    bespokeContainerPriceInr: '',
+    hallTopology: 'GangedLinear',
+    packingStrategy: 'MinCapex',
+    targetSupplyTempC: '',
+    upsRideThroughMode: 'DGTransferBridge',
+    batteryRuntimeMin: 15,
+    batteryChemistry: 'LFP',
+    upsBacksUpCooling: true,
+    dgAutonomyHours: 24,
+    pumpStagingMode: 'PonyPlusMainVFD',
+    includeTransformer: true,
+    selectedTrafoId: 'trafo-2000kva',
+    transformerType: 'Cast-Resin Dry Type',
+    includeHtVcb: true,
+    includeLvSwitchgear: true,
+    includeIntelligentRpdu: true,
+    includeUpsContainer: true,
+    selectedUpsId: 'ups-1000kva',
+    includeBatteryContainer: true,
+    includeDgYard: true,
+    selectedDgId: 'dg-1500kva',
+    includeIntegratedBms: true,
+    includeLeakRope: true,
+    includeVesdaFire: true,
+    includeCctvSecurity: true,
+    includeAcousticBarrier: false,
+    includeAdminModule: true,
+    includeStagingModule: true,
+    coolingOverrideMode: 'Auto',
+    includeLiquidLoop: false,
+    selectedCoolerId: 'cooler-1000kw',
+    includeExtCdu: false,
+    selectedCduId: 'cdu-1350kw',
+    includePumpSkids: false,
+    includeWaterTanks: false,
+    selectedTankId: 'tank-25kl',
+    includeGlycolDosing: false,
+    waterAutonomyDays: 3,
+    includeRoomDehum: false,
+    waterAvailability: 'Constrained',
+    airCoolingType: 'RDHX',
+    uptimeTier: 'Tier III',
+    regulatoryCode: 'India BIS / CEA / CPCB IV+ / PESO / NBC / IS 1893',
+    emiShielding: true,
+    monsoonCanopy: true,
+    airlockVestibule: true,
+    includeInstallation: true,
+    amcYears: 5,
+    includeAmcContract: true,
+    amcPricingBasis: 'PctOfCapex',
+    amcPctOfCapex: std.defaultAmcPctOfCapex || 3.5,
+    amcSupportModel: '24x7 Resident Engineers + Spares',
+    residentHeadcount: 8,
+    nonStandardWorks: [],
+    solutionQtyOverrides: {},
+    gridTariffInrKwh: std.gridTariffInrKwh,
+    waterTariffInrKl: std.waterTariffInrKl,
+    plotAreaUnit: 'acres',
+    plotAreaInput: 2.5,
+    parcelShape: 'IrregularTrapezoid',
+    parcelVertices: [
+      { x: 0, y: 0 },
+      { x: 110, y: 0 },
+      { x: 128, y: 78 },
+      { x: 16, y: 92 }
+    ],
+    setbackMeters: 6.0,
+    hallRotationDeg: 0,
+    dealOverrides: {},
+    airflowDelivery: 'UnderfloorPlenumUpward',
+    containmentType: 'ColdAisleContainment',
+    frontServiceClearanceMm: 1200,
+    rearServiceClearanceMm: 1000,
+    chillerPlacement: 'ContainerRoof',
+    soilBearingCapacityKpa: 150,
+    historicalFloodLevelMm: 450,
+    bnmColumnGridM: '8m x 8m',
+    bnmSlabThicknessMm: 300,
+    bnmClearSoffitM: 5.8,
+    includeMonsoonCanopy: true,
+    includeRadiantHeatBarrier: true,
+    includeGasScrubber: false,
+    includeRodentRepellent: true,
+    includeZldRecovery: true,
+    includeK12Mantrap: true,
+    includeGridLoadShield: true,
+    includeTelecomMmr: true,
+    includeLogisticsRigging: true,
+    costValidityDays: 60,
+    carrierCount: 3,
+    odfCoreDensity: 576,
+    diverseVaultSeparationM: 35,
+    fabricType: 'InfiniBand NDR (800G OSFP)',
+    approachRoadWidthM: 12,
+    overheadClearanceM: 5.5,
+    craneWorkingRadiusM: 10,
+    groundSurfaceType: 'Compacted WMM + Concrete Apron',
+    brandingMode: 'custom_tbd',
+    exteriorColorHex: '#002870',
+    exteriorRalLabel: 'RAL 5002 Ultramarine Blue',
+    interiorColorHex: '#F8FAFC',
+    interiorRalLabel: 'RAL 9016 Traffic White',
+    rackBezelFinish: 'Matte Black + Brand Orange Trim',
+    clientLogoDataUrl: '',
+    inlineSkuOverrides: {},
+    validationWaivers: {}
   };
 }
 
-function dedupeById<T>(items: T[], getId: (item: T) => string): T[] {
-  const map = new Map<string, T>();
-  for (const item of items) {
-    map.set(getId(item), item);
-  }
-  return Array.from(map.values());
-}
-
-/**
- * Loads workspace state from CANONICAL_STORAGE_KEY.
- * If missing (or first upgrade from V12.4), automatically inspects and merges BOTH
- * `ai_mdc_studio_v12_0_enterprise` AND `ai_mdc_studio_v11_0_enterprise` so zero data
- * is lost from the V12.4 key-split bug.
- */
-export function loadWorkspaceState(storage: Storage = window.localStorage): WorkspaceState {
-  const canonical = safeJsonParse<Partial<WorkspaceState>>(storage.getItem(CANONICAL_STORAGE_KEY));
-  if (canonical && Array.isArray(canonical.deals) && canonical.deals.length > 0) {
-    const deals = canonical.deals.map((d) => normalizeLegacyDeal(d as Partial<DealConfig> & Record<string, unknown>));
-    return {
-      schemaVersion: '13.0',
-      activeDealId: canonical.activeDealId || deals[0].id,
-      deals,
-      catalog:
-        Array.isArray(canonical.catalog) && canonical.catalog.length > 0
-          ? canonical.catalog
-          : DEFAULT_MASTER_CATALOG,
-      supplyIntel:
-        Array.isArray(canonical.supplyIntel) && canonical.supplyIntel.length > 0
-          ? canonical.supplyIntel
-          : DEFAULT_SUPPLY_INTEL,
-      driveConfig: {
-        selectedFolderId: canonical.driveConfig?.selectedFolderId ?? null,
-        selectedFolderPath: canonical.driveConfig?.selectedFolderPath ?? 'My Drive',
-        includeReadonlyScope: canonical.driveConfig?.includeReadonlyScope ?? true
-      },
-      lastMigratedFrom: canonical.lastMigratedFrom
-    };
-  }
-
-  // Auto-migrate stranded V11 & V12.4 keys
-  const migratedSources: string[] = [];
-  let mergedDeals: DealConfig[] = [];
-  let mergedCatalog: MasterCatalogItem[] = [...DEFAULT_MASTER_CATALOG];
-  let mergedSupply: SupplyIntelSku[] = [...DEFAULT_SUPPLY_INTEL];
-
-  for (const legacyKey of [LEGACY_V11_STORAGE_KEY, LEGACY_V12_STORAGE_KEY]) {
-    const parsed = safeJsonParse<Record<string, unknown>>(storage.getItem(legacyKey));
-    if (!parsed) continue;
-    migratedSources.push(legacyKey);
-
-    if (Array.isArray(parsed.deals)) {
-      const normalized = parsed.deals.map((d) =>
-        normalizeLegacyDeal(d as Partial<DealConfig> & Record<string, unknown>)
-      );
-      mergedDeals = dedupeById([...mergedDeals, ...normalized], (d) => d.id);
-    } else if (parsed.deal && typeof parsed.deal === 'object') {
-      mergedDeals = dedupeById(
-        [...mergedDeals, normalizeLegacyDeal(parsed.deal as Partial<DealConfig> & Record<string, unknown>)],
-        (d) => d.id
-      );
-    }
-
-    const legacyCatalog = (parsed.catalog ?? parsed.masterCatalog ?? parsed.items) as MasterCatalogItem[] | undefined;
-    if (Array.isArray(legacyCatalog) && legacyCatalog.length > 0) {
-      mergedCatalog = dedupeById([...mergedCatalog, ...legacyCatalog], (c) => c.id || c.code);
-    }
-
-    const legacySupply = (parsed.supplyIntel ?? parsed.skus) as SupplyIntelSku[] | undefined;
-    if (Array.isArray(legacySupply) && legacySupply.length > 0) {
-      mergedSupply = dedupeById([...mergedSupply, ...legacySupply], (s) => s.skuId);
-    }
-  }
-
-  if (mergedDeals.length === 0) {
-    mergedDeals = [normalizeLegacyDeal(DEFAULT_NAVI_MUMBAI_DEAL as unknown as Record<string, unknown>)];
-  }
-
-  const nextState: WorkspaceState = {
-    schemaVersion: '13.0',
-    activeDealId: mergedDeals[0].id,
-    deals: mergedDeals,
-    catalog: mergedCatalog,
-    supplyIntel: mergedSupply,
-    driveConfig: {
-      selectedFolderId: null,
-      selectedFolderPath: 'My Drive',
-      includeReadonlyScope: true
+export function makeSampleProject(std: MasterStandards = INITIAL_STANDARDS): ProjectDeal {
+  const p = makeBlankProject('proj-15mw-sample', 1, std);
+  return {
+    ...p,
+    name: 'Sample: 15 MW Sovereign AI Cluster — Navi Mumbai',
+    client: 'National HPC Authority',
+    status: 'Solution Reviewed',
+    targetItMw: 15.0,
+    rackQuantities: {
+      'sku-dlc-265': 32,
+      'sku-dlc-300-ext': 12,
+      'sku-dlc-140-ext': 16,
+      'sku-dlc-240-800v': 0,
+      'sku-air-core': 12
     },
-    lastMigratedFrom: migratedSources.length > 0 ? migratedSources : undefined
+    selectedTrafoId: 'trafo-3150kva',
+    selectedUpsId: 'ups-1500kva',
+    selectedDgId: 'dg-2250kva',
+    selectedCoolerId: 'cooler-1500kw',
+    selectedCduId: 'cdu-1350kw',
+    selectedTankId: 'tank-50kl',
+    airCoolingType: 'RDHX',
+    includeLiquidLoop: true,
+    includeExtCdu: true,
+    includePumpSkids: true,
+    includeWaterTanks: true,
+    includeGlycolDosing: true,
+    includeRoomDehum: true,
+    residentHeadcount: 14,
+    nonStandardWorks: [
+      { id: 'nsw-1', desc: '33kV HT Armored Cable Laying from Grid Bay', unit: 'meters', qty: 240, unitCostInr: 6800 },
+      { id: 'nsw-2', desc: 'RCC Underground Utility Trench & Hume Pipe Crossing', unit: 'meters', qty: 180, unitCostInr: 9500 }
+    ]
   };
-
-  saveWorkspaceState(nextState, storage);
-  return nextState;
-}
-
-export function saveWorkspaceState(state: WorkspaceState, storage: Storage = window.localStorage): void {
-  const payload: WorkspaceState = {
-    ...state,
-    schemaVersion: '13.0'
-  };
-  storage.setItem(CANONICAL_STORAGE_KEY, JSON.stringify(payload));
 }
 
 /**
- * Relaxed schemaVersion JSON importer:
- * Supports V11/V12/V13 Deal JSONs, mdc_master_catalog.json, mdc_supply_intel.json,
- * full WorkspaceState bundles, AND Step 1 DevTools localStorage dumps.
+ * 100% Backward-Compatible V11/V12/V13 Deal Sanitizer
+ * Safely migrates legacy JSON deals without losing overrides, rack quantities, or site parameters.
  */
-export function mergeImportedJsonPayload(
-  current: WorkspaceState,
-  rawPayload: unknown
-): { nextState: WorkspaceState; summary: ImportSummary } {
-  if (!rawPayload || typeof rawPayload !== 'object') {
-    throw new Error('Imported JSON must be a valid object or array.');
+export function sanitizeProject(raw: Partial<ProjectDeal> | null | undefined, std: MasterStandards = INITIAL_STANDARDS): ProjectDeal {
+  const base = makeBlankProject(raw?.id || `proj-${Date.now()}`, 1, std);
+  const merged: ProjectDeal = { ...base, ...(raw || {}) };
+
+  if (!Array.isArray(merged.parcelVertices) || merged.parcelVertices.length < 3) {
+    merged.parcelVertices = base.parcelVertices;
+  }
+  if (!Array.isArray(merged.nonStandardWorks)) merged.nonStandardWorks = [];
+  if (!Array.isArray(merged.monthlyClimate) || merged.monthlyClimate.length !== 12) {
+    merged.monthlyClimate = synthesizeMonthlyClimate(merged.peakDryBulb || 38, merged.peakWetBulb || 29, merged.relHumidityPct || 75);
+  }
+  if (!merged.rackQuantities || typeof merged.rackQuantities !== 'object') merged.rackQuantities = {};
+  if (!merged.actualRackLoads || typeof merged.actualRackLoads !== 'object') merged.actualRackLoads = {};
+  if (!merged.dealOverrides || typeof merged.dealOverrides !== 'object') merged.dealOverrides = {};
+  if (!merged.solutionQtyOverrides || typeof merged.solutionQtyOverrides !== 'object') merged.solutionQtyOverrides = {};
+  if (!merged.inlineSkuOverrides || typeof merged.inlineSkuOverrides !== 'object') merged.inlineSkuOverrides = {};
+  if (!merged.validationWaivers || typeof merged.validationWaivers !== 'object') merged.validationWaivers = {};
+  if (merged.shellArchitecture !== 'BnM_Hall') merged.shellArchitecture = 'Container';
+
+  return merged;
+}
+
+export function loadWorkspaceWithMigration(defaultClientId: string): {
+  state: PersistedWorkspaceState;
+  migratedFrom: string | null;
+} {
+  const fallback: PersistedWorkspaceState = {
+    schemaVersion: 'MDC_V13_1',
+    projects: [makeSampleProject(INITIAL_STANDARDS)],
+    editingId: 'proj-15mw-sample',
+    skus: INITIAL_SKUS,
+    containerCatalog: INITIAL_CONTAINER_CATALOG,
+    nonItCatalog: INITIAL_NON_IT_CATALOG,
+    standards: INITIAL_STANDARDS,
+    palette: COLOR_THEMES.projector,
+    supplyIntel: DEFAULT_SUPPLY_CHAIN_V13,
+    logoDataUrl: '',
+    clientId: defaultClientId
+  };
+
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return { state: fallback, migratedFrom: null };
   }
 
-  const obj = rawPayload as Record<string, unknown>;
-  const sourceSchemaVersion =
-    typeof obj.schemaVersion === 'string' ? obj.schemaVersion : 'unversioned/legacy';
+  try {
+    let raw = window.localStorage.getItem(STORAGE_KEY_V13);
+    let migratedFrom: string | null = null;
 
-  let deals = [...current.deals];
-  let catalog = [...current.catalog];
-  let supplyIntel = [...current.supplyIntel];
-  let activeDealId = current.activeDealId;
-
-  let dealsImported = 0;
-  let catalogItemsImported = 0;
-  let supplySkusImported = 0;
-  let detectedKind: ImportSummary['detectedKind'] = 'workspace_bundle';
-
-  // Case 1: Raw array of catalog items or supply SKUs
-  if (Array.isArray(rawPayload)) {
-    const first = rawPayload[0] as Record<string, unknown> | undefined;
-    if (first && typeof first.skuId === 'string') {
-      detectedKind = 'supply_intel';
-      const incoming = rawPayload as SupplyIntelSku[];
-      supplyIntel = dedupeById([...supplyIntel, ...incoming], (s) => s.skuId);
-      supplySkusImported = incoming.length;
-    } else if (first && (typeof first.code === 'string' || typeof first.id === 'string')) {
-      detectedKind = 'catalog';
-      const incoming = rawPayload as MasterCatalogItem[];
-      catalog = dedupeById([...catalog, ...incoming], (c) => c.id || c.code);
-      catalogItemsImported = incoming.length;
-    } else {
-      throw new Error('Unrecognized JSON array format: expected catalog items or supply SKUs.');
-    }
-  }
-  // Case 2: Step 1 localStorage dump ({ keys: { ai_mdc_studio_v11_0_enterprise: ... } })
-  else if (obj.keys && typeof obj.keys === 'object') {
-    detectedKind = 'localstorage_dump';
-    const keysObj = obj.keys as Record<string, unknown>;
-    for (const val of Object.values(keysObj)) {
-      if (val && typeof val === 'object') {
-        const sub = mergeImportedJsonPayload(
-          { ...current, deals, catalog, supplyIntel, activeDealId },
-          val
-        );
-        deals = sub.nextState.deals;
-        catalog = sub.nextState.catalog;
-        supplyIntel = sub.nextState.supplyIntel;
-        activeDealId = sub.nextState.activeDealId;
-        dealsImported += sub.summary.dealsImported;
-        catalogItemsImported += sub.summary.catalogItemsImported;
-        supplySkusImported += sub.summary.supplySkusImported;
+    if (!raw) {
+      for (const legacyKey of LEGACY_STORAGE_KEYS) {
+        const candidate = window.localStorage.getItem(legacyKey);
+        if (candidate) {
+          raw = candidate;
+          migratedFrom = legacyKey;
+          break;
+        }
       }
     }
-  }
-  // Case 3: mdc_supply_intel.json ({ skus: [...] })
-  else if (Array.isArray(obj.skus)) {
-    detectedKind = 'supply_intel';
-    const incoming = obj.skus as SupplyIntelSku[];
-    supplyIntel = dedupeById([...supplyIntel, ...incoming], (s) => s.skuId);
-    supplySkusImported = incoming.length;
-  }
-  // Case 4: mdc_master_catalog.json ({ items: [...] } or { masterCatalog: [...] })
-  else if (Array.isArray(obj.items) || Array.isArray(obj.masterCatalog)) {
-    detectedKind = 'catalog';
-    const incoming = (obj.items ?? obj.masterCatalog) as MasterCatalogItem[];
-    catalog = dedupeById([...catalog, ...incoming], (c) => c.id || c.code);
-    catalogItemsImported = incoming.length;
-  }
-  // Case 5: Full Workspace bundle ({ deals: [...], catalog?: [...], supplyIntel?: [...] })
-  else if (Array.isArray(obj.deals)) {
-    detectedKind = 'workspace_bundle';
-    const incomingDeals = obj.deals.map((d) =>
-      normalizeLegacyDeal(d as Partial<DealConfig> & Record<string, unknown>)
-    );
-    deals = dedupeById([...deals, ...incomingDeals], (d) => d.id);
-    dealsImported = incomingDeals.length;
-    if (incomingDeals.length > 0) activeDealId = incomingDeals[incomingDeals.length - 1].id;
 
-    if (Array.isArray(obj.catalog)) {
-      const incomingCat = obj.catalog as MasterCatalogItem[];
-      catalog = dedupeById([...catalog, ...incomingCat], (c) => c.id || c.code);
-      catalogItemsImported = incomingCat.length;
-    }
-    if (Array.isArray(obj.supplyIntel)) {
-      const incomingSup = obj.supplyIntel as SupplyIntelSku[];
-      supplyIntel = dedupeById([...supplyIntel, ...incomingSup], (s) => s.skuId);
-      supplySkusImported = incomingSup.length;
-    }
-  }
-  // Case 6: Single V11/V12/V13 Deal JSON
-  else if (typeof obj.targetItLoadMw === 'number' || typeof obj.architecture === 'string' || typeof obj.name === 'string') {
-    detectedKind = 'deal';
-    const normalized = normalizeLegacyDeal(obj as Partial<DealConfig> & Record<string, unknown>);
-    deals = dedupeById([...deals, normalized], (d) => d.id);
-    activeDealId = normalized.id;
-    dealsImported = 1;
-  } else {
-    throw new Error('Could not recognize MDC deal, catalog, or supply intel structure in JSON file.');
-  }
+    if (!raw) return { state: fallback, migratedFrom: null };
+    const parsed = JSON.parse(raw);
+    const std: MasterStandards = { ...INITIAL_STANDARDS, ...(parsed.standards || {}) };
+    const projects: ProjectDeal[] = Array.isArray(parsed.projects) && parsed.projects.length > 0
+      ? parsed.projects.map((p: Partial<ProjectDeal>) => sanitizeProject(p, std))
+      : fallback.projects;
 
-  const nextState: WorkspaceState = {
-    ...current,
-    schemaVersion: '13.0',
-    activeDealId,
-    deals,
-    catalog,
-    supplyIntel
-  };
+    // Upgrade legacy 16-item V12 supply intel seamlessly if it lacks V13 tier/confidence tags
+    const existingSupplyItems = parsed.supplyIntel?.items;
+    const supplyIntel: SupplyChainDataset =
+      Array.isArray(existingSupplyItems) && existingSupplyItems.length >= 40 && existingSupplyItems[0]?.tier
+        ? parsed.supplyIntel
+        : DEFAULT_SUPPLY_CHAIN_V13;
 
-  return {
-    nextState,
-    summary: {
-      detectedKind,
-      dealsImported,
-      catalogItemsImported,
-      supplySkusImported,
-      sourceSchemaVersion
+    const hydrated: PersistedWorkspaceState = {
+      schemaVersion: 'MDC_V13_1',
+      projects,
+      editingId: parsed.editingId || projects[0].id,
+      skus: Array.isArray(parsed.skus) && parsed.skus.length > 0 ? parsed.skus : INITIAL_SKUS,
+      containerCatalog: Array.isArray(parsed.containerCatalog) && parsed.containerCatalog.length > 0 ? parsed.containerCatalog : INITIAL_CONTAINER_CATALOG,
+      nonItCatalog: Array.isArray(parsed.nonItCatalog) && parsed.nonItCatalog.length > 0 ? parsed.nonItCatalog : INITIAL_NON_IT_CATALOG,
+      standards: std,
+      palette: { ...COLOR_THEMES.projector, ...(parsed.palette || {}) },
+      supplyIntel,
+      logoDataUrl: parsed.logoDataUrl || '',
+      clientId: parsed.clientId || defaultClientId
+    };
+
+    if (migratedFrom) {
+      window.localStorage.setItem(STORAGE_KEY_V13, JSON.stringify(hydrated));
     }
-  };
+    return { state: hydrated, migratedFrom };
+  } catch {
+    return { state: fallback, migratedFrom: null };
+  }
 }
 
-/**
- * Browser File input helper — guarantees `inputEl.value = ''` in `finally`
- * so selecting the same filename twice always triggers `onChange`.
- */
-export async function importJsonFileInput(
-  file: File,
-  current: WorkspaceState,
-  inputEl?: HTMLInputElement | null
-): Promise<{ nextState: WorkspaceState; summary: ImportSummary }> {
+export function saveWorkspaceState(state: PersistedWorkspaceState): { ok: boolean; time: string } {
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   try {
-    const text = await file.text();
-    const parsed = JSON.parse(text) as unknown;
-    const result = mergeImportedJsonPayload(current, parsed);
-    saveWorkspaceState(result.nextState);
-    return result;
-  } finally {
-    if (inputEl) {
-      inputEl.value = '';
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(STORAGE_KEY_V13, JSON.stringify(state));
     }
+    return { ok: true, time };
+  } catch {
+    return { ok: false, time };
   }
 }
 
-export function triggerJsonDownload(filename: string, payload: unknown): void {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+export async function saveFilesToLocalDirectory(
+  filesList: { name: string; content: string }[]
+): Promise<{ method: 'directoryPicker' | 'downloadFallback'; folderName: string; count: number }> {
+  const win = window as unknown as {
+    showDirectoryPicker?: (opts: { mode: string }) => Promise<{
+      name: string;
+      getFileHandle: (name: string, opts: { create: boolean }) => Promise<{
+        createWritable: () => Promise<{ write: (c: string) => Promise<void>; close: () => Promise<void> }>;
+      }>;
+    }>;
+  };
+  if (win.showDirectoryPicker) {
+    const dirHandle = await win.showDirectoryPicker({ mode: 'readwrite' });
+    for (const f of filesList) {
+      const fh = await dirHandle.getFileHandle(f.name, { create: true });
+      const wr = await fh.createWritable();
+      await wr.write(f.content);
+      await wr.close();
+    }
+    return { method: 'directoryPicker', folderName: dirHandle.name, count: filesList.length };
+  }
+  for (const f of filesList) {
+    const blob = new Blob([f.content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = f.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  return { method: 'downloadFallback', folderName: 'Browser Downloads Folder', count: filesList.length };
 }

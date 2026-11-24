@@ -1,25 +1,9 @@
 {
-  "name": "AI Modular Data Center Configurator",
+  "name": "AI Modular Data Center Configurator V13.1",
   "short_name": "MDC Studio",
-  "description": "Enterprise AI Modular Data Center Planner, 3D Twin & PowerPoint Generator",
   "start_url": "./",
-  "scope": "./",
   "display": "standalone",
-  "orientation": "any",
-  "background_color": "#002870",
+  "background_color": "#F4F6FA",
   "theme_color": "#002870",
-  "icons": [
-    {
-      "src": "./icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ]
+  "description": "Turnkey AI Modular Data Center & BnM Engineering Configurator"
 }

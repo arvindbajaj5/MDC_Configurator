@@ -1,39 +1,35 @@
 {
   "name": "mdc-configurator-v13",
-  "version": "13.0.0",
+  "version": "13.1.0",
   "private": true,
   "type": "module",
-  "description": "AI Modular Data Center (MDC) Configurator \u2014 Modular Vite + React + TypeScript Build",
   "scripts": {
     "dev": "vite",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "tsc --noEmit && vite build",
-    "build:singlefile": "SINGLEFILE=true tsc --noEmit && SINGLEFILE=true vite build",
-    "preview": "vite preview"
+    "supply:refresh": "node scripts/refresh-supply-intel.mjs"
   },
   "dependencies": {
-    "lucide-react": "^0.468.0",
+    "jspdf": "^2.5.2",
+    "lucide-react": "^0.460.0",
+    "pptxgenjs": "^3.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "jspdf": "^2.5.2",
-    "pptxgenjs": "^3.12.0",
-    "three": "^0.170.0"
+    "three": "^0.169.0"
   },
   "devDependencies": {
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
-    "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.7",
-    "vite-plugin-pwa": "^0.21.1",
-    "vite-plugin-singlefile": "^2.1.0",
-    "vitest": "^2.1.8",
-    "@types/three": "^0.170.0"
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.5"
   }
 }
