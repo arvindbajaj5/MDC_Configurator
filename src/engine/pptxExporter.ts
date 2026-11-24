@@ -15,7 +15,11 @@ export const PPTX_SLIDE_HEIGHT_IN = 7.5;
 export const PPTX_FOOTER_CLEARANCE_IN = 3.1;
 export const PPTX_MAX_CONTENT_BOTTOM_IN = PPTX_SLIDE_HEIGHT_IN - PPTX_FOOTER_CLEARANCE_IN; // 4.40"
 
-const tc = (text: string, options?: PptxGenJS.TableCellProps): PptxGenJS.TableCell =>
+type PptxSlide = ReturnType<PptxGenJS['addSlide']>;
+type PptxTableRow = Parameters<PptxSlide['addTable']>[0][number];
+type PptxTableCell = Exclude<PptxTableRow[number], string>;
+
+const tc = (text: string, options?: PptxTableCell['options']): PptxTableCell =>
   options ? { text, options } : { text };
 
 /**
@@ -137,7 +141,7 @@ export function exportStrictNativePptxDeck(
   const C = PPTX_PALETTE;
   const ashraePng = renderStrictAshraeChartPng(eng);
 
-  const initSlide = (slide: PptxGenJS.Slide, titleText: string, subHeaderText: string, secNum: string) => {
+  const initSlide = (slide: PptxSlide, titleText: string, subHeaderText: string, secNum: string) => {
     slide.background = { color: C.WHITE };
     slide.addText(`${secNum}  |  ${titleText}`, {
       x: 0.55,
@@ -163,7 +167,7 @@ export function exportStrictNativePptxDeck(
       margin: 0.08,
       valign: 'middle'
     });
-    slide.addShape(pptx.ShapeType.line, {
+    slide.addShape('line', {
       x: 0.60,
       y: 1.14,
       w: 12.1,
@@ -175,7 +179,7 @@ export function exportStrictNativePptxDeck(
   // SLIDE 1: Cover Slide (Native Shapes & Tables Only, Zero Stacked Text Boxes, No Logo)
   const s1 = pptx.addSlide();
   s1.background = { color: C.WHITE };
-  s1.addShape(pptx.ShapeType.rect, {
+  s1.addShape('rect', {
     x: 0.65,
     y: 0.95,
     w: 1.4,
@@ -235,7 +239,7 @@ export function exportStrictNativePptxDeck(
     `${project.client || 'Customer'} • ${(eng.totalDesignContKw / 1000).toFixed(2)} MW ${project.archetype}`,
     '01'
   );
-  const s2Table: PptxGenJS.TableRow[] = [
+  const s2Table: PptxTableRow[] = [
     [
       tc('Design Dimension', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
       tc('Engineered Specification', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
@@ -300,7 +304,7 @@ export function exportStrictNativePptxDeck(
     `${eng.totalItWhiteSpaceSqm} m² White-Space + ${eng.totalNonItYardSqm} m² Yard • ${project.setbackMeters}m NBC Setback`,
     '03'
   );
-  const zoneTable: PptxGenJS.TableRow[] = [
+  const zoneTable: PptxTableRow[] = [
     [
       tc('Campus Zone', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
       tc('Area (m²)', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
@@ -357,7 +361,7 @@ export function exportStrictNativePptxDeck(
     `${project.uptimeTier} Power Train • ${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar TDH`,
     '04'
   );
-  const mepTable: PptxGenJS.TableRow[] = [
+  const mepTable: PptxTableRow[] = [
     [
       tc('Stage', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
       tc('Electrical Power Train (Sheet E-201)', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
@@ -405,7 +409,7 @@ export function exportStrictNativePptxDeck(
     `${project.seismicLabel} • ${eng.civil.foundationType}`,
     '05'
   );
-  const govRows: PptxGenJS.TableRow[] = [
+  const govRows: PptxTableRow[] = [
     [
       tc('Governance Domain', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
       tc('Engineered Specification & Verification Gate', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } })
@@ -452,7 +456,7 @@ export function exportStrictNativePptxDeck(
       '06'
     );
     const slice = eng.bomItems.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-    const boqTable: PptxGenJS.TableRow[] = [
+    const boqTable: PptxTableRow[] = [
       [
         tc('Category', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
         tc('Subsystem / Scope Description', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
@@ -512,7 +516,7 @@ export function exportStrictNativePptxDeck(
     `Macro Execution Schedule • ${totalWks} Weeks to Day-1 Ready-for-Service`,
     '07'
   );
-  const planRows: PptxGenJS.TableRow[] = [
+  const planRows: PptxTableRow[] = [
     [
       tc('Macro Execution Workstream', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
       tc('Start', { bold: true, color: C.BLACK, fill: { color: C.LIGHT_GREY } }),
