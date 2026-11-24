@@ -177,7 +177,7 @@ export const Stage1Inputs: React.FC<Stage1InputsProps> = ({
   };
 
   const applyBulkActualLoad = () => {
-    const updated: Record<string, number> = { ...(project.actualRackLoads || {}) };
+    const updated: Record<string, number | string> = { ...(project.actualRackLoads || {}) };
     eng.activeRacks.forEach(rk => {
       updated[rk.instanceKey] = Math.min(rk.peakKw, Math.max(1, Number(bulkLoadKw) || 0));
     });
