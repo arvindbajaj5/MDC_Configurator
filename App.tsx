@@ -16,8 +16,11 @@ import {
 } from './engine/storageAdapter';
 import type {
   ColorPalette,
+  ContainerSpec,
+  MasterStandards,
   NonItCatalogItem,
   ProjectDeal,
+  RackSku,
   SupplyChainDataset,
   SupplyChainSku
 } from './types/mdc';
@@ -171,10 +174,10 @@ export default function App() {
       return;
     }
     if (Array.isArray(data?.skus) && Array.isArray(data?.nonItCatalog)) {
-      setSkus(data.skus);
-      if (Array.isArray(data.containerCatalog)) setContainerCatalog(data.containerCatalog);
-      setNonItCatalog(data.nonItCatalog);
-      if (data.standards) setStandards(prev => ({ ...prev, ...(data.standards as typeof prev) }));
+      setSkus(data.skus as RackSku[]);
+      if (Array.isArray(data.containerCatalog)) setContainerCatalog(data.containerCatalog as ContainerSpec[]);
+      setNonItCatalog(data.nonItCatalog as NonItCatalogItem[]);
+      if (data.standards) setStandards(prev => ({ ...prev, ...(data.standards as Partial<MasterStandards>) }));
       alert(`Loaded Master Catalog from ${fileName}`);
       return;
     }
