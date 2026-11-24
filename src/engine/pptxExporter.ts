@@ -167,7 +167,7 @@ export function exportStrictNativePptxDeck(
       margin: 0.08,
       valign: 'middle'
     });
-    slide.addShape('line', {
+    slide.addShape('line' as Parameters<PptxSlide['addShape']>[0], {
       x: 0.60,
       y: 1.14,
       w: 12.1,
@@ -179,7 +179,7 @@ export function exportStrictNativePptxDeck(
   // SLIDE 1: Cover Slide (Native Shapes & Tables Only, Zero Stacked Text Boxes, No Logo)
   const s1 = pptx.addSlide();
   s1.background = { color: C.WHITE };
-  s1.addShape('rect', {
+  s1.addShape('rect' as Parameters<PptxSlide['addShape']>[0], {
     x: 0.65,
     y: 0.95,
     w: 1.4,
