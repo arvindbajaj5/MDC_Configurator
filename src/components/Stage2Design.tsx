@@ -3,6 +3,7 @@ import { formatMoney } from '../engine/engineeringEngine';
 import type {
   BomLineItem,
   ColorPalette,
+  ContainerSpec,
   DealPriceOverride,
   EngineeringResult,
   InlineSkuOverride,
@@ -11,16 +12,25 @@ import type {
   ProjectDeal,
   SupplyChainSku
 } from '../types/mdc';
+import type { DesignSubTab } from './AppShell';
+import { CivilPlinthPanel } from './CivilPlinthPanel';
+import { ContainerWhiteSpacePanel } from './ContainerWhiteSpacePanel';
+import { LogisticsRiggingPanel } from './LogisticsRiggingPanel';
+import { TelecomMmrPanel } from './TelecomMmrPanel';
 import { ThreeDStudio } from './ThreeDStudio';
 
 interface Stage2DesignProps {
   project: ProjectDeal;
   eng: EngineeringResult;
   standards: MasterStandards;
+  containerCatalog: ContainerSpec[];
   supplyItems: SupplyChainSku[];
   nonItCatalog: NonItCatalogItem[];
   palette: ColorPalette;
+  activeSubTab: DesignSubTab;
+  onChangeSubTab: (tab: DesignSubTab) => void;
   onUpdateProject: (patch: Partial<ProjectDeal>) => void;
+  onSaveContainerToCatalog: (spec: ContainerSpec) => void;
   onPromoteSkuToMaster: (newItem: NonItCatalogItem, newSupplySku: SupplyChainSku) => void;
   onUpdatePalette: (key: keyof Omit<ColorPalette, 'label'>, hex: string) => void;
   onApplyTheme: (themeKey: string) => void;
@@ -31,17 +41,20 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
   project,
   eng,
   standards,
+  containerCatalog,
   supplyItems,
   nonItCatalog,
   palette,
+  activeSubTab,
+  onChangeSubTab,
   onUpdateProject,
+  onSaveContainerToCatalog,
   onPromoteSkuToMaster,
   onUpdatePalette,
   onApplyTheme,
   onProceedToOutputs
 }) => {
-  const [show3DModeling, setShow3DModeling] = useState(true);
-  const [designSubTab, setDesignSubTab] = useState<'mep_bom' | 'whitespace_civil' | 'validation'>('mep_bom');
+  const [show3DModeling, setShow3DModeling] = useState(false);
 
   // Inline SKU Replacement Modal state ("This Deal Only" vs "Promote to Master")
   const [replaceGroup, setReplaceGroup] = useState<string | null>(null);
@@ -82,11 +95,15 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
       selectedSupplyId: first?.id || '',
       make: currentMatch?.vendor || first?.vendor || 'OEM Vendor',
       model: currentMatch?.model || first?.sku || 'SKU-01',
-      label: currentMatch?.label || (first ? `${first.vendor} ${first.family} (${first.rating} ${first.unit})` : ''),
+      label:
+        currentMatch?.label ||
+        (first ? `${first.vendor} ${first.family} (${first.rating} ${first.unit})` : ''),
       ratedCapacity: currentMatch?.ratedCapacity || first?.rating || 1000,
       capacityUnit: currentMatch?.demandUnit || first?.unit || 'kVA',
       footprintSqm: currentMatch?.footprintSqm || first?.footprintSqm || 14,
-      unitCostInr: currentMatch?.unitPriceInr || (first ? Math.round((first.baseLow + first.baseHigh) / 2) : 4000000),
+      unitCostInr:
+        currentMatch?.unitPriceInr ||
+        (first ? Math.round((first.baseLow + first.baseHigh) / 2) : 4000000),
       miiPct: currentMatch?.miiPct || first?.miiPct || 85,
       scope: 'deal_only'
     });
@@ -98,7 +115,9 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
     const overrideObj: InlineSkuOverride = {
       group: replaceGroup,
       skuId: newSkuId,
-      label: replaceForm.label || `${replaceForm.make} ${replaceForm.model} (${replaceForm.ratedCapacity} ${replaceForm.capacityUnit})`,
+      label:
+        replaceForm.label ||
+        `${replaceForm.make} ${replaceForm.model} (${replaceForm.ratedCapacity} ${replaceForm.capacityUnit})`,
       make: replaceForm.make,
       model: replaceForm.model,
       ratedCapacity: Number(replaceForm.ratedCapacity) || 1000,
@@ -220,41 +239,59 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
     ['tank', 'SS316L Water Storage Tanks']
   ];
 
+  const subTabs: { id: DesignSubTab; label: string }[] = [
+    { id: 'container_ws', label: 'Container & White-Space' },
+    { id: 'civil_plinth', label: 'Civil, Plinth & BnM' },
+    { id: 'mep_bom', label: `MEP Synthesis & BOQ (${eng.bomItems.length})` },
+    { id: 'telecom_mmr', label: 'Telecom & MMR' },
+    { id: 'logistics_rigging', label: 'Logistics & Rigging' },
+    {
+      id: 'validation',
+      label: `Validation Gate (${eng.unwaivedFailCount}F / ${eng.warnCount}W)`
+    }
+  ];
+
   return (
-    <div className="space-y-5 text-xs">
-      {/* Top Design Control Header */}
-      <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <span className="px-2.5 py-0.5 rounded bg-sky-100 text-sky-950 font-black uppercase text-[10px]">
-            Stage 02 • Supply-Chain Synthesis, Inline Overrides & Soft Validation Gate
-          </span>
-          <h2 className="text-lg font-bold navy-text mt-1">
-            Engineering & Commercial Solution Design — {project.name}
-          </h2>
-          <p className="text-slate-500">
-            Auto-drafted from Supply Chain DB (±20% / ≤8 active unit rule). Override any qty/spec, replace SKUs inline, inspect 3D, or waive deviations.
-          </p>
+    <div className="space-y-4 text-xs">
+      {/* Compact Engineering Sub-Module Strip + Live 3D Toggle */}
+      <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap py-0.5">
+          {subTabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => onChangeSubTab(t.id)}
+              className={`px-3 py-1.5 rounded-xl font-bold transition ${
+                activeSubTab === t.id
+                  ? 'navy-bg text-white shadow-sm'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setShow3DModeling(!show3DModeling)}
-            className={`px-3 py-2 rounded-lg font-bold border ${
-              show3DModeling ? 'bg-indigo-50 border-indigo-400 text-indigo-950' : 'bg-white border-slate-300 text-slate-700'
+            onClick={() => setShow3DModeling(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl font-bold border transition ${
+              show3DModeling
+                ? 'bg-indigo-50 border-indigo-400 text-indigo-950'
+                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
             }`}
           >
-            {show3DModeling ? '🧊 Hide Live 3D' : '🧊 Inspect Live 360° 3D'}
+            {show3DModeling ? 'Hide Live 3D' : 'Preview Live 3D'}
           </button>
           <button
             onClick={onProceedToOutputs}
-            className="px-4 py-2 rounded-xl coral-bg hover:opacity-95 text-white font-black shadow"
+            className="px-3.5 py-1.5 rounded-xl coral-bg hover:opacity-95 text-white font-black shadow-sm"
           >
-            Proceed to Stage 3 Outputs →
+            Stage 3 Outputs →
           </button>
         </div>
       </div>
 
-      {/* Collapsible Live 360° 3D Studio while Modeling */}
+      {/* Optional Collapsible Live 360° 3D Studio while Modeling */}
       {show3DModeling && (
         <ThreeDStudio
           project={project}
@@ -266,44 +303,48 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
         />
       )}
 
-      {/* Sub-navigation inside Stage 2 */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            onClick={() => setDesignSubTab('mep_bom')}
-            className={`px-3.5 py-1.5 rounded-lg font-bold ${
-              designSubTab === 'mep_bom' ? 'navy-bg text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            1. Supply-Chain Synthesis & BOQ ({eng.bomItems.length})
-          </button>
-          <button
-            onClick={() => setDesignSubTab('whitespace_civil')}
-            className={`px-3.5 py-1.5 rounded-lg font-bold ${
-              designSubTab === 'whitespace_civil' ? 'navy-bg text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            2. White-Space, Civil (4.5m Pile Cap) & Telecom
-          </button>
-          <button
-            onClick={() => setDesignSubTab('validation')}
-            className={`px-3.5 py-1.5 rounded-lg font-bold ${
-              designSubTab === 'validation' ? 'navy-bg text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            3. SOFT Validation Gate ({eng.unwaivedFailCount} Fail / {eng.warnCount} Warn / {eng.waivedCount} Waived)
-          </button>
-        </div>
-        <div className="font-bold navy-text px-2">
-          Pre-Tax: {formatMoney(eng.totals.sellingPreTax, project.currency, standards)} • MII:{' '}
-          <span className="text-emerald-700">{eng.mii.miiClassLabel}</span>
-        </div>
-      </div>
+      {/* MODULE: CONTAINER, WHITE-SPACE & BRANDING */}
+      {activeSubTab === 'container_ws' && (
+        <ContainerWhiteSpacePanel
+          project={project}
+          eng={eng}
+          containerCatalog={containerCatalog}
+          onUpdateProject={onUpdateProject}
+          onSaveContainerToCatalog={onSaveContainerToCatalog}
+          onInspect3D={() => setShow3DModeling(true)}
+        />
+      )}
 
-      {/* TAB 1: SUPPLY-CHAIN SYNTHESIS (±20% AUTO-PLACEHOLDER) + INLINE SKU REPLACE + SPECIAL QUOTES */}
-      {designSubTab === 'mep_bom' && (
+      {/* MODULE: CIVIL, PLINTH & BnM */}
+      {activeSubTab === 'civil_plinth' && (
+        <CivilPlinthPanel
+          project={project}
+          eng={eng}
+          onUpdateProject={onUpdateProject}
+        />
+      )}
+
+      {/* MODULE: TELECOM & CARRIER MMR */}
+      {activeSubTab === 'telecom_mmr' && (
+        <TelecomMmrPanel
+          project={project}
+          eng={eng}
+          onUpdateProject={onUpdateProject}
+        />
+      )}
+
+      {/* MODULE: LOGISTICS & HEAVY-LIFT RIGGING */}
+      {activeSubTab === 'logistics_rigging' && (
+        <LogisticsRiggingPanel
+          project={project}
+          eng={eng}
+          onUpdateProject={onUpdateProject}
+        />
+      )}
+
+      {/* MODULE: SUPPLY-CHAIN SYNTHESIS (±20% AUTO-PLACEHOLDER) + INLINE SKU REPLACE + SPECIAL QUOTES */}
+      {activeSubTab === 'mep_bom' && (
         <div className="space-y-5">
-          {/* Deal-Local [PLACEHOLDER] Alert Banner */}
           {eng.dealPlaceholders.length > 0 && (
             <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-4 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -338,7 +379,6 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
             </div>
           )}
 
-          {/* Major Subsystem Synthesis & Inline SKU Replacement Cards */}
           <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-3">
             <h3 className="text-base font-bold navy-text">
               Major MEP Subsystem Synthesis (Override Qty or Replace SKU Inline)
@@ -442,7 +482,6 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
             </div>
           </div>
 
-          {/* Full Categorized BOQ Table with Special Vendor Quotes */}
           <div className="bg-white rounded-2xl card-shadow border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -450,7 +489,7 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
                   Categorized Engineering & Commercial BOQ (Special Vendor Quotes)
                 </h3>
                 <p className="text-slate-500">
-                  Click "Quote / Override" on any line item to enter deal-specific OEM discounts, special prices, and validity dates.
+                  Click "+ Quote" on any line item to enter deal-specific OEM discounts, special prices, and validity dates.
                 </p>
               </div>
               <div className="text-right">
@@ -535,155 +574,8 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
         </div>
       )}
 
-      {/* TAB 2: WHITE-SPACE, CIVIL PLINTH / 4.5m PILE CAP & TELECOM PARAMETERS */}
-      {designSubTab === 'whitespace_civil' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* White-Space & Container/BnM Controls */}
-          <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-3">
-            <h3 className="text-base font-bold navy-text">White-Space Airflow, PAC/CDU & Enclosure Specs</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Aisle Containment</label>
-                <select
-                  value={project.containmentType}
-                  onChange={e =>
-                    onUpdateProject({ containmentType: e.target.value as ProjectDeal['containmentType'] })
-                  }
-                  className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
-                >
-                  <option value="ColdAisleContainment">Cold Aisle Containment (CAC)</option>
-                  <option value="HotAisleContainment">Hot Aisle Containment (HAC)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Chiller Placement</label>
-                <select
-                  value={project.chillerPlacement}
-                  onChange={e =>
-                    onUpdateProject({ chillerPlacement: e.target.value as ProjectDeal['chillerPlacement'] })
-                  }
-                  className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
-                >
-                  <option value="ContainerRoof">Container Roof-Mounted</option>
-                  <option value="DedicatedYardPad">Dedicated Yard Chiller Pad</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Container Sizing Mode</label>
-                <select
-                  value={project.containerLengthMode}
-                  onChange={e =>
-                    onUpdateProject({
-                      containerLengthMode: e.target.value as ProjectDeal['containerLengthMode']
-                    })
-                  }
-                  className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
-                >
-                  <option value="CustomOptimum">Custom Optimum (up to 13.5m)</option>
-                  <option value="ISO40">40 ft ISO High-Cube (12.19m)</option>
-                  <option value="ISO20">20 ft ISO Edge Pod (6.06m)</option>
-                  <option value="AllInOne">All-in-One Integrated Pod (12.19m)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Hall Topology</label>
-                <select
-                  value={project.hallTopology}
-                  onChange={e =>
-                    onUpdateProject({ hallTopology: e.target.value as ProjectDeal['hallTopology'] })
-                  }
-                  className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
-                >
-                  <option value="GangedLinear">Ganged Linear Modular Hall</option>
-                  <option value="GangedUShaped">Ganged U-Shaped Courtyard</option>
-                  <option value="Isolated">Isolated Standalone Pods</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 space-y-1">
-              <div>
-                <strong>White-Space Breakdown:</strong> {eng.totalItWhiteSpaceSqm} m² Total (Internal Floor CDUs:{' '}
-                {eng.whiteSpace.internalCduCount} units / {eng.whiteSpace.internalCduFootprintSqm} m² • Mandatory PACs:{' '}
-                {eng.whiteSpace.mandatoryPacCount} × 80kW / {eng.whiteSpace.pacFootprintSqm} m²)
-              </div>
-            </div>
-          </div>
-
-          {/* Civil Plinth / 4.5m Pile Cap & Telecom MMR */}
-          <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-3">
-            <h3 className="text-base font-bold navy-text">
-              Civil Plinth / 4.5m Pile Cap & Telecom MMR Parameters
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Soil Bearing Capacity (SBC kN/m²)
-                </label>
-                <input
-                  type="number"
-                  step="10"
-                  value={project.soilBearingCapacityKpa}
-                  onChange={e => onUpdateProject({ soilBearingCapacityKpa: Number(e.target.value) })}
-                  className="w-full border rounded-lg px-2.5 py-1.5 font-bold"
-                />
-                <span className="text-[10px] text-slate-500">
-                  &lt; 110 kN/m² automatically triggers 4.5m Pile Cap depth
-                </span>
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  100-Yr Historical Flood Mark (mm)
-                </label>
-                <input
-                  type="number"
-                  step="50"
-                  value={project.historicalFloodLevelMm}
-                  onChange={e => onUpdateProject({ historicalFloodLevelMm: Number(e.target.value) })}
-                  className="w-full border rounded-lg px-2.5 py-1.5 font-bold"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">External Telecom Carriers</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={16}
-                  value={project.carrierCount}
-                  onChange={e => onUpdateProject({ carrierCount: Number(e.target.value) })}
-                  className="w-full border rounded-lg px-2.5 py-1.5 font-bold"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Crane Working Radius (m)</label>
-                <input
-                  type="number"
-                  min={6}
-                  max={35}
-                  value={project.craneWorkingRadiusM}
-                  onChange={e => onUpdateProject({ craneWorkingRadiusM: Number(e.target.value) })}
-                  className="w-full border rounded-lg px-2.5 py-1.5 font-bold"
-                />
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
-              <div>
-                <strong>Sub-Structure:</strong> {eng.civil.foundationType}
-              </div>
-              <div>
-                <strong>Embedment Depth:</strong> {eng.civil.embedmentDepthM}m •{' '}
-                <strong>Bearing FoS:</strong> {eng.civil.bearingSafetyFactor}× •{' '}
-                <strong>Flood Plinth:</strong> +{eng.civil.floodPlinthMm}mm •{' '}
-                <strong>Crane:</strong> {eng.logistics.craneTonnage}T
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: SOFT VALIDATION GATE (PASS / WARN / FAIL WITH ACCEPT DEVIATION / WAIVE NOTES; NEVER HARD-BLOCKS OUTPUTS) */}
-      {designSubTab === 'validation' && (
+      {/* MODULE: SOFT VALIDATION GATE */}
+      {activeSubTab === 'validation' && (
         <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
             <div>
@@ -736,7 +628,7 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
                       </span>
                     </div>
                     {isActionable && (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {!v.waived ? (
                           <>
                             <input
@@ -746,7 +638,7 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
                               onChange={e =>
                                 setWaiverNotes(prev => ({ ...prev, [v.code]: e.target.value }))
                               }
-                              className="w-64 border border-slate-300 rounded px-2.5 py-1 bg-white text-xs"
+                              className="w-60 border border-slate-300 rounded px-2.5 py-1 bg-white text-xs"
                             />
                             <button
                               onClick={() => toggleWaiver(v.code, true)}
@@ -779,7 +671,7 @@ export const Stage2Design: React.FC<Stage2DesignProps> = ({
         </div>
       )}
 
-      {/* MODAL 1: INLINE SKU REPLACEMENT ("THIS DEAL ONLY" OR "PROMOTE TO MASTER") */}
+      {/* MODAL 1: INLINE SKU REPLACEMENT */}
       {replaceGroup && (
         <div className="fixed inset-0 bg-slate-950/65 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-xl w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-xs">
