@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { AppShell, type DesignSubTab, type ToastNotice, type TopPillar } from './components/AppShell';
 import { DealHub } from './components/DealHub';
 import { DealStudio } from './components/DealStudio';
 import { MasterCrudHub } from './components/MasterCrudHub';
@@ -25,19 +26,23 @@ import type {
   SupplyChainSku
 } from './types/mdc';
 
-type TopPillar = 'deal_hub' | 'deal_studio' | 'supply_chain' | 'master_crud';
-
 export default function App() {
   const [initialBoot] = useState(() => loadWorkspaceWithMigration(DEFAULT_GOOGLE_CLIENT_ID));
   const [pillar, setPillar] = useState<TopPillar>('deal_hub');
   const [studioStage, setStudioStage] = useState<1 | 2 | 3>(1);
+  const [designSubTab, setDesignSubTab] = useState<DesignSubTab>('mep_bom');
+  const [whatIfOpen, setWhatIfOpen] = useState(false);
 
   const [projects, setProjects] = useState<ProjectDeal[]>(initialBoot.state.projects);
   const [editingId, setEditingId] = useState<string>(initialBoot.state.editingId);
-  const [skus, setSkus] = useState(initialBoot.state.skus);
-  const [containerCatalog, setContainerCatalog] = useState(initialBoot.state.containerCatalog);
-  const [nonItCatalog, setNonItCatalog] = useState(initialBoot.state.nonItCatalog);
-  const [standards, setStandards] = useState(initialBoot.state.standards);
+  const [skus, setSkus] = useState<RackSku[]>(initialBoot.state.skus);
+  const [containerCatalog, setContainerCatalog] = useState<ContainerSpec[]>(
+    initialBoot.state.containerCatalog
+  );
+  const [nonItCatalog, setNonItCatalog] = useState<NonItCatalogItem[]>(
+    initialBoot.state.nonItCatalog
+  );
+  const [standards, setStandards] = useState<MasterStandards>(initialBoot.state.standards);
   const [palette, setPalette] = useState<ColorPalette>(initialBoot.state.palette);
   const [supplyIntel, setSupplyIntel] = useState<SupplyChainDataset>(initialBoot.state.supplyIntel);
   const [logoDataUrl, setLogoDataUrl] = useState<string>(initialBoot.state.logoDataUrl);
@@ -52,6 +57,15 @@ export default function App() {
     open: false,
     mode: 'save'
   });
+  const [toasts, setToasts] = useState<ToastNotice[]>([]);
+
+  const pushToast = (message: string, tone: ToastNotice['tone'] = 'success') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setToasts(prev => [...prev.slice(-3), { id, message, tone }]);
+    window.setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4200);
+  };
 
   useEffect(() => {
     const res = saveWorkspaceState({
@@ -68,7 +82,18 @@ export default function App() {
       clientId
     });
     if (res.ok) setLastSavedAt(res.time);
-  }, [projects, editingId, skus, containerCatalog, nonItCatalog, standards, palette, supplyIntel, logoDataUrl, clientId]);
+  }, [
+    projects,
+    editingId,
+    skus,
+    containerCatalog,
+    nonItCatalog,
+    standards,
+    palette,
+    supplyIntel,
+    logoDataUrl,
+    clientId
+  ]);
 
   const currentProject = useMemo(
     () => sanitizeProject(projects.find(p => p.id === editingId) || projects[0], standards),
@@ -90,6 +115,12 @@ export default function App() {
     );
   };
 
+  const handleNavigateStudio = (stage: 1 | 2 | 3, subTab?: DesignSubTab) => {
+    setStudioStage(stage);
+    if (subTab) setDesignSubTab(subTab);
+    setPillar('deal_studio');
+  };
+
   const handleCreateDeal = () => {
     const newId = `proj-${Date.now()}`;
     const np = makeBlankProject(newId, projects.length + 1, standards);
@@ -97,6 +128,7 @@ export default function App() {
     setEditingId(newId);
     setStudioStage(1);
     setPillar('deal_studio');
+    pushToast(`Created "${np.name}" — opened Requirements Wizard.`);
   };
 
   const handleCloneDeal = (id: string) => {
@@ -114,6 +146,7 @@ export default function App() {
     );
     setProjects(prev => [cloned, ...prev]);
     setEditingId(clonedId);
+    pushToast(`Cloned deal "${orig.name}".`, 'info');
   };
 
   const handleDeleteDeal = (id: string) => {
@@ -127,6 +160,34 @@ export default function App() {
       setProjects(remaining);
       if (editingId === id) setEditingId(remaining[0].id);
     }
+    pushToast('Deal removed from workspace.', 'info');
+  };
+
+  const handleAddRackSku = (newSku: RackSku, initialQty: number) => {
+    setSkus(prev => [...prev, newSku]);
+    if (initialQty > 0) {
+      const nextQuantities = {
+        ...(currentProject.rackQuantities || {}),
+        [newSku.id]: initialQty
+      };
+      const isDlc = newSku.coolingType === 'DLC' || newSku.liquidSplitPct > 0;
+      updateCurrentProject({
+        rackQuantities: nextQuantities,
+        includeLiquidLoop: currentProject.includeLiquidLoop || isDlc,
+        includePumpSkids: currentProject.includePumpSkids || isDlc,
+        includeWaterTanks: currentProject.includeWaterTanks || isDlc,
+        includeGlycolDosing: currentProject.includeGlycolDosing || isDlc,
+        includeExtCdu: currentProject.includeExtCdu || (isDlc && !newSku.cduIntegrated),
+        includeRoomDehum: true
+      });
+    }
+    pushToast(`Saved "${newSku.name}" to Master Rack Catalog (${initialQty} added to deal).`);
+  };
+
+  const handleSaveContainerToCatalog = (spec: ContainerSpec) => {
+    setContainerCatalog(prev => [spec, ...prev]);
+    updateCurrentProject({ containerCatalogId: spec.id });
+    pushToast(`Saved "${spec.name}" to Master Container Catalog.`);
   };
 
   const handleGenerateFirstDraft = () => {
@@ -139,7 +200,9 @@ export default function App() {
     );
     updateCurrentProject(patch);
     setStudioStage(2);
+    setDesignSubTab('mep_bom');
     setPillar('deal_studio');
+    pushToast('First-draft engineering design synthesized from Supply Chain DB.');
   };
 
   const handlePromoteSkuToMaster = (newItem: NonItCatalogItem, newSupplySku: SupplyChainSku) => {
@@ -149,6 +212,7 @@ export default function App() {
       lastRefreshed: new Date().toISOString().slice(0, 10),
       items: [newSupplySku, ...(prev.items || [])]
     }));
+    pushToast(`Promoted "${newItem.make} ${newItem.model}" to Master Catalog & Supply DB.`);
   };
 
   const handleImportLocalFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,25 +224,38 @@ export default function App() {
         const obj = JSON.parse(String(ev.target?.result || ''));
         handleLoadedRemoteObject(obj, f.name);
       } catch {
-        alert('Invalid JSON file.');
+        pushToast('Invalid JSON file. Verify syntax and retry.', 'warning');
       }
     };
     reader.readAsText(f);
+    e.target.value = '';
   };
 
   const handleLoadedRemoteObject = (obj: unknown, fileName: string) => {
     const data = obj as Record<string, unknown>;
     if (Array.isArray(data?.items) && String(data?.schemaVersion || '').includes('SUPPLY_INTEL')) {
       setSupplyIntel(data as unknown as SupplyChainDataset);
-      alert(`Loaded Supply Chain DB from ${fileName}`);
+      pushToast(`Loaded Supply Chain DB (${data.items.length} SKUs) from ${fileName}.`);
       return;
     }
-    if (Array.isArray(data?.skus) && Array.isArray(data?.nonItCatalog)) {
-      setSkus(data.skus as RackSku[]);
-      if (Array.isArray(data.containerCatalog)) setContainerCatalog(data.containerCatalog as ContainerSpec[]);
-      setNonItCatalog(data.nonItCatalog as NonItCatalogItem[]);
-      if (data.standards) setStandards(prev => ({ ...prev, ...(data.standards as Partial<MasterStandards>) }));
-      alert(`Loaded Master Catalog from ${fileName}`);
+    if (Array.isArray(data?.skus) || Array.isArray(data?.nonItCatalog) || Array.isArray(data?.containerCatalog)) {
+      const counts: string[] = [];
+      if (Array.isArray(data.skus)) {
+        setSkus(data.skus as RackSku[]);
+        counts.push(`${data.skus.length} Racks`);
+      }
+      if (Array.isArray(data.containerCatalog)) {
+        setContainerCatalog(data.containerCatalog as ContainerSpec[]);
+        counts.push(`${data.containerCatalog.length} Containers`);
+      }
+      if (Array.isArray(data.nonItCatalog)) {
+        setNonItCatalog(data.nonItCatalog as NonItCatalogItem[]);
+        counts.push(`${data.nonItCatalog.length} Non-IT Blocks`);
+      }
+      if (data.standards) {
+        setStandards(prev => ({ ...prev, ...(data.standards as Partial<MasterStandards>) }));
+      }
+      pushToast(`Loaded Master Catalog from ${fileName} (${counts.join(', ')}).`);
       return;
     }
     const rawList = Array.isArray(data?.projects) ? data.projects : [data];
@@ -193,6 +270,8 @@ export default function App() {
       setEditingId(imported[0].id);
       setPillar('deal_studio');
       setStudioStage(2);
+      setDesignSubTab('mep_bom');
+      pushToast(`Opened "${imported[0].name}" from ${fileName}.`);
     }
   };
 
@@ -202,83 +281,37 @@ export default function App() {
       token => {
         setDriveToken(token);
         setDriveStatus('Connected');
+        pushToast('Google Drive connected.');
       },
-      msg => alert(msg)
+      msg => pushToast(msg, 'warning')
     );
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col">
-      <header className="navy-bg text-white px-3 sm:px-5 py-2.5 shadow-md sticky top-0 z-40 border-b border-blue-900">
-        <div className="max-w-[1640px] mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            {logoDataUrl ? (
-              <img
-                src={logoDataUrl}
-                alt="App Logo"
-                className="h-8 w-auto bg-white rounded px-1.5 py-0.5 object-contain"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-lg coral-bg flex items-center justify-center font-black text-white text-xs">
-                MDC
-              </div>
-            )}
-            <div>
-              <div className="text-sm font-bold leading-tight">AI Modular Data Center Configurator</div>
-              <div className="text-[10px] text-slate-300">
-                V13.1 Enterprise • Auto-saved {lastSavedAt}
-                {initialBoot.migratedFrom ? ` (Migrated from ${initialBoot.migratedFrom})` : ''}
-              </div>
-            </div>
-          </div>
-
-          <nav className="flex flex-wrap items-center gap-1.5 text-xs">
-            {(
-              [
-                ['deal_hub', '1. Deal Hub'],
-                ['deal_studio', '2. Deal Studio'],
-                ['supply_chain', '3. Supply Chain Intelligence'],
-                ['master_crud', '4. Master Standards & Racks']
-              ] as [TopPillar, string][]
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                onClick={() => setPillar(id)}
-                className={`px-3 py-1.5 rounded-lg font-bold transition ${
-                  pillar === id ? 'coral-bg text-white shadow' : 'bg-white/10 hover:bg-white/20 text-slate-100'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-1.5 text-xs">
-            <div className="bg-slate-900/80 border border-slate-700 rounded-lg px-2.5 py-1 flex items-center gap-1.5">
-              <span className="text-slate-400">Deal:</span>
-              <select
-                value={editingId}
-                onChange={e => setEditingId(e.target.value)}
-                className="bg-transparent text-white font-bold focus:outline-none max-w-[170px]"
-              >
-                {projects.map(p => (
-                  <option key={p.id} value={p.id} className="text-slate-900">
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={() => setSaveOpenModal({ open: true, mode: 'save' })}
-              className="px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold"
-            >
-              💾 Save As
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-[1640px] w-full mx-auto p-3 sm:p-5">
+    <>
+      <AppShell
+        pillar={pillar}
+        studioStage={studioStage}
+        designSubTab={designSubTab}
+        projects={projects}
+        currentProject={currentProject}
+        eng={eng}
+        standards={standards}
+        logoDataUrl={logoDataUrl}
+        lastSavedAt={lastSavedAt}
+        migratedFrom={initialBoot.migratedFrom}
+        driveToken={driveToken}
+        driveStatus={driveStatus}
+        whatIfOpen={whatIfOpen}
+        toasts={toasts}
+        onSelectProject={id => setEditingId(id)}
+        onNavigatePillar={setPillar}
+        onNavigateStudio={handleNavigateStudio}
+        onOpenSaveModal={mode => setSaveOpenModal({ open: true, mode })}
+        onGoogleSignIn={handleGoogleSignIn}
+        onToggleWhatIf={() => setWhatIfOpen(prev => !prev)}
+        onDismissToast={id => setToasts(prev => prev.filter(t => t.id !== id))}
+      >
         {pillar === 'deal_hub' && (
           <DealHub
             projects={projects}
@@ -308,13 +341,20 @@ export default function App() {
             project={currentProject}
             eng={eng}
             skus={skus}
+            containerCatalog={containerCatalog}
             nonItCatalog={nonItCatalog}
             standards={standards}
             supplyItems={supplyIntel.items}
             palette={palette}
             stage={studioStage}
+            designSubTab={designSubTab}
+            whatIfOpen={whatIfOpen}
             onChangeStage={setStudioStage}
+            onChangeDesignSubTab={setDesignSubTab}
+            onCloseWhatIf={() => setWhatIfOpen(false)}
             onUpdateProject={updateCurrentProject}
+            onAddRackSku={handleAddRackSku}
+            onSaveContainerToCatalog={handleSaveContainerToCatalog}
             onGenerateFirstDraft={handleGenerateFirstDraft}
             onPromoteSkuToMaster={handlePromoteSkuToMaster}
             onUpdatePalette={(k, hex) => setPalette(prev => ({ ...prev, [k]: hex }))}
@@ -331,7 +371,10 @@ export default function App() {
                 onApplyTheme={thKey => {
                   if (COLOR_THEMES[thKey]) setPalette({ ...COLOR_THEMES[thKey] });
                 }}
-                onBackToDesign={() => setStudioStage(2)}
+                onBackToDesign={() => {
+                  setStudioStage(2);
+                  setDesignSubTab('mep_bom');
+                }}
               />
             }
           />
@@ -379,11 +422,12 @@ export default function App() {
               a.download = `mdc_master_catalog_${new Date().toISOString().slice(0, 10)}.json`;
               a.click();
               URL.revokeObjectURL(url);
+              pushToast('Exported Master Catalog JSON.');
             }}
             onImportMasterJson={handleImportLocalFile}
           />
         )}
-      </main>
+      </AppShell>
 
       <WorkspaceSaveOpenModal
         isOpen={saveOpenModal.open}
@@ -398,8 +442,11 @@ export default function App() {
         onGoogleSignIn={handleGoogleSignIn}
         onImportLocalFile={handleImportLocalFile}
         onLoadedRemoteObject={handleLoadedRemoteObject}
-        onDriveSyncStatus={setDriveStatus}
+        onDriveSyncStatus={status => {
+          setDriveStatus(status);
+          if (status.includes('✓')) pushToast(`Google Drive: ${status}`);
+        }}
       />
-    </div>
+    </>
   );
 }
