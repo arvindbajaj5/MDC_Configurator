@@ -1,9 +1,0 @@
-{
-  "name": "AI Modular Data Center Configurator V13.1",
-  "short_name": "MDC Studio",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#F4F6FA",
-  "theme_color": "#002870",
-  "description": "Turnkey AI Modular Data Center & BnM Engineering Configurator"
-}
