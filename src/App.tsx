@@ -384,7 +384,6 @@ export default function App() {
             onCloneDeal={handleCloneDeal}
             onDeleteDeal={handleDeleteDeal}
             onOpenSaveModal={mode => setSaveOpenModal({ open: true, mode })}
-        onOpenEmailModal={() => setEmailModalOpen(true)}
             onImportLocalFile={handleImportLocalFile}
             onGoogleSignIn={handleGoogleSignIn}
           />
