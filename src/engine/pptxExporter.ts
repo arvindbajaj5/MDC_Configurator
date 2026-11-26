@@ -1,6 +1,7 @@
 import PptxGenJS from 'pptxgenjs';
 import type { EngineeringResult, MasterStandards, ProjectDeal } from '../types/mdc';
 import { formatMoney, totalHsdK } from './engineeringEngine';
+import type { StoredPptxTemplate } from './templateStorage';
 
 export const PPTX_PALETTE = {
   WHITE: 'FFFFFF',
@@ -8,6 +9,7 @@ export const PPTX_PALETTE = {
   ORANGE_DARK: 'D93F24',
   ORANGE_TINT: 'FFF3F0',
   ORANGE_SOFT: 'FFD6CC',
+  LIGHT_BAND: 'F7F7F7',
   BLACK: '000000',
   CHARCOAL: '222222',
   MUTED: '555555',
@@ -22,10 +24,11 @@ export const PPTX_HEADER2_FONT = 'Tosh A Black';
 export const PPTX_HEADER2_SIZE_PT = 22;
 export const PPTX_BODY_FONT = 'Roboto';
 export const PPTX_BODY_MAX_SIZE_PT = 12;
-export const PPTX_HEADER2_BOTTOM_IN = 1.34; // y=0.91" + h=0.43" matching Sample slide.pptx
-export const PPTX_TOP_CONTENT_GAP_IN = 1.0; // Exact 1.0" gap below Header 2
+export const PPTX_INNER_MARGIN_PT = 7.2; // Exact 0.10" = 7.2pt padding inside shapes & cells
+export const PPTX_HEADER2_BOTTOM_IN = 1.34;
+export const PPTX_TOP_CONTENT_GAP_IN = 1.0;
 export const PPTX_CONTENT_TOP_IN = PPTX_HEADER2_BOTTOM_IN + PPTX_TOP_CONTENT_GAP_IN; // 2.34"
-export const PPTX_FOOTER_CLEARANCE_IN = 3.1; // Exact 3.1" gap from bottom footer
+export const PPTX_FOOTER_CLEARANCE_IN = 3.1;
 export const PPTX_MAX_CONTENT_BOTTOM_IN = PPTX_SLIDE_HEIGHT_IN - PPTX_FOOTER_CLEARANCE_IN; // 4.40"
 export const PPTX_CONTENT_HEIGHT_IN = PPTX_MAX_CONTENT_BOTTOM_IN - PPTX_CONTENT_TOP_IN; // 2.06"
 
@@ -36,24 +39,82 @@ type PptxTableCell = Exclude<PptxTableRow[number], string>;
 const tc = (text: string, options?: PptxTableCell['options']): PptxTableCell =>
   options ? { text, options } : { text };
 
+export interface ConsultingNarrativeOverride {
+  executiveThesis?: string;
+  thermalPhysicsStory?: string;
+  cityDriversStory?: string;
+  tradeoffsStory?: string;
+  commercialStory?: string;
+}
+
+/**
+ * Optional BYOK Gemini Executive Storyteller that turns the deal's internal telemetry
+ * & counterfactual deltas into sharp consulting prose (max 12pt Roboto, non-boxy narrative).
+ */
+export async function polishConsultingNarrativeWithByokGemini(
+  apiKey: string,
+  project: ProjectDeal,
+  eng: EngineeringResult,
+  standards: MasterStandards
+): Promise<ConsultingNarrativeOverride> {
+  const key = apiKey.trim();
+  if (!key) {
+    throw new Error('Enter a session-only BYOK Gemini API key first.');
+  }
+
+  const mw = (eng.totalDesignContKw / 1000).toFixed(2);
+  const preTax = formatMoney(eng.totals.sellingPreTax, project.currency, standards);
+  const tco5 = formatMoney(eng.fiveYearTcoInr, project.currency, standards);
+
+  const prompt = `You are a Principal Infrastructure Partner writing concise, analytical consulting slide narratives (NOT bullet dumps, NOT marketing fluff) for an executive AI Data Center proposal.
+Keep every paragraph crisp (2-3 sentences, ~45-65 words), grounded strictly in these numbers:
+- Project: ${project.name} for ${project.client || 'Authority'} in ${project.cityQuery} (${project.seismicZone}, ${project.peakDryBulb}°C DB / ${project.peakWetBulb}°C WB, Elev ${project.elevationM}m)
+- Architecture: ${project.shellArchitecture === 'BnM_Hall' ? `BnM Hall ${project.bnmHallLengthM}×${project.bnmHallWidthM}m Floor #${project.bnmFloorLevel}` : `${eng.pods.length} ISO Pods (${eng.containerTotalVolumeCum} m³)`}
+- Loads: ${mw} MW continuous (${eng.dlcRacks.length} DLC racks @ ${eng.governingMaxInletTempC}°C governing max inlet temp, ${eng.acRacks.length} AC racks)
+- Cooling & PUE: ${eng.coolingMode}, Annual PUE ${eng.pueAnnualized}, Peak PUE ${eng.puePeakDesign}, Annual Water ${eng.annualWaterKl} kL
+- Redundancy & Civil: ${project.uptimeTier} (Trafo ${eng.trafoCalc.activeN}+${eng.trafoCalc.redundantR}, UPS ${eng.upsCalc.activeN}+${eng.upsCalc.redundantR}, DG ${eng.dgCalc.activeN}+${eng.dgCalc.redundantR}), Civil ${eng.civil.foundationType.split('(')[0].trim()} (FoS ${eng.civil.bearingSafetyFactor}×)
+- Economics: Pre-Tax ${preTax}, 5-Yr TCO ${tco5}, MII ${eng.mii.overallMiiPct}%
+
+Return STRICT JSON with keys:
+{"executiveThesis":"...","thermalPhysicsStory":"...","cityDriversStory":"...","tradeoffsStory":"...","commercialStory":"..."}`;
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.25 }
+      })
+    }
+  );
+  if (!res.ok) throw new Error(`Gemini API HTTP ${res.status}`);
+  const data = await res.json();
+  const raw = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
+  const m = raw.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Could not parse narrative JSON from Gemini.');
+  return JSON.parse(m[0]) as ConsultingNarrativeOverride;
+}
+
 /**
  * Brand-Orange ASHRAE 12-Month Thermal & Water Chart (Canvas -> PNG)
  */
 export function renderStrictAshraeChartPng(eng: EngineeringResult): string {
   if (typeof document === 'undefined') return '';
   const canvas = document.createElement('canvas');
-  canvas.width = 1240;
-  canvas.height = 250;
+  canvas.width = 920;
+  canvas.height = 240;
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
 
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const padL = 62;
-  const padR = 32;
-  const padT = 30;
-  const padB = 34;
+  const padL = 56;
+  const padR = 24;
+  const padT = 28;
+  const padB = 32;
   const plotW = canvas.width - padL - padR;
   const plotH = canvas.height - padT - padB;
 
@@ -66,9 +127,9 @@ export function renderStrictAshraeChartPng(eng: EngineeringResult): string {
     ctx.lineTo(padL + plotW, y);
     ctx.stroke();
     ctx.fillStyle = '#444444';
-    ctx.font = '11px Roboto, sans-serif';
+    ctx.font = '10.5px Roboto, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(`${50 - i * 10}°C`, padL - 8, y + 4);
+    ctx.fillText(`${50 - i * 10}°C`, padL - 7, y + 4);
   }
 
   const prof = eng.monthlyProfile || [];
@@ -78,36 +139,36 @@ export function renderStrictAshraeChartPng(eng: EngineeringResult): string {
   prof.forEach((m, idx) => {
     const x = padL + idx * stepX + stepX * 0.22;
     const bw = stepX * 0.56;
-    const bh = (m.monthlyWaterKl / maxWater) * plotH * 0.78;
+    const bh = (m.monthlyWaterKl / maxWater) * plotH * 0.76;
     ctx.fillStyle = m.mode === 'TrimChiller' ? '#FFD6CC' : '#FFF3F0';
     ctx.fillRect(x, padT + plotH - bh, bw, bh);
     ctx.strokeStyle = '#FF5539';
     ctx.strokeRect(x, padT + plotH - bh, bw, bh);
 
     ctx.fillStyle = '#222222';
-    ctx.font = 'bold 10.5px Roboto, sans-serif';
+    ctx.font = 'bold 9.5px Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${m.monthlyWaterKl}kL`, x + bw / 2, padT + plotH - bh - 4);
-    ctx.fillText(m.month, x + bw / 2, padT + plotH + 17);
+    ctx.fillText(`${m.monthlyWaterKl}kL`, x + bw / 2, padT + plotH - bh - 3);
+    ctx.fillText(m.month, x + bw / 2, padT + plotH + 16);
   });
 
   const limitTemp = Math.max(10, Math.min(50, eng.effectiveSupplyTempC - 3));
   const limitY = padT + plotH - (limitTemp / 50) * plotH;
-  ctx.strokeStyle = '#000000';
-  ctx.setLineDash([6, 4]);
-  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = '#222222';
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1.6;
   ctx.beginPath();
   ctx.moveTo(padL, limitY);
   ctx.lineTo(padL + plotW, limitY);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = '#222222';
   ctx.textAlign = 'left';
-  ctx.font = 'bold 11px Roboto, sans-serif';
-  ctx.fillText(`Facility Loop Limit (${limitTemp.toFixed(1)}°C)`, padL + 8, limitY - 5);
+  ctx.font = 'bold 10px Roboto, sans-serif';
+  ctx.fillText(`Loop Ceiling (${limitTemp.toFixed(1)}°C)`, padL + 6, limitY - 4);
 
   ctx.strokeStyle = '#FF5539';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2.6;
   ctx.beginPath();
   prof.forEach((m, idx) => {
     const x = padL + idx * stepX + stepX / 2;
@@ -117,8 +178,8 @@ export function renderStrictAshraeChartPng(eng: EngineeringResult): string {
   });
   ctx.stroke();
 
-  ctx.strokeStyle = '#333333';
-  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = '#555555';
+  ctx.lineWidth = 2;
   ctx.beginPath();
   prof.forEach((m, idx) => {
     const x = padL + idx * stepX + stepX / 2;
@@ -128,27 +189,26 @@ export function renderStrictAshraeChartPng(eng: EngineeringResult): string {
   });
   ctx.stroke();
 
-  ctx.font = 'bold 11.5px Roboto, sans-serif';
+  ctx.font = 'bold 10.5px Roboto, sans-serif';
   ctx.fillStyle = '#FF5539';
-  ctx.fillText('— Peak Dry-Bulb (°C)', padL, 18);
-  ctx.fillStyle = '#222222';
-  ctx.fillText('— Coincident Wet-Bulb (°C)  |  Bars: Monthly Evap Water (kL)', padL + 160, 18);
+  ctx.fillText('— Dry-Bulb (°C)', padL, 16);
+  ctx.fillStyle = '#444444';
+  ctx.fillText('— Wet-Bulb (°C)  |  Bars: Evap Water (kL)', padL + 125, 16);
 
   return canvas.toDataURL('image/png');
 }
 
 /**
- * Brand-Orange Schematic Canvas Renderer for White-Space (A-102), Yard (A-101),
- * Electrical Room (E-202), Civil Section (C-101), and Hydraulics P&ID (M-301)
+ * Clean Brand-Orange Architectural & MEP Diagrams for the Technical Design Section
  */
-function renderBrandOrangeDiagramPng(
+function renderTechnicalDiagramPng(
   kind: 'whitespace' | 'yard' | 'elec_room' | 'civil' | 'hydraulics',
   project: ProjectDeal,
   eng: EngineeringResult
 ): string {
   if (typeof document === 'undefined') return '';
   const canvas = document.createElement('canvas');
-  canvas.width = 760;
+  canvas.width = 780;
   canvas.height = 240;
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
@@ -162,8 +222,8 @@ function renderBrandOrangeDiagramPng(
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = ORANGE;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+  ctx.lineWidth = 1.6;
+  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
 
   const drawBox = (
     x: number,
@@ -177,15 +237,15 @@ function renderBrandOrangeDiagramPng(
     ctx.fillStyle = filled ? ORANGE : TINT;
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = BORDER;
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 1.2;
     ctx.strokeRect(x, y, w, h);
     ctx.fillStyle = filled ? '#FFFFFF' : DARK;
-    ctx.font = 'bold 11.5px Roboto, sans-serif';
+    ctx.font = 'bold 11px Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(title, x + w / 2, y + h / 2 - (sub ? 5 : -4));
+    ctx.fillText(title, x + w / 2, y + h / 2 - (sub ? 4 : -4));
     if (sub) {
       ctx.fillStyle = filled ? '#FFF3F0' : '#444444';
-      ctx.font = '10px Roboto, sans-serif';
+      ctx.font = '9.5px Roboto, sans-serif';
       ctx.fillText(sub, x + w / 2, y + h / 2 + 11);
     }
   };
@@ -193,91 +253,79 @@ function renderBrandOrangeDiagramPng(
   if (kind === 'whitespace') {
     const pod0 = eng.pods?.[0];
     const dims = eng.civil.isBnM
-      ? `BnM Hall ${project.bnmHallLengthM}m × ${project.bnmHallWidthM}m (Floor #${project.bnmFloorLevel})`
+      ? `BnM Hall ${project.bnmHallLengthM}m × ${project.bnmHallWidthM}m (Fl #${project.bnmFloorLevel})`
       : `${((pod0?.extLengthMm || 13500) / 1000).toFixed(2)}m L × ${((pod0?.extWidthMm || 4200) / 1000).toFixed(2)}m W Pod`;
     ctx.fillStyle = ORANGE;
-    ctx.font = 'bold 12px Roboto, sans-serif';
+    ctx.font = 'bold 11.5px Roboto, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`SHEET A-102: WHITE-SPACE & CONTAINMENT LAYOUT — ${dims}`, 16, 24);
+    ctx.fillText(`SHEET A-102: WHITE-SPACE & CONTAINMENT — ${dims}`, 14, 22);
 
-    drawBox(16, 36, 95, 188, 'AIRLOCK &', 'INT. LV PANEL', false);
-    drawBox(122, 36, 460, 48, `ROW A COMPUTE RACKS (${pod0?.rowA?.length || 0} Racks)`, `${eng.dlcRacks.length} DLC / ${eng.acRacks.length} AC Total`, true);
-    drawBox(122, 92, 460, 74, `${project.containmentType} (${project.frontServiceClearanceMm}mm Aisle)`, `${project.airflowDelivery} • ${eng.raisedFloor.enabled ? `${eng.raisedFloor.heightMm}mm Raised Floor` : 'Slab'}`, false);
-    drawBox(122, 174, 460, 50, `ROW B COMPUTE RACKS (${pod0?.rowB?.length || 0} Racks)`, `Dual A/B ${eng.whiteSpace.pduFootprintSqm} m² PDU Envelope`, true);
-    drawBox(594, 36, 150, 90, `INTERNAL PACs`, `${eng.whiteSpace.mandatoryPacCount} × 80 kW CW`, false);
-    drawBox(594, 134, 150, 90, `INTERNAL CDUs`, `${eng.whiteSpace.internalCduCount} Towers (<= ${eng.effectiveSupplyTempC}°C)`, true);
+    drawBox(14, 34, 96, 192, 'AIRLOCK &', 'LV PANEL', false);
+    drawBox(120, 34, 476, 48, `ROW A RACKS (${pod0?.rowA?.length || 0})`, `${eng.dlcRacks.length} DLC / ${eng.acRacks.length} AC`, true);
+    drawBox(120, 90, 476, 76, `${project.containmentType} (${project.frontServiceClearanceMm}mm)`, `${project.airflowDelivery} • ${eng.raisedFloor.enabled ? `${eng.raisedFloor.heightMm}mm Raised Floor` : 'Slab'}`, false);
+    drawBox(120, 174, 476, 52, `ROW B RACKS (${pod0?.rowB?.length || 0})`, `Dual A/B Busway + ${eng.whiteSpace.pduFootprintSqm} m² PDU`, true);
+    drawBox(606, 34, 160, 92, 'ROOM PACs', `${eng.whiteSpace.mandatoryPacCount} × 80 kW CW`, false);
+    drawBox(606, 134, 160, 92, 'INTERNAL CDUs', `${eng.whiteSpace.internalCduCount} Towers (≤ ${eng.effectiveSupplyTempC}°C)`, true);
   } else if (kind === 'yard') {
     ctx.fillStyle = ORANGE;
-    ctx.font = 'bold 12px Roboto, sans-serif';
+    ctx.font = 'bold 11.5px Roboto, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`SHEET A-101: 3-ZONE CAMPUS & YARD GENERAL ARRANGEMENT (${project.setbackMeters}m NBC FIRE LANE)`, 16, 24);
-    ctx.strokeStyle = '#666666';
-    ctx.setLineDash([5, 4]);
-    ctx.strokeRect(14, 32, 732, 194);
-    ctx.setLineDash([]);
+    ctx.fillText(`SHEET A-101: 3-ZONE CAMPUS & YARD GA (${project.setbackMeters}m NBC FIRE LANE)`, 14, 22);
 
-    drawBox(24, 42, 235, 174, `ZONE A: IT WHITE-SPACE`, `${eng.pods.length} Units • ${eng.totalItWhiteSpaceSqm} m² • Zero Yard CDUs`, true);
-    drawBox(272, 42, 165, 174, `ZONE B: UPS & BESS`, `${eng.upsContainersCount}× UPS + ${eng.batteryContainersCount}× BESS (${eng.yardBreakdown.upsBessSqm} m²)`, false);
-    drawBox(450, 42, 286, 40, `HT VCB & K-13 TRAFOS`, `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA (${eng.yardBreakdown.substationSqm} m²)`, false);
-    drawBox(450, 88, 286, 40, `CPCB IV+ DGs & PESO FUEL`, `${eng.dgUnitsCount}×${eng.selDg.ratedCapacity}kVA (${totalHsdK(eng.totalHsdFuelLitres)} kL)`, true);
-    drawBox(450, 134, 286, 40, `ADIABATIC COOLERS & TANKS`, `${eng.adiabaticUnits}×${eng.selCooler.ratedCapacity}kW + ${eng.totalWaterStorageKl} kL`, false);
-    drawBox(450, 180, 286, 36, `VFD PUMPS, CHILLERS & ZLD`, `${eng.pumpSkidsCount} Pumps @ ${eng.pumpDesignHeadBar} bar TDH`, false);
+    drawBox(18, 36, 240, 188, 'ZONE A: IT WHITE-SPACE', `${eng.pods.length} Units • ${eng.totalItWhiteSpaceSqm} m²`, true);
+    drawBox(270, 36, 174, 188, 'ZONE B: UPS & BESS', `${eng.upsContainersCount}× UPS + ${eng.batteryContainersCount}× BESS`, false);
+    drawBox(456, 36, 308, 42, 'HT VCB & K-13 TRAFOS', `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA (${eng.yardBreakdown.substationSqm} m²)`, false);
+    drawBox(456, 84, 308, 42, 'CPCB IV+ DGs & PESO', `${eng.dgUnitsCount}×${eng.selDg.ratedCapacity}kVA (${totalHsdK(eng.totalHsdFuelLitres)} kL)`, true);
+    drawBox(456, 132, 308, 42, 'ADIABATIC COOLERS & TANKS', `${eng.adiabaticUnits}×${eng.selCooler.ratedCapacity}kW + ${eng.totalWaterStorageKl} kL`, false);
+    drawBox(456, 180, 308, 44, 'PUMPS, CHILLERS & ZLD', `${eng.pumpSkidsCount} Pumps @ ${eng.pumpDesignHeadBar} bar`, false);
   } else if (kind === 'elec_room') {
     ctx.fillStyle = ORANGE;
-    ctx.font = 'bold 12px Roboto, sans-serif';
+    ctx.font = 'bold 11.5px Roboto, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`SHEET E-202: UPS, BATTERY & SWITCHGEAR ROOM / POD LAYOUT (${project.uptimeTier})`, 16, 24);
+    ctx.fillText(`SHEET E-202: UPS, BATTERY & SWITCHGEAR ROOM / POD GA (${project.uptimeTier})`, 14, 22);
 
-    drawBox(16, 38, 230, 186, `SWITCHGEAR & TRAFO BAY`, `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA • Form-4B LV PCC • APFC/SPD • MCC`, false);
-    drawBox(262, 38, 236, 186, `MODULAR UPS ROOM / POD`, `${eng.upsContainersCount}×${eng.selUps.ratedCapacity}kVA (${eng.upsCalc.activeN}+${eng.upsCalc.redundantR}) • 24°C PAC • 1.5m Aisle`, true);
-    drawBox(514, 38, 230, 186, `${project.batteryChemistry} BATTERY ROOM / BESS`, `${eng.batteryContainersCount}×1.2MWh (${project.batteryRuntimeMin}m) • 22-25°C + H2 Exhaust`, false);
+    drawBox(16, 36, 242, 188, 'SWITCHGEAR & TRAFO BAY', `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA • Form-4B • APFC/SPD`, false);
+    drawBox(270, 36, 244, 188, 'MODULAR UPS ROOM / POD', `${eng.upsContainersCount}×${eng.selUps.ratedCapacity}kVA (${eng.upsCalc.activeN}+${eng.upsCalc.redundantR}) • 24°C PAC`, true);
+    drawBox(526, 36, 238, 188, `${project.batteryChemistry} BATTERY ROOM`, `${eng.batteryContainersCount}×1.2MWh • 22–25°C + H2 Exhaust`, false);
   } else if (kind === 'civil') {
     ctx.fillStyle = ORANGE;
-    ctx.font = 'bold 12px Roboto, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(`SHEET C-101: CIVIL PLINTH & FOUNDATION SECTION — ${project.cityQuery} (${project.seismicZone})`, 16, 24);
-
-    drawBox(110, 38, 540, 62, eng.civil.isBnM ? `BnM STRUCTURAL HALL (FLOOR #${eng.bnmAux.floorLevel})` : `MODULAR POD (${eng.civil.unitGrossTonnes}T LOADED MASS)`, `Floor Load ${eng.civil.floorPressureKpa} kN/m² • Corner Node ${eng.civil.cornerNodeKn} kN • M30 Seismic Bolts`, true);
-    drawBox(80, 106, 600, 44, `M35 RCC RAISED PLINTH (+${eng.civil.floodPlinthMm}mm FLOOD LIFT)`, `1:50 Storm Drain Apron • 100-Yr Flood Mark ${project.historicalFloodLevelMm}mm`, false);
-    ctx.fillStyle = SOFT;
-    ctx.fillRect(80, 156, 600, 68);
-    ctx.strokeStyle = BORDER;
-    ctx.strokeRect(80, 156, 600, 68);
-    ctx.fillStyle = DARK;
     ctx.font = 'bold 11.5px Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`SHEET C-101: CIVIL FOUNDATION & PLINTH SECTION — ${project.cityQuery} (${project.seismicZone})`, 14, 22);
+
+    drawBox(100, 36, 580, 58, eng.civil.isBnM ? `BnM HALL (FLOOR #${eng.bnmAux.floorLevel})` : `CORTEN-A POD (${eng.civil.unitGrossTonnes}T LOADED)`, `Floor ${eng.civil.floorPressureKpa} kN/m² • Corner ${eng.civil.cornerNodeKn} kN • M30 Bolts`, true);
+    drawBox(75, 100, 630, 42, `M35 RCC PLINTH (+${eng.civil.floodPlinthMm}mm FLOOD LIFT)`, `1:50 Storm Drain Apron • 100-Yr Flood ${project.historicalFloodLevelMm}mm`, false);
+    ctx.fillStyle = SOFT;
+    ctx.fillRect(75, 148, 630, 76);
+    ctx.strokeStyle = BORDER;
+    ctx.strokeRect(75, 148, 630, 76);
+    ctx.fillStyle = DARK;
+    ctx.font = 'bold 11px Roboto, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(
       eng.civil.isWeakSoil
-        ? `BORED FRICTION PILES (${eng.civil.embedmentDepthM}m PILE CAP DEPTH • SBC ${eng.civil.sbc} kN/m²)`
-        : `ISOLATED M35 PAD FOOTING (${eng.civil.embedmentDepthM}m IS 1904 DEPTH • SBC ${eng.civil.sbc} kN/m²)`,
-      380,
-      184
+        ? `4.5m BORED FRICTION PILE CAP (SBC ${eng.civil.sbc} kN/m²)`
+        : `ISOLATED M35 PAD FOOTING (${eng.civil.embedmentDepthM}m IS 1904 • SBC ${eng.civil.sbc} kN/m²)`,
+      390,
+      178
     );
-    ctx.font = '10.5px Roboto, sans-serif';
-    ctx.fillText(`Imposed Bearing: ${eng.civil.imposedBearingKpa} kN/m²  |  Bearing Safety Factor: ${eng.civil.bearingSafetyFactor}×`, 380, 206);
+    ctx.font = '10px Roboto, sans-serif';
+    ctx.fillText(`Imposed: ${eng.civil.imposedBearingKpa} kN/m²  |  Bearing FoS: ${eng.civil.bearingSafetyFactor}×`, 390, 202);
   } else {
     ctx.fillStyle = ORANGE;
-    ctx.font = 'bold 12px Roboto, sans-serif';
+    ctx.font = 'bold 11.5px Roboto, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`SHEET M-301: PRIMARY / SECONDARY HYDRAULICS & COOLING LOOP P&ID`, 16, 24);
+    ctx.fillText('SHEET M-301: PRIMARY / SECONDARY HYDRAULIC & THERMAL LOOP P&ID', 14, 22);
 
     const blocks = [
       ['1. YARD COOLERS', `${eng.adiabaticUnits}×${eng.selCooler.ratedCapacity}kW`, `${eng.freeCoolMonths}m Free / ${eng.adiabaticMonths}m Spray`],
       ['2. PUMPS & TANKS', `${eng.pumpSkidsCount} VFD Skids`, `${eng.totalWaterStorageKl} kL • ${eng.pumpDesignHeadBar} bar`],
-      ['3. INTERNAL CDUs', `${eng.whiteSpace.internalCduCount} White-Space`, `Supply <= ${eng.effectiveSupplyTempC}°C PG25`],
+      ['3. INTERNAL CDUs', `${eng.whiteSpace.internalCduCount} White-Space`, `Supply ≤ ${eng.effectiveSupplyTempC}°C PG25`],
       ['4. PACs & CHILLERS', `${eng.whiteSpace.mandatoryPacCount}×80kW PACs`, `${eng.whiteSpace.chillerUnitsCount}×1MW Chillers`]
     ];
     blocks.forEach(([t, s1, s2], i) => {
-      const bx = 18 + i * 184;
-      drawBox(bx, 54, 168, 148, t, `${s1} | ${s2}`, i % 2 === 0);
-      if (i < 3) {
-        ctx.strokeStyle = ORANGE;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(bx + 168, 128);
-        ctx.lineTo(bx + 184, 128);
-        ctx.stroke();
-      }
+      const bx = 18 + i * 190;
+      drawBox(bx, 48, 172, 162, t, `${s1} | ${s2}`, i % 2 === 0);
     });
   }
 
@@ -287,22 +335,32 @@ function renderBrandOrangeDiagramPng(
 export function exportStrictNativePptxDeck(
   project: ProjectDeal,
   eng: EngineeringResult,
-  standards: MasterStandards
+  standards: MasterStandards,
+  narrativeOverride?: ConsultingNarrativeOverride,
+  corporateTemplate?: StoredPptxTemplate | null
 ): void {
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE'; // 13.333" x 7.5"
-  pptx.author = 'AI Modular Data Center Configurator V13.3';
-  pptx.title = project.name || 'AI Modular Data Center Engineering Proposal';
+  pptx.author = 'AI Modular Data Center Configurator V13.4';
+  pptx.title = project.name || 'AI Modular Data Center Consulting Proposal';
 
   const C = PPTX_PALETTE;
   const TOP = PPTX_CONTENT_TOP_IN; // 2.34" (exact 1.0" below Header 2)
   const H = PPTX_CONTENT_HEIGHT_IN; // 2.06" (exact 3.1" clearance above footer)
+  const M = PPTX_INNER_MARGIN_PT; // Exact 7.2pt = 0.10" inner margin on every shape/cell
   const L = 0.45;
   const W = 12.46;
 
-  // Strict Sample Slide Header Layout:
+  // Dynamic slide counter so Slide 2 Compliance & Requirement Checklist points to exact slide numbers
+  let slideCounter = 0;
+  const nextSlideNum = () => {
+    slideCounter += 1;
+    return slideCounter;
+  };
+
+  // Sample slide 2-header format:
   // Header 1: Tosh A Black 24pt Bold at (0.45", 0.52", 12.46" x 0.40")
-  // Header 2: Tosh A Black 22pt Regular Brand Orange at (0.45", 0.91", 12.46" x 0.43", bottom = 1.34")
+  // Header 2: Tosh A Black 22pt Brand Orange at (0.45", 0.91", 12.46" x 0.43", bottom = 1.34")
   const initSlide = (slide: PptxSlide, h1: string, h2: string) => {
     slide.background = { color: C.WHITE };
     slide.addText(h1, {
@@ -314,7 +372,7 @@ export function exportStrictNativePptxDeck(
       fontSize: PPTX_HEADER1_SIZE_PT,
       bold: true,
       color: C.BLACK,
-      margin: 0,
+      margin: M,
       valign: 'middle'
     });
     slide.addText(h2, {
@@ -326,461 +384,455 @@ export function exportStrictNativePptxDeck(
       fontSize: PPTX_HEADER2_SIZE_PT,
       bold: false,
       color: C.ORANGE,
-      margin: 0,
+      margin: M,
       valign: 'middle'
     });
   };
 
-  // Single-layer native shape card helper (ZERO nested shapes/text boxes!)
-  const addNativeCard = (
+  // Editorial narrative block (single-layer native shape with 7.2pt / 0.10" margin, Roboto <= 12pt)
+  const addEditorialNote = (
     slide: PptxSlide,
     x: number,
     y: number,
     w: number,
     h: number,
-    title: string,
-    bodyLines: string[],
-    filled = false
+    leadTitle: string,
+    paragraphs: string[],
+    accentBorder = true
   ) => {
     const runs = [
       {
-        text: title + '\n',
+        text: leadTitle + '\n',
         options: {
           fontFace: PPTX_BODY_FONT,
           fontSize: 10.5,
           bold: true,
-          color: filled ? C.WHITE : C.ORANGE
+          color: C.ORANGE
         }
       },
-      ...bodyLines.map((ln, idx) => ({
-        text: ln + (idx < bodyLines.length - 1 ? '\n' : ''),
+      ...paragraphs.map((p, idx) => ({
+        text: p + (idx < paragraphs.length - 1 ? '\n\n' : ''),
         options: {
           fontFace: PPTX_BODY_FONT,
-          fontSize: 9,
+          fontSize: 9.5,
           bold: false,
-          color: filled ? C.WHITE : C.CHARCOAL
+          color: C.CHARCOAL
         }
       }))
     ];
     slide.addText(runs, {
-      shape: 'roundRect' as Parameters<PptxSlide['addShape']>[0],
+      shape: 'rect' as Parameters<PptxSlide['addShape']>[0],
       x,
       y,
       w,
       h,
-      rectRadius: 0.08,
-      fill: { color: filled ? C.ORANGE : C.ORANGE_TINT },
-      line: { color: C.ORANGE, width: 1 },
-      margin: 0.1,
-      valign: 'middle'
+      fill: { color: C.LIGHT_BAND },
+      line: accentBorder ? { color: C.ORANGE, width: 1 } : { color: C.RULE_GREY, width: 0.75 },
+      margin: M,
+      valign: 'top'
     });
   };
 
+  const mw = (eng.totalDesignContKw / 1000).toFixed(2);
+  const dlcMw = (eng.dlcDesignKw / 1000).toFixed(2);
+  const acMw = (eng.acDesignKw / 1000).toFixed(2);
+  const preTaxStr = formatMoney(eng.totals.sellingPreTax, project.currency, standards);
+  const gstTotalStr = formatMoney(eng.totals.grandTotal, project.currency, standards);
+  const tco5Str = formatMoney(eng.fiveYearTcoInr, project.currency, standards);
+  const costPerMwStr = formatMoney(
+    eng.totals.sellingPreTax / Math.max(0.05, eng.totalDesignContKw / 1000),
+    project.currency,
+    standards
+  );
+
   // =========================================================================
-  // SLIDE 1: COVER SLIDE
+  // SLIDE 1: COVER & EXECUTIVE CONSULTING THESIS
   // =========================================================================
   const s1 = pptx.addSlide();
+  nextSlideNum();
   initSlide(
     s1,
     project.name || 'Turnkey AI Modular Data Center Proposal',
-    `${project.shellArchitecture === 'BnM_Hall' ? 'Brick-and-Mortar (BnM) AI Hall' : 'Modular ISO AI Data Center'}  •  ${project.client || 'Enterprise Authority'}`
+    `${project.client || 'Enterprise Authority'} • ${project.cityQuery} • ${mw} MW IT • Annual PUE ${eng.pueAnnualized}`
   );
-  addNativeCard(
+
+  const defaultExecThesis =
+    narrativeOverride?.executiveThesis ||
+    `This briefing establishes a ${mw} MW continuous AI infrastructure architecture (${dlcMw} MW Direct Liquid Cooled across ${eng.dlcRacks.length} racks and ${acMw} MW Air-Cooled across ${eng.acRacks.length} racks) for ${project.client || 'the client'} in ${project.cityQuery}. By pairing high-efficiency thermal capture with ${project.uptimeTier} redundancy and ${eng.mii.miiClassLabel}, the design achieves an annualized PUE of ${eng.pueAnnualized} at ${preTaxStr} pre-tax (~${costPerMwStr}/MW) and ${tco5Str} 5-year lifecycle TCO${corporateTemplate ? ` (Mapped to template: ${corporateTemplate.name})` : ''}.`;
+
+  addEditorialNote(
     s1,
     L,
     TOP,
-    3.0,
+    7.65,
     H,
-    'IT & THERMAL CAPACITY',
+    'EXECUTIVE THESIS & ARCHITECTURAL MANDATE',
     [
-      `${(eng.totalDesignContKw / 1000).toFixed(2)} MW Continuous TDP`,
-      `${(eng.dlcDesignKw / 1000).toFixed(2)} MW DLC + ${(eng.acDesignKw / 1000).toFixed(2)} MW AC`,
-      `${eng.activeRacks.length} Racks (${eng.dlcRacks.length} DLC / ${eng.acRacks.length} AC)`,
-      `Max Coolant Supply <= ${eng.effectiveSupplyTempC}°C`
+      defaultExecThesis,
+      `Enclosure & Site Posture: ${eng.civil.isBnM ? `Brick-and-Mortar Hall (${project.bnmHallLengthM}m × ${project.bnmHallWidthM}m, Floor #${project.bnmFloorLevel})` : `${eng.pods.length} Corten-A Modular Pods (${eng.containerTotalVolumeCum} m³)`} on ${eng.civil.foundationType.split('(')[0].trim()} (Bearing FoS ${eng.civil.bearingSafetyFactor}×), occupying ${eng.totalCampusOccupiedSqm} m² (${eng.plotUtilizationPct}% of net buildable plot).`
     ],
     true
   );
-  addNativeCard(
-    s1,
-    L + 3.15,
-    TOP,
-    3.0,
-    H,
-    'EFFICIENCY & LOCATION',
+
+  const kpiRows: PptxTableRow[] = [
     [
-      `Site: ${project.cityQuery}`,
-      `Climate: ${project.peakDryBulb}°C DB / ${project.peakWetBulb}°C WB`,
-      `Annualized PUE: ${eng.pueAnnualized} (Peak ${eng.puePeakDesign})`,
-      `Seismic: ${project.seismicZone} (${project.seismicZFactor}g)`
+      tc('Key Metric', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
+      tc('Engineered Value', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } })
     ],
-    false
-  );
-  addNativeCard(
-    s1,
-    L + 6.3,
-    TOP,
-    3.0,
-    H,
-    'ENCLOSURE & FOOTPRINT',
-    [
-      eng.civil.isBnM
-        ? `BnM Hall ${project.bnmHallLengthM}m × ${project.bnmHallWidthM}m (Fl #${project.bnmFloorLevel})`
-        : `${eng.pods.length} ISO Corten Pods (${eng.containerTotalVolumeCum} m³)`,
-      `White-Space: ${eng.totalItWhiteSpaceSqm} m²`,
-      `Non-IT Yard: ${eng.totalNonItYardSqm} m²`,
-      `Campus Total: ${eng.totalCampusOccupiedSqm} m² (${eng.plotUtilizationPct}% Plot)`
-    ],
-    false
-  );
-  addNativeCard(
-    s1,
-    L + 9.45,
-    TOP,
-    3.01,
-    H,
-    'RESILIENCE & COMPLIANCE',
-    [
-      `Redundancy: ${project.uptimeTier}`,
-      `MII: ${eng.mii.miiClassLabel}`,
-      `Pre-Tax: ${formatMoney(eng.totals.sellingPreTax, project.currency, standards)}`,
-      `Prepared: ${new Date().toISOString().slice(0, 10)}`
-    ],
-    false
-  );
+    [tc('Continuous IT Load', { bold: true }), tc(`${mw} MW (${eng.activeRacks.length} Racks)`)],
+    [tc('Annual / Peak PUE', { bold: true }), tc(`${eng.pueAnnualized} / ${eng.puePeakDesign}`)],
+    [tc('Governing Inlet Temp', { bold: true }), tc(`${eng.governingMaxInletTempC}°C (Loop ≤ ${(eng.effectiveSupplyTempC - 3).toFixed(1)}°C)`)],
+    [tc('Pre-Tax / Unit Cost', { bold: true }), tc(`${preTaxStr} (${costPerMwStr}/MW)`)],
+    [tc('5-Yr TCO / MII', { bold: true }), tc(`${tco5Str} • ${eng.mii.overallMiiPct}%`)]
+  ];
+  s1.addTable(kpiRows, {
+    x: L + 7.85,
+    y: TOP,
+    w: 4.61,
+    fontFace: PPTX_BODY_FONT,
+    fontSize: 9,
+    color: C.CHARCOAL,
+    border: { type: 'solid', color: C.ORANGE_SOFT, pt: 0.5 },
+    margin: M,
+    colW: [2.05, 2.56],
+    rowH: 0.34
+  });
 
   // =========================================================================
-  // SLIDE 2: COOLING STRATEGY & THERMAL LOAD HANDLING
+  // SLIDE 2: CUSTOMER REQUIREMENTS & COMPLIANCE TRACEABILITY CHECKLIST
   // =========================================================================
   const s2 = pptx.addSlide();
+  nextSlideNum();
   initSlide(
     s2,
-    '01 | Cooling Strategy & Thermal Load Handling',
-    `${eng.coolingMode} • Governing Supply <= ${eng.effectiveSupplyTempC}°C`
-  );
-  const flowW = 2.98;
-  const flowGap = 0.18;
-  addNativeCard(
-    s2,
-    L,
-    TOP,
-    flowW,
-    H,
-    '1. RACK THERMAL CAPTURE',
-    [
-      `DLC Heat: ${Math.round(eng.totalLiquidKw).toLocaleString()} kW Liquid`,
-      `Air Residual: ${Math.round(eng.totalAirKw).toLocaleString()} kW`,
-      `Governing Limit: ${eng.governingMaxInletTempC}°C`,
-      `Secondary Flow: ${Math.round(eng.totalFlowLpm).toLocaleString()} LPM`
-    ],
-    true
-  );
-  addNativeCard(
-    s2,
-    L + (flowW + flowGap),
-    TOP,
-    flowW,
-    H,
-    '2. INTERNAL WHITE-SPACE MEP',
-    [
-      `${eng.whiteSpace.internalCduCount} Internal Floor CDUs (Zero Yard CDUs)`,
-      `${eng.whiteSpace.mandatoryPacCount} × 80 kW Mandatory PACs`,
-      `Factory-Isolated PG25 Loop`,
-      `${project.containmentType} (${eng.raisedFloor.heightMm}mm Floor)`
-    ],
-    false
-  );
-  addNativeCard(
-    s2,
-    L + (flowW + flowGap) * 2,
-    TOP,
-    flowW,
-    H,
-    '3. HYDRAULICS & BUFFERS',
-    [
-      `${eng.pumpSkidsCount} VFD Pump Skids (${project.pumpStagingMode})`,
-      `Design Head: ${eng.pumpDesignHeadBar} bar TDH`,
-      `${eng.totalWaterStorageKl} kL SS316L Tanks (${project.waterAutonomyDays}d)`,
-      `Pre-Loop RO/DM + ZLD Recovery`
-    ],
-    false
-  );
-  addNativeCard(
-    s2,
-    L + (flowW + flowGap) * 3,
-    TOP,
-    flowW,
-    H,
-    '4. HEAT REJECTION MODES',
-    [
-      `${eng.adiabaticUnits}×${eng.selCooler.ratedCapacity}kW Fluid Coolers`,
-      `${eng.freeCoolMonths}m Free / ${eng.adiabaticMonths}m Spray / ${eng.trimChillerMonths}m Trim`,
-      `${eng.whiteSpace.chillerUnitsCount}×1MW Chillers (${project.chillerPlacement === 'ContainerRoof' ? 'Roof' : 'Yard'})`,
-      `Annual Water: ${eng.annualWaterKl.toLocaleString()} kL`
-    ],
-    false
+    'Customer Requirements & Compliance Traceability',
+    'How Each Mandate & Statutory Clause Is Satisfied and Where It Appears in This Deck'
   );
 
+  // Compute exact upcoming slide numbers dynamically
+  const slideThermalPhysics = 3;
+  const slideCityDrivers = 4;
+  const slideTradeoffs = 5;
+  const slideTechSectionStart = 6;
+  const slideEquipStart = slideTechSectionStart + 5;
+  const eqPages = Math.max(1, Math.ceil(eng.equipmentSchedule.length / 4));
+  const slideGov = slideEquipStart + eqPages;
+  const slideBoqStart = slideGov + 1;
+
+  const checklistRows: PptxTableRow[] = [
+    [
+      tc('Requirement / Clause', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
+      tc('How Met in Engineering Design', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
+      tc('Status', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
+      tc('Deck Ref', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } })
+    ],
+    [
+      tc(`IT & Thermal Load (${mw} MW)`, { bold: true }),
+      tc(`${eng.dlcRacks.length} DLC racks (${dlcMw} MW, ${Math.round(eng.totalLiquidKw)} kW liq) + ${eng.acRacks.length} AC racks (${acMw} MW); loop ≤ ${eng.effectiveSupplyTempC}°C`),
+      tc('Met', { bold: true, color: C.ORANGE }),
+      tc(`Slide ${slideThermalPhysics}`, { bold: true })
+    ],
+    [
+      tc(`Site Climate & Water (${project.cityQuery})`, { bold: true }),
+      tc(`${project.peakDryBulb}°C DB / ${project.peakWetBulb}°C WB; ${eng.coolingMode.split('(')[0].trim()}; ${eng.annualWaterKl.toLocaleString()} kL/yr + ZLD`),
+      tc('Met', { bold: true, color: C.ORANGE }),
+      tc(`Slide ${slideCityDrivers}`, { bold: true })
+    ],
+    [
+      tc(`Enclosure, Floor & Civil (${project.seismicZone})`, { bold: true }),
+      tc(`${eng.civil.isBnM ? `BnM ${project.bnmHallLengthM}×${project.bnmHallWidthM}m (Fl #${project.bnmFloorLevel})` : `${eng.pods.length} Pods (${eng.containerTotalVolumeCum} m³)`}; ${eng.raisedFloor.enabled ? `${eng.raisedFloor.heightMm}mm floor (${eng.raisedFloor.pedestalStemCount} stems)` : 'Slab'}; FoS ${eng.civil.bearingSafetyFactor}×`),
+      tc('Met', { bold: true, color: C.ORANGE }),
+      tc(`Slides ${slideTechSectionStart}–${slideTechSectionStart + 4}`, { bold: true })
+    ],
+    [
+      tc(`Redundancy, MII & Commercials`, { bold: true }),
+      tc(`${project.uptimeTier} (${project.dgAutonomyHours}h PESO fuel, ${eng.gridShield.loadDropShieldMw} MW shield); ${eng.mii.miiClassLabel}; Pre-Tax ${preTaxStr} (${tco5Str} 5-Yr TCO)`),
+      tc(eng.waivedCount > 0 ? `Met (${eng.waivedCount} Waived)` : 'Met', { bold: true, color: C.ORANGE }),
+      tc(`Slides ${slideTradeoffs}, ${slideEquipStart}–${slideBoqStart + 1}`, { bold: true })
+    ]
+  ];
+  s2.addTable(checklistRows, {
+    x: L,
+    y: TOP,
+    w: W,
+    fontFace: PPTX_BODY_FONT,
+    fontSize: 8.5,
+    color: C.CHARCOAL,
+    border: { type: 'solid', color: C.ORANGE_SOFT, pt: 0.5 },
+    margin: M,
+    colW: [2.55, 6.91, 1.45, 1.55],
+    rowH: 0.34
+  });
+
   // =========================================================================
-  // SLIDE 3: 12-MONTH ASHRAE MICROCLIMATE & WATER PROFILE
+  // SLIDE 3: WORKLOAD PHYSICS, INLET TEMP CEILING & PUE DETERMINATION
   // =========================================================================
   const s3 = pptx.addSlide();
+  nextSlideNum();
   initSlide(
     s3,
-    '02 | Site Microclimate & 12-Month ASHRAE Thermal Profile',
-    `${project.cityQuery} (${project.peakDryBulb}°C DB / ${project.peakWetBulb}°C WB) • Annual PUE ${eng.pueAnnualized}`
-  );
-  const ashraePng = renderStrictAshraeChartPng(eng);
-  if (ashraePng) {
-    s3.addImage({ data: ashraePng, x: L, y: TOP, w: W, h: H });
-  }
-
-  // =========================================================================
-  // SLIDE 4: CONTAINER / BnM HALL DESIGN, RAISED FLOORING & WHITE-SPACE LAYOUT
-  // =========================================================================
-  const s4 = pptx.addSlide();
-  initSlide(
-    s4,
-    eng.civil.isBnM
-      ? '03 | Brick-and-Mortar Hall, Raised Floor & White-Space Layout'
-      : '03 | Container Architecture, Raised Floor & White-Space Layout',
-    `${eng.totalItWhiteSpaceSqm} m² White-Space • ${eng.pods.length} ${eng.civil.isBnM ? 'BnM Bays' : 'Pods'} • ${eng.raisedFloor.enabled ? `${eng.raisedFloor.heightMm}mm Raised Floor` : 'Slab-Mounted'}`
-  );
-  const wsPng = renderBrandOrangeDiagramPng('whitespace', project, eng);
-  if (wsPng) {
-    s4.addImage({ data: wsPng, x: L, y: TOP, w: 7.75, h: H });
-  }
-  addNativeCard(
-    s4,
-    L + 7.95,
-    TOP,
-    4.51,
-    H,
-    'ENCLOSURE & RAISED ACCESS FLOOR',
-    [
-      eng.civil.isBnM
-        ? `Hall: ${project.bnmHallLengthM}m × ${project.bnmHallWidthM}m × ${project.bnmClearSoffitM}m H (Fit: ${eng.bnmAux.hallFitStatus})`
-        : `Shell: ${project.metallurgy} (${eng.containerTotalVolumeCum} m³ total)`,
-      eng.raisedFloor.enabled
-        ? `Floor: ${eng.raisedFloor.totalTiles.toLocaleString()} Tiles (${eng.raisedFloor.tilePointLoadKn} kN), ${eng.raisedFloor.pedestalStemCount.toLocaleString()} Stems (${eng.raisedFloor.pedestalAxialRatingKn} kN)`
-        : 'Direct Slab-Mounted Racks',
-      `Heavy Rack Sub-Frames: ${eng.raisedFloor.heavyRackSubFramesCount} Direct-to-Slab`,
-      `Clearances: ${project.frontServiceClearanceMm}mm F / ${project.rearServiceClearanceMm}mm R • ${project.futureGrowthReservePct}% Growth`
-    ],
-    false
+    'Workload Physics, Governing Inlet Temp & PUE',
+    `Minimum Rack Inlet Ceiling (${eng.governingMaxInletTempC}°C) Sets Loop Temp, Cooler Mode & PUE (${eng.pueAnnualized})`
   );
 
-  // =========================================================================
-  // SLIDE 5: 3-ZONE CAMPUS & YARD GENERAL ARRANGEMENT (SHEET A-101)
-  // =========================================================================
-  const s5 = pptx.addSlide();
-  initSlide(
-    s5,
-    '04 | 3-Zone Campus & Technical Yard Layout (Sheet A-101)',
-    `${eng.totalCampusOccupiedSqm} m² Occupied (${eng.plotUtilizationPct}% Net Plot) • ${project.setbackMeters}m NBC Fire Lane`
-  );
-  const yardPng = renderBrandOrangeDiagramPng('yard', project, eng);
-  if (yardPng) {
-    s5.addImage({ data: yardPng, x: L, y: TOP, w: 7.75, h: H });
-  }
-  addNativeCard(
-    s5,
-    L + 7.95,
-    TOP,
-    4.51,
-    H,
-    'SPATIAL ISOLATION & LOGISTICS',
-    [
-      `Zone A (IT White-Space): ${eng.totalItWhiteSpaceSqm} m²`,
-      `Zone B (UPS / BESS): ${eng.yardBreakdown.upsBessSqm} m²`,
-      `Zone C (Substation/DG/Cooling): ${Math.max(0, eng.totalNonItYardSqm - eng.yardBreakdown.upsBessSqm - eng.yardBreakdown.adminStagingSqm)} m²`,
-      `Boundary Noise: ${eng.boundaryNoiseDba} dBA (CPCB <= 65 dBA)`,
-      `Rigging: ${eng.logistics.craneTonnage}T Crane • Turning >= ${eng.logistics.minTurningRadiusM}m`
-    ],
-    false
-  );
+  // Counterfactual: what if governing inlet temp were 35°C vs actual governingMaxInletTempC?
+  const loopTempC = (eng.effectiveSupplyTempC - 3).toFixed(1);
+  const defaultThermalStory =
+    narrativeOverride?.thermalPhysicsStory ||
+    `Active racks split into ${eng.dlcRacks.length} DLC compute racks (${Math.round(eng.totalLiquidKw).toLocaleString()} kW liquid heat at ${Math.round(eng.totalFlowLpm).toLocaleString()} LPM) and ${eng.acRacks.length} air-cooled storage/fabric racks (${Math.round(eng.totalAirKw).toLocaleString()} kW air heat). Because the most thermally sensitive active rack caps inlet coolant at ${eng.governingMaxInletTempC}°C, subtracting a 3°C CDU heat-exchange approach bounds the facility heat-rejection loop to ${loopTempC}°C.`;
 
-  // =========================================================================
-  // SLIDE 6: POWER DISTRIBUTION & REDUNDANCY ARCHITECTURE
-  // =========================================================================
-  const s6 = pptx.addSlide();
-  initSlide(
-    s6,
-    '05 | Power Distribution & Redundancy Architecture (Sheet E-201)',
-    `${project.uptimeTier} Fault Tolerance • Peak Facility ${(eng.totalFacilityPeakKva || 0).toLocaleString()} kVA • Dual A/B Paths`
-  );
-  addNativeCard(
-    s6,
+  const pueMechanismText = `Equipment & PUE Impact: Keeping the loop at ${loopTempC}°C enables ${eng.freeCoolMonths} months of dry free-cooling and ${eng.adiabaticMonths} months of adiabatic spray (${eng.trimChillerMonths} trim-chiller months), holding annualized PUE at ${eng.pueAnnualized} (peak ${eng.puePeakDesign}). Any tighter rack inlet spec would force earlier trim-chiller engagement and raise PUE and fan/compressor kWh.`;
+
+  addEditorialNote(
+    s3,
     L,
     TOP,
-    flowW,
+    6.1,
     H,
-    '1. UTILITY & TRANSFORMATION',
+    'LOAD MIX -> GOVERNING INLET TEMPERATURE',
+    [defaultThermalStory],
+    true
+  );
+  addEditorialNote(
+    s3,
+    L + 6.36,
+    TOP,
+    6.1,
+    H,
+    'EQUIPMENT SELECTION -> PUE & WATER PHYSICS',
+    [pueMechanismText],
+    false
+  );
+
+  // =========================================================================
+  // SLIDE 4: WHY SITE & CITY TELEMETRY DRIVES THERMAL & STRUCTURAL CALLS
+  // =========================================================================
+  const s4 = pptx.addSlide();
+  nextSlideNum();
+  initSlide(
+    s4,
+    `Why ${project.cityQuery} Climate & Site Physics Shape the Design`,
+    `${project.peakDryBulb}°C DB / ${project.peakWetBulb}°C WB • ${project.seismicZone} • SBC ${eng.civil.sbc} kN/m² • Flood +${eng.civil.floodPlinthMm}mm`
+  );
+
+  const ashraePng = renderStrictAshraeChartPng(eng);
+  if (ashraePng) {
+    s4.addImage({ data: ashraePng, x: L, y: TOP, w: 7.45, h: H });
+  }
+
+  const defaultCityStory =
+    narrativeOverride?.cityDriversStory ||
+    `In ${project.cityQuery} (elev. ${project.elevationM}m), coincident ${project.peakDryBulb}°C dry-bulb and ${project.peakWetBulb}°C wet-bulb temperatures govern adiabatic wet-bulb depression and annual evaporative make-up (${eng.annualWaterKl.toLocaleString()} kL/yr), while site elevation & ambient heat apply a ${eng.dgDerateFactor}× derating factor to CPCB IV+ DGs (${eng.effectiveDgKva} kVA net per ${eng.selDg.ratedCapacity} kVA set).`;
+
+  addEditorialNote(
+    s4,
+    L + 7.65,
+    TOP,
+    4.81,
+    H,
+    'CITY & SITE CAUSAL DRIVERS',
     [
-      `33kV/66kV Dual HT VCB + SPD`,
-      `${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA K-13 Dry Trafos`,
-      `Redundancy: ${eng.trafoCalc.activeN}+${eng.trafoCalc.redundantR} (${project.uptimeTier})`,
-      `200% Neutral • Solidly Grounded`
+      defaultCityStory,
+      `Civil & Seismic Call: ${eng.civil.isWeakSoil ? `Low SBC (${eng.civil.sbc} kN/m²) mandates 4.5m bored friction piles` : `IS 1904 pad footing (${eng.civil.embedmentDepthM}m) achieves ${eng.civil.bearingSafetyFactor}× FoS`}; ${project.seismicZone} governs M30 anchorage & bracing.`
+    ],
+    false
+  );
+
+  // =========================================================================
+  // SLIDE 5: BOM COST OPTIMIZATION & ENGINEERING TRADEOFFS
+  // =========================================================================
+  const s5 = pptx.addSlide();
+  nextSlideNum();
+  initSlide(
+    s5,
+    'BOM Cost Optimization & Deliberate Tradeoffs',
+    `Controlled Pre-Tax CapEx at ${preTaxStr} (${costPerMwStr}/MW) via Block Sizing, Supply DB & Scope Discipline`
+  );
+
+  const defaultTradeoffsStory =
+    narrativeOverride?.tradeoffsStory ||
+    `Rather than over-buying oversized blocks or carrying unrequested scope by default, the engine selects OEM SKUs within +20% capacity and ≤8 active units per group, routes Supply Chain DB rates into the BOQ, keeps Telecom/MMR (${project.includeTelecomMmr ? 'Included' : 'Opt-In Off'}) and Rental Logistics (${project.includeLogisticsRigging ? 'Included' : 'Opt-In Off'}) opt-in, and isolates heavy-duty inside-DC server lifts as owned CapEx (${eng.logistics.ownedServerLifts}×).`;
+
+  addEditorialNote(
+    s5,
+    L,
+    TOP,
+    5.8,
+    H,
+    'HOW WE OPTIMIZED BOM COST',
+    [
+      defaultTradeoffsStory,
+      `Explicit Tradeoffs Made: ${project.uptimeTier === 'Tier III' ? 'Selected Tier III (N+1) over Tier IV (2N) to avoid doubling UPS/BESS/busway CapEx while preserving concurrent maintainability.' : `Selected ${project.uptimeTier} fault tolerance for maximum availability.`}`
     ],
     true
   );
-  addNativeCard(
-    s6,
-    L + (flowW + flowGap),
-    TOP,
-    flowW,
-    H,
-    '2. LV PCC, DG & LOAD SHIELD',
+
+  const tradeoffRows: PptxTableRow[] = [
     [
-      `${eng.lvSwitchgearUnits}× 3200A Form-4B LV PCC`,
-      `${eng.dgUnitsCount}×${eng.selDg.ratedCapacity}kVA CPCB IV+ DGs (${eng.dgCalc.activeN}+${eng.dgCalc.redundantR})`,
-      `PESO HSD Fuel: ${totalHsdK(eng.totalHsdFuelLitres)} kL (${project.dgAutonomyHours}h)`,
-      `Load-Drop Shield: ${eng.gridShield.loadDropShieldMw} MW`
+      tc('Optimization / Tradeoff Lever', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
+      tc('Decision & Engineering Impact', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } })
     ],
-    false
-  );
-  addNativeCard(
+    [tc('±20% / ≤8-Unit OEM Matcher', { bold: true }), tc('Prevents excessive unit count or oversized idle capacity; flags gaps as [PLACEHOLDER] RFQ items')],
+    [tc('Internal CDUs (Zero Yard CDUs)', { bold: true }), tc(`${eng.whiteSpace.internalCduCount} white-space CDUs + ${eng.whiteSpace.mandatoryPacCount} PACs shorten secondary DLC runs & protect loop temp`)],
+    [tc('False Floor & Sub-Frames', { bold: true }), tc(`${eng.raisedFloor.enabled ? `${eng.raisedFloor.pedestalStemCount.toLocaleString()} stems (${eng.raisedFloor.pedestalAxialRatingKn}kN) + ${eng.raisedFloor.heavyRackSubFramesCount} direct-to-slab rack sub-frames` : 'Slab-mounted direct load transfer'}`)],
+    [tc('Telecom & Rental Logistics', { bold: true }), tc(`Opt-in off by default so client-supplied fiber/cranes do not inflate baseline proposal pricing`)]
+  ];
+  s5.addTable(tradeoffRows, {
+    x: L + 6.02,
+    y: TOP,
+    w: 6.44,
+    fontFace: PPTX_BODY_FONT,
+    fontSize: 8.5,
+    color: C.CHARCOAL,
+    border: { type: 'solid', color: C.ORANGE_SOFT, pt: 0.5 },
+    margin: M,
+    colW: [2.35, 4.09],
+    rowH: 0.41
+  });
+
+  // =========================================================================
+  // TECHNICAL DESIGN SECTION (SLIDES 6–10): HALL/POD, YARD, ELEC ROOMS, CIVIL, P&ID
+  // =========================================================================
+  // Slide 6: Enclosure / BnM Hall, Raised Flooring & White-Space Layout (A-102)
+  const s6 = pptx.addSlide();
+  nextSlideNum();
+  initSlide(
     s6,
-    L + (flowW + flowGap) * 2,
-    TOP,
-    flowW,
-    H,
-    '3. MODULAR UPS & BESS',
-    [
-      `${eng.upsContainersCount}×${eng.selUps.ratedCapacity}kVA UPS (${eng.upsCalc.activeN}+${eng.upsCalc.redundantR})`,
-      `${eng.batteryContainersCount}×1.2MWh ${project.batteryChemistry} (${project.batteryRuntimeMin} min)`,
-      `Mode: ${project.upsRideThroughMode}`,
-      `Cooling Pumps: ${project.upsBacksUpCooling ? 'UPS-Backed' : 'DG-Backed'}`
-    ],
-    false
+    'Technical Section | Hall / Container & White-Space Layout',
+    `Sheet A-102 • ${eng.totalItWhiteSpaceSqm} m² White-Space • ${project.containmentType} • ${eng.raisedFloor.enabled ? `${eng.raisedFloor.heightMm}mm Raised Floor` : 'Slab'}`
   );
-  addNativeCard(
+  const wsPng = renderTechnicalDiagramPng('whitespace', project, eng);
+  if (wsPng) s6.addImage({ data: wsPng, x: L, y: TOP, w: 7.75, h: H });
+  addEditorialNote(
     s6,
-    L + (flowW + flowGap) * 3,
+    L + 7.95,
     TOP,
-    flowW,
+    4.51,
     H,
-    '4. BUSWAYS & RACK rPDUs',
+    'WHITE-SPACE & FLOORING DESIGN',
     [
-      `Dual A/B ${standards.buswayAmperageA}A IP55 Busducts`,
-      `${eng.activeRacks.length} Dual-Corded Metered rPDUs`,
-      `Detuned 500 kVAr APFC + MCC`,
-      `Exothermic Copper Earth Grid (<0.5Ω)`
+      eng.civil.isBnM
+        ? `BnM Hall ${project.bnmHallLengthM}m × ${project.bnmHallWidthM}m × ${project.bnmClearSoffitM}m H (Floor #${project.bnmFloorLevel}, Fit: ${eng.bnmAux.hallFitStatus}); Rack Dressing Bay: ${eng.bnmAux.stagingDressingSqm} m².`
+        : `${eng.pods.length} Corten-A pods (${eng.containerTotalVolumeCum} m³ total, ${project.hallTopology}) with ${project.futureGrowthReservePct}% growth reserve.`,
+      eng.raisedFloor.enabled
+        ? `${eng.raisedFloor.totalTiles.toLocaleString()} tiles (${eng.raisedFloor.tilePointLoadKn} kN), ${eng.raisedFloor.pedestalStemCount.toLocaleString()} stems (${eng.raisedFloor.pedestalAxialRatingKn} kN), ${eng.raisedFloor.heavyRackSubFramesCount} slab sub-frames.`
+        : 'Racks anchored directly to structural slab.'
     ],
     false
   );
 
-  // =========================================================================
-  // SLIDE 7: UPS, BATTERY & SWITCHGEAR ROOM / POD LAYOUT (SHEET E-202)
-  // =========================================================================
+  // Slide 7: 3-Zone Campus & Technical Yard Layout (A-101)
   const s7 = pptx.addSlide();
+  nextSlideNum();
   initSlide(
     s7,
-    '06 | UPS, Battery & Switchgear Room / Pod Layout (Sheet E-202)',
-    eng.civil.isBnM
-      ? `BnM Support Rooms: UPS ${eng.bnmAux.upsRoomSqm}m² • Battery ${eng.bnmAux.batteryRoomSqm}m² • Switchgear ${eng.bnmAux.switchgearRoomSqm}m²`
-      : `Dedicated Containerized Power Blocks • Separated Electrical Fire Compartments`
+    'Technical Section | 3-Zone Campus & Technical Yard Layout',
+    `Sheet A-101 • ${eng.totalCampusOccupiedSqm} m² Occupied (${eng.plotUtilizationPct}% Plot) • ${project.setbackMeters}m Fire Lane`
   );
-  const elecPng = renderBrandOrangeDiagramPng('elec_room', project, eng);
-  if (elecPng) {
-    s7.addImage({ data: elecPng, x: L, y: TOP, w: 7.75, h: H });
-  }
-  addNativeCard(
+  const yardPng = renderTechnicalDiagramPng('yard', project, eng);
+  if (yardPng) s7.addImage({ data: yardPng, x: L, y: TOP, w: 7.75, h: H });
+  addEditorialNote(
     s7,
     L + 7.95,
     TOP,
     4.51,
     H,
-    'ROOM COOLING, EXHAUST & ACCESS',
+    'YARD ZONING & SITE ACCESS',
     [
-      `UPS Room: 24°C Precision PAC (${eng.bnmAux.upsRoomCoolingKw} kW heat rejection)`,
-      `Battery Room: 22–25°C Cooling (${eng.bnmAux.batteryRoomCoolingKw} kW) + H2/Thermal Exhaust`,
-      `Switchgear Bay: 28°C Forced Ventilation (${eng.bnmAux.switchgearCoolingKw} kW)`,
-      `Clearances: >= 1.5m Front Drawout / >= 1.0m Rear Maintenance`,
-      `2-Hr Fire-Rated Separation & Clean-Agent Suppression`
+      `Zone A (${eng.totalItWhiteSpaceSqm} m²) isolates compute & internal CDUs; Zone B (${eng.yardBreakdown.upsBessSqm} m²) houses UPS/BESS; Zone C groups HT/LV power, DGs (${totalHsdK(eng.totalHsdFuelLitres)} kL PESO fuel), coolers, pumps & ZLD.`,
+      `Perimeter noise is ${eng.boundaryNoiseDba} dBA; crane rigging sized for ${eng.logistics.craneTonnage}T with ≥${eng.logistics.minTurningRadiusM}m turning circle.`
     ],
     false
   );
 
-  // =========================================================================
-  // SLIDE 8: CIVIL FOUNDATION, PLINTH & UPPER-FLOOR READINESS (SHEET C-101)
-  // =========================================================================
+  // Slide 8: UPS, Battery & Switchgear Room / Pod Layout & Redundancy (E-201 & E-202)
   const s8 = pptx.addSlide();
+  nextSlideNum();
   initSlide(
     s8,
-    '07 | Civil Foundation, Plinth & Upper-Floor Readiness (Sheet C-101)',
-    `${eng.civil.foundationType} • Bearing FoS ${eng.civil.bearingSafetyFactor}×`
+    'Technical Section | UPS, Battery & Switchgear Room Layout',
+    `Sheets E-201 & E-202 • ${project.uptimeTier} • Peak ${(eng.totalFacilityPeakKva || 0).toLocaleString()} kVA • Dual A/B Busways`
   );
-  const civilPng = renderBrandOrangeDiagramPng('civil', project, eng);
-  if (civilPng) {
-    s8.addImage({ data: civilPng, x: L, y: TOP, w: 7.75, h: H });
-  }
-  addNativeCard(
+  const elecPng = renderTechnicalDiagramPng('elec_room', project, eng);
+  if (elecPng) s8.addImage({ data: elecPng, x: L, y: TOP, w: 7.75, h: H });
+  addEditorialNote(
     s8,
     L + 7.95,
     TOP,
     4.51,
     H,
-    eng.bnmAux.isUpperFloor ? 'UPPER-FLOOR LIFT & DRESSING BAY' : 'STRUCTURAL & SEISMIC BASIS',
-    eng.bnmAux.isUpperFloor
-      ? [
-          `Hall Location: Upper Floor #${eng.bnmAux.floorLevel}`,
-          `Freight Lift: >= ${eng.bnmAux.freightLiftRequiredKg.toLocaleString()} kg Rated`,
-          `Min Clear Door Height: >= ${eng.bnmAux.freightLiftMinDoorHeightM} m`,
-          `Rack Undressing/Dressing Bay: ${eng.bnmAux.stagingDressingSqm} m²`,
-          `Slab Live Load: >= ${eng.civil.floorPressureKpa} kN/m² verified`
-        ]
-      : [
-          `Site SBC: ${eng.civil.sbc} kN/m² vs Imposed ${eng.civil.imposedBearingKpa} kN/m²`,
-          `Embedment: ${eng.civil.embedmentDepthM}m (${eng.civil.isWeakSoil ? '4.5m Pile Cap' : 'IS 1904 Pad'})`,
-          `Flood Plinth Lift: +${eng.civil.floodPlinthMm}mm (100-Yr + 300mm)`,
-          `Seismic Anchorage: M30 Shear Bolts (${project.seismicZone})`,
-          `Total Civil Plinth & Apron Area: ${eng.plinthSqm} m²`
-        ],
+    'ELECTRICAL ROOMS & CONTINUITY',
+    [
+      eng.civil.isBnM
+        ? `Rooms — UPS: ${eng.bnmAux.upsRoomSqm} m² (${project.bnmUpsRoom.placement.replace(/_/g, ' ')}, 24°C); Battery: ${eng.bnmAux.batteryRoomSqm} m² (22–25°C + H2 exhaust); Switchgear: ${eng.bnmAux.switchgearRoomSqm} m² (Form-4B).`
+        : `Containerized power blocks with ${eng.transformerUnits}×${eng.selTrafo.ratedCapacity}kVA K-13 trafos, ${eng.upsContainersCount}×${eng.selUps.ratedCapacity}kVA UPS, ${eng.batteryContainersCount}×1.2MWh ${project.batteryChemistry} & ${eng.gridShield.loadDropShieldMw} MW load-drop shield.`,
+      `Dual A/B ${standards.buswayAmperageA}A busways feed dual-corded rack rPDUs.`
+    ],
     false
   );
 
-  // =========================================================================
-  // SLIDE 9: HYDRAULICS P&ID (M-301) & COMPLETE 8-SHEET CAD PACK INDEX
-  // =========================================================================
+  // Slide 9: Civil Foundation, Plinth & Upper-Floor Access (C-101)
   const s9 = pptx.addSlide();
+  nextSlideNum();
   initSlide(
     s9,
-    '08 | Hydraulics P&ID (Sheet M-301) & 8-Sheet CAD Blueprint Pack',
-    'Complete IFC-Ready Vector CAD Package Included in Digital Deliverables'
+    'Technical Section | Civil Foundation, Plinth & Upper-Floor Access',
+    `Sheet C-101 • ${eng.civil.foundationType.split('(')[0].trim()} • Bearing FoS ${eng.civil.bearingSafetyFactor}×`
   );
-  const hydPng = renderBrandOrangeDiagramPng('hydraulics', project, eng);
-  if (hydPng) {
-    s9.addImage({ data: hydPng, x: L, y: TOP, w: 7.75, h: H });
-  }
-  addNativeCard(
+  const civilPng = renderTechnicalDiagramPng('civil', project, eng);
+  if (civilPng) s9.addImage({ data: civilPng, x: L, y: TOP, w: 7.75, h: H });
+  addEditorialNote(
     s9,
     L + 7.95,
     TOP,
     4.51,
     H,
-    '8 DELIVERABLE CAD SHEETS (SVG)',
+    'STRUCTURAL & LIFT READINESS',
     [
-      'A-101: Site & 3-Zone Yard GA Plan (1:250)',
-      'A-102: White-Space, PAC, CDU & Raised Floor (1:50)',
-      'C-101: Civil Plinth / 4.5m Pile Cap Section (1:40)',
-      'E-201: Yard-to-Hall Electrical SLD (NTS)',
-      'E-202: UPS, Battery & Switchgear Room Layout (1:50)',
-      'G-101 Earthing • R-101 Cable/Fiber • M-301 Hydraulics'
+      `Imposed bearing ${eng.civil.imposedBearingKpa} kN/m² vs. site SBC ${eng.civil.sbc} kN/m² (${eng.civil.bearingSafetyFactor}× FoS); flood plinth +${eng.civil.floodPlinthMm}mm above grade.`,
+      eng.bnmAux.isUpperFloor
+        ? `Upper Floor #${eng.bnmAux.floorLevel}: requires ≥${eng.bnmAux.freightLiftRequiredKg.toLocaleString()} kg freight lift (clear door ≥${eng.bnmAux.freightLiftMinDoorHeightM}m) and ${eng.bnmAux.stagingDressingSqm} m² rack undressing/dressing bay.`
+        : `M30 seismic anchor bolts (${project.seismicZone}) and 1:50 perimeter storm drainage apron.`
+    ],
+    false
+  );
+
+  // Slide 10: Hydraulics P&ID & Full 8-Sheet CAD Blueprint Reference (M-301)
+  const s10 = pptx.addSlide();
+  nextSlideNum();
+  initSlide(
+    s10,
+    'Technical Section | Hydraulics P&ID & 8-Sheet CAD Pack',
+    `Sheet M-301 • ${Math.round(eng.totalFlowLpm).toLocaleString()} LPM @ ${eng.pumpDesignHeadBar} bar TDH • ${eng.totalWaterStorageKl} kL Storage`
+  );
+  const hydPng = renderTechnicalDiagramPng('hydraulics', project, eng);
+  if (hydPng) s10.addImage({ data: hydPng, x: L, y: TOP, w: 7.75, h: H });
+  addEditorialNote(
+    s10,
+    L + 7.95,
+    TOP,
+    4.51,
+    H,
+    'HYDRAULICS & 8 CAD DRAWINGS',
+    [
+      `${eng.pumpSkidsCount} VFD pump skids (${project.pumpStagingMode}), ${eng.totalWaterStorageKl} kL water tanks (${project.waterAutonomyDays}d), RO/DM pre-treatment, factory PG25 loop & ZLD recovery.`,
+      `8 Vector CAD Sheets in Stage 3: A-101 Yard GA, A-102 White-Space, C-101 Civil, E-201 SLD, E-202 Room GA, G-101 Earthing, R-101 Cable/Fiber, M-301 P&ID.`
     ],
     false
   );
 
   // =========================================================================
-  // SLIDE 10+: MASTER EQUIPMENT SCHEDULE (RATINGS, DIMENSIONS, WEIGHTS, ROOMS)
+  // MASTER EQUIPMENT SCHEDULE (RATINGS, DIMENSIONS, WEIGHTS & ROOMS)
   // =========================================================================
   const eqPerPage = 4;
   const eqPages = Math.max(1, Math.ceil(eng.equipmentSchedule.length / eqPerPage));
   for (let p = 0; p < eqPages; p++) {
     const sEq = pptx.addSlide();
+    nextSlideNum();
     initSlide(
       sEq,
-      `09 | Master Equipment Schedule (${p + 1} of ${eqPages})`,
-      'Major Infrastructure Assets — Ratings, Physical Dimensions, Weights & Room Locations'
+      `Master Equipment Schedule (${p + 1} of ${eqPages})`,
+      'Equipment Ratings, Redundancy, Physical Dimensions (L×W×H), Footprint, Weight & Room Location'
     );
     const slice = eng.equipmentSchedule.slice(p * eqPerPage, (p + 1) * eqPerPage);
     const eqRows: PptxTableRow[] = [
@@ -789,7 +841,7 @@ export function exportStrictNativePptxDeck(
         tc('Equipment & OEM Make/Model', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
         tc('Location / Room', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
         tc('Rating & N+R', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
-        tc('L × W × H', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
+        tc('Dimensions (L×W×H)', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
         tc('Area / Wt', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } })
       ],
       ...slice.map((eq, idx) => {
@@ -812,28 +864,29 @@ export function exportStrictNativePptxDeck(
       fontSize: 8.5,
       color: C.CHARCOAL,
       border: { type: 'solid', color: C.ORANGE_SOFT, pt: 0.5 },
-      margin: 0.05,
+      margin: M,
       colW: [1.05, 3.65, 2.45, 2.15, 1.85, 1.31],
-      rowH: 0.39
+      rowH: 0.36
     });
   }
 
   // =========================================================================
-  // SLIDE: GOVERNANCE, COMPLIANCE & L1-L5 COMMISSIONING ROADMAP
+  // L1-L5 COMMISSIONING & GOVERNANCE ROADMAP
   // =========================================================================
   const sGov = pptx.addSlide();
+  nextSlideNum();
   const totalWks =
     eng.ganttTasks[eng.ganttTasks.length - 1].startWk + eng.ganttTasks[eng.ganttTasks.length - 1].durWk - 1;
   initSlide(
     sGov,
-    '10 | Statutory Compliance & L1–L5 Turnkey Commissioning Roadmap',
-    `${project.regulatoryCode.slice(0, 52)} • ${totalWks} Weeks to Ready-for-Service`
+    'L1–L5 Turnkey Commissioning & Governance Roadmap',
+    `${totalWks}-Week Delivery Program • ${project.regulatoryCode.slice(0, 48)}`
   );
   const istRows: PptxTableRow[] = [
     [
       tc('Commissioning Gate', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
-      tc('Verification Scope & Witness Testing', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
-      tc('Release Sign-Off', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } })
+      tc('Scope & Acceptance Criteria', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
+      tc('Sign-Off Gate', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } })
     ],
     ...eng.commissioningSchedule.slice(0, 5).map((c, idx) => {
       const bg = idx % 2 === 1 ? C.ORANGE_TINT : C.WHITE;
@@ -852,22 +905,68 @@ export function exportStrictNativePptxDeck(
     fontSize: 8.5,
     color: C.CHARCOAL,
     border: { type: 'solid', color: C.ORANGE_SOFT, pt: 0.5 },
-    margin: 0.04,
-    colW: [3.3, 6.96, 2.2],
-    rowH: 0.33
+    margin: M,
+    colW: [3.2, 7.06, 2.2],
+    rowH: 0.32
   });
 
   // =========================================================================
-  // FINAL SECTION: COMMERCIAL SUMMARY, 5-YEAR TCO & BOQ (LAST!)
+  // COMMERCIAL SUMMARY, 5-YEAR TCO & BOQ (CLOSING COMMERCIAL SECTION)
   // =========================================================================
+  const sComSummary = pptx.addSlide();
+  nextSlideNum();
+  initSlide(
+    sComSummary,
+    'Commercial Summary & 5-Year Lifecycle TCO',
+    `Pre-Tax ${preTaxStr} • Incl. ${project.gstPct}% GST ${gstTotalStr} • 5-Yr TCO ${tco5Str}`
+  );
+  const defaultCommercialStory =
+    narrativeOverride?.commercialStory ||
+    `Turnkey non-IT pre-tax CapEx is ${preTaxStr} (${gstTotalStr} incl. ${project.gstPct}% GST) at ${project.marginPct}% margin and ${project.contingencyPct}% contingency, with ${eng.mii.miiClassLabel}. Over 5 years, total lifecycle TCO reaches ${tco5Str} (${formatMoney(eng.annualTotalOpexInr, project.currency, standards)}/yr average OpEx across power, water, and ${project.amcYears}-yr AMC).`;
+
+  addEditorialNote(
+    sComSummary,
+    L,
+    TOP,
+    6.2,
+    H,
+    'CAPEX, OPEX & 5-YEAR TCO NARRATIVE',
+    [defaultCommercialStory],
+    true
+  );
+  const tcoRows: PptxTableRow[] = [
+    [
+      tc('Commercial Component', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
+      tc('Amount', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } })
+    ],
+    [tc('Non-IT CapEx (Pre-Tax)', { bold: true }), tc(preTaxStr)],
+    [tc(`GST (${project.gstPct}%) & Grand Total`, { bold: true }), tc(`${formatMoney(eng.totals.gst, project.currency, standards)} / ${gstTotalStr}`)],
+    [tc('Annual Power & Water OpEx', { bold: true }), tc(`${formatMoney(eng.annualPowerCostInr + eng.annualWaterCostInr, project.currency, standards)}/yr`)],
+    [tc('Annual AMC / O&M OpEx', { bold: true }), tc(`${formatMoney(eng.annualAmcCostInr, project.currency, standards)}/yr`)],
+    [tc('5-Year Lifecycle TCO', { bold: true, color: C.ORANGE }), tc(tco5Str, { bold: true })]
+  ];
+  sComSummary.addTable(tcoRows, {
+    x: L + 6.42,
+    y: TOP,
+    w: 6.04,
+    fontFace: PPTX_BODY_FONT,
+    fontSize: 8.5,
+    color: C.CHARCOAL,
+    border: { type: 'solid', color: C.ORANGE_SOFT, pt: 0.5 },
+    margin: M,
+    colW: [3.2, 2.84],
+    rowH: 0.34
+  });
+
   const rowsPerPage = 4;
   const totalBoqPages = Math.max(1, Math.ceil(eng.bomItems.length / rowsPerPage));
   for (let page = 0; page < totalBoqPages; page++) {
     const sBoq = pptx.addSlide();
+    nextSlideNum();
     initSlide(
       sBoq,
-      `11 | Commercial Bill of Quantities & 5-Year TCO (${page + 1} of ${totalBoqPages})`,
-      `Pre-Tax: ${formatMoney(eng.totals.sellingPreTax, project.currency, standards)} • 5-Yr TCO: ${formatMoney(eng.fiveYearTcoInr, project.currency, standards)} • MII ${eng.mii.overallMiiPct}%`
+      `Bill of Quantities (BOQ) — Page ${page + 1} of ${totalBoqPages}`,
+      `${project.name} • Validity ${project.costValidityDays} Days • All Figures in ${project.currency}`
     );
     const slice = eng.bomItems.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
     const boqTable: PptxTableRow[] = [
@@ -893,16 +992,16 @@ export function exportStrictNativePptxDeck(
       boqTable.push([
         tc('TOTAL', { bold: true, color: C.WHITE, fill: { color: C.ORANGE } }),
         tc(
-          `Pre-Tax: ${formatMoney(eng.totals.sellingPreTax, project.currency, standards)} | Incl. ${project.gstPct}% GST: ${formatMoney(eng.totals.grandTotal, project.currency, standards)}`,
+          `Pre-Tax: ${preTaxStr} | Incl. ${project.gstPct}% GST: ${gstTotalStr}`,
           { bold: true, color: C.BLACK, fill: { color: C.ORANGE_SOFT } }
         ),
-        tc(`5-Yr TCO: ${formatMoney(eng.fiveYearTcoInr, project.currency, standards)}`, {
+        tc(`5-Yr TCO: ${tco5Str}`, {
           bold: true,
           color: C.BLACK,
           fill: { color: C.ORANGE_SOFT }
         }),
         tc(String(eng.bomItems.length), { bold: true, fill: { color: C.ORANGE_SOFT } }),
-        tc(formatMoney(eng.totals.sellingPreTax, project.currency, standards), {
+        tc(preTaxStr, {
           bold: true,
           color: C.ORANGE_DARK,
           fill: { color: C.ORANGE_SOFT }
@@ -917,13 +1016,37 @@ export function exportStrictNativePptxDeck(
       fontSize: 8.5,
       color: C.CHARCOAL,
       border: { type: 'solid', color: C.ORANGE_SOFT, pt: 0.5 },
-      margin: 0.04,
+      margin: M,
       colW: [2.4, 4.65, 2.75, 0.76, 1.9],
       rowH: 0.34
     });
   }
 
+  // =========================================================================
+  // FINAL SLIDE: Q&A & DISCUSSION
+  // =========================================================================
+  const sQa = pptx.addSlide();
+  nextSlideNum();
+  initSlide(
+    sQa,
+    'Q&A & Technical / Commercial Discussion',
+    `${project.name} • ${project.client || 'Enterprise Authority'} • ${project.cityQuery}`
+  );
+  addEditorialNote(
+    sQa,
+    L,
+    TOP,
+    W,
+    H,
+    'OPEN TECHNICAL & COMMERCIAL DISCUSSION',
+    [
+      `Ready to walk through detailed thermal heat-rejection curves, ${project.uptimeTier} redundancy pathways, ${eng.civil.isBnM ? 'BnM hall/auxiliary room partitions & freight lift specs' : 'containerized pod sizing & yard layout'}, and commercial phasing.`,
+      `Prepared by ${project.name} Engineering Desk • ${new Date().toISOString().slice(0, 10)}`
+    ],
+    true
+  );
+
   pptx.writeFile({
-    fileName: `${(project.name || 'MDC_Proposal').replace(/[^a-zA-Z0-9_-]+/g, '_')}_Engineering_Proposal.pptx`
+    fileName: `${(project.name || 'MDC_Proposal').replace(/[^a-zA-Z0-9_-]+/g, '_')}_Consulting_Proposal.pptx`
   });
 }
