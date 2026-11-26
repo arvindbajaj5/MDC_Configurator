@@ -66,6 +66,7 @@ export function makeBlankProject(id: string, indexNum: number, std: MasterStanda
     futureGrowthReservePct: 10,
     containerCatalogId: 'custom',
     containerLengthMode: 'CustomOptimum',
+    containerFabBasis: 'PerCubicMeter',
     maxCustomLengthMm: std.defaultCustomMaxLenMm,
     containerHeightMm: std.defaultHeightMm,
     containerWidthMm: std.defaultWidthMm,
@@ -154,6 +155,42 @@ export function makeBlankProject(id: string, indexNum: number, std: MasterStanda
     bnmColumnGridM: '8m x 8m',
     bnmSlabThicknessMm: 300,
     bnmClearSoffitM: 5.8,
+    bnmDimUnit: 'm',
+    bnmHallLengthM: 32,
+    bnmHallWidthM: 18,
+    bnmLayoutDataUrl: '',
+    bnmLayoutFileName: '',
+    bnmFloorLevel: 0,
+    bnmFreightLiftMode: 'existing_verify',
+    bnmStagingAreaSqm: 45,
+    bnmUpsRoom: {
+      placement: 'extended_from_hall',
+      lengthM: 12,
+      widthM: 8,
+      heightM: 4.5,
+      coolingMode: 'Dedicated 24°C Precision PAC (N+1)'
+    },
+    bnmBatteryRoom: {
+      placement: 'separate_room',
+      lengthM: 10,
+      widthM: 7,
+      heightM: 4.2,
+      coolingMode: '22–25°C Precision Cooling + H2/Thermal Exhaust'
+    },
+    bnmSwitchgearRoom: {
+      placement: 'separate_room',
+      lengthM: 14,
+      widthM: 8,
+      heightM: 4.8,
+      coolingMode: '28°C Forced Ventilation / Spot Cooling'
+    },
+    raisedFloorEnabled: true,
+    raisedFloorHeightMm: 700,
+    raisedFloorTileType: 'CalciumSulphate_Heavy',
+    raisedFloorTileLoadKn: 10.0,
+    raisedFloorPedestalRatingKn: 22.0,
+    raisedFloorPerforatedPct: 22,
+    raisedFloorSubFrameForHeavyRacks: true,
     includeMonsoonCanopy: true,
     includeRadiantHeatBarrier: true,
     includeGasScrubber: false,
@@ -161,8 +198,9 @@ export function makeBlankProject(id: string, indexNum: number, std: MasterStanda
     includeZldRecovery: true,
     includeK12Mantrap: true,
     includeGridLoadShield: true,
-    includeTelecomMmr: true,
-    includeLogisticsRigging: true,
+    includeTelecomMmr: false,
+    includeLogisticsRigging: false,
+    includeOwnedDcTools: true,
     costValidityDays: 60,
     carrierCount: 3,
     odfCoreDensity: 576,
@@ -242,6 +280,14 @@ export function sanitizeProject(raw: Partial<ProjectDeal> | null | undefined, st
   if (!merged.inlineSkuOverrides || typeof merged.inlineSkuOverrides !== 'object') merged.inlineSkuOverrides = {};
   if (!merged.validationWaivers || typeof merged.validationWaivers !== 'object') merged.validationWaivers = {};
   if (merged.shellArchitecture !== 'BnM_Hall') merged.shellArchitecture = 'Container';
+  if (!merged.bnmUpsRoom) merged.bnmUpsRoom = base.bnmUpsRoom;
+  if (!merged.bnmBatteryRoom) merged.bnmBatteryRoom = base.bnmBatteryRoom;
+  if (!merged.bnmSwitchgearRoom) merged.bnmSwitchgearRoom = base.bnmSwitchgearRoom;
+  if (!merged.containerFabBasis) merged.containerFabBasis = 'PerCubicMeter';
+  if (!merged.bnmDimUnit) merged.bnmDimUnit = 'm';
+  if (merged.raisedFloorEnabled === undefined) merged.raisedFloorEnabled = true;
+  if (!merged.raisedFloorTileType) merged.raisedFloorTileType = 'CalciumSulphate_Heavy';
+  if (merged.includeOwnedDcTools === undefined) merged.includeOwnedDcTools = true;
 
   return merged;
 }

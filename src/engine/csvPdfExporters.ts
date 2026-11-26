@@ -24,12 +24,12 @@ export function build15PointSummaryRows(project: ProjectDeal, eng: EngineeringRe
     ],
     [
       '5. Extreme Weather & Hydraulics',
-      `${eng.coolingMode} (${eng.freeCoolMonths}m Free, ${eng.adiabaticMonths}m Spray, ${eng.trimChillerMonths}m Trim) | ${eng.totalWaterStorageKl} kL Tanks (${project.waterAutonomyDays}d) | ${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar TDH`
+      `${eng.coolingMode} | ${eng.totalWaterStorageKl} kL Tanks (${project.waterAutonomyDays}d) | ${Math.round(eng.totalFlowLpm)} LPM @ ${eng.pumpDesignHeadBar} bar TDH`
     ],
     [
       '6. Container / BnM Bay Dimensions',
       eng.pods[0]
-        ? `${isBnM ? `BnM ${project.bnmColumnGridM} Grid, ${project.bnmClearSoffitM}m Soffit` : `${(eng.pods[0].extLengthMm / 1000).toFixed(2)}m L × ${(eng.pods[0].extWidthMm / 1000).toFixed(2)}m W × ${(eng.pods[0].extHeightMm / 1000).toFixed(2)}m H (${project.metallurgy})`} • ${eng.civil.unitGrossTonnes}T loaded`
+        ? `${isBnM ? `BnM Hall ${project.bnmHallLengthM}m × ${project.bnmHallWidthM}m × ${project.bnmClearSoffitM}m H (Floor #${project.bnmFloorLevel}, ${project.bnmColumnGridM})` : `${(eng.pods[0].extLengthMm / 1000).toFixed(2)}m L × ${(eng.pods[0].extWidthMm / 1000).toFixed(2)}m W × ${(eng.pods[0].extHeightMm / 1000).toFixed(2)}m H (${eng.containerTotalVolumeCum} m³ total, ${project.metallurgy})`} • ${eng.civil.unitGrossTonnes}T loaded • ${eng.raisedFloor.enabled ? `${eng.raisedFloor.heightMm}mm Raised Floor (${eng.raisedFloor.pedestalStemCount} stems)` : 'Slab-Mounted'}`
         : 'Configure racks to size'
     ],
     [
@@ -75,7 +75,7 @@ export function triggerCsvDownload(filename: string, rows: string[][]): void {
   const csv = rows
     .map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
     .join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -138,7 +138,7 @@ export function export15PointSummaryCsv(project: ProjectDeal, eng: EngineeringRe
 
 export function exportDealPartnerRfqCsv(project: ProjectDeal, eng: EngineeringResult): void {
   const csv = generatePartnerRfqCsv(project.name, project.cityQuery, eng.dealPlaceholders);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -279,16 +279,56 @@ export function exportEngineeringPdfDossier(
     cy += 12;
   });
 
-  // Page 3+: Commercial BOQ & 5-Year Lifecycle TCO
+  // Page 3: Master Equipment Schedule (Ratings, Dimensions, Weights & Rooms)
   doc.addPage();
   drawPageHeader(
-    '3. Consolidated Commercial Bill of Materials & 5-Year Lifecycle TCO',
-    `Pre-Tax: ${formatMoney(eng.totals.sellingPreTax, project.currency, standards)} • Incl. GST: ${formatMoney(eng.totals.grandTotal, project.currency, standards)} • 5-Yr TCO: ${formatMoney(eng.fiveYearTcoInr, project.currency, standards)}`,
+    '3. Master Equipment Schedule (Ratings, Physical Dimensions, Weights & Rooms)',
+    `${eng.equipmentSchedule.length} Major Subsystems • ${eng.raisedFloor.enabled ? `Raised Floor: ${eng.raisedFloor.heightMm}mm (${eng.raisedFloor.pedestalStemCount} Stems, ${eng.raisedFloor.tilePointLoadKn} kN Tiles)` : 'Slab-Mounted'}`,
     3
+  );
+  let ey = 30;
+  doc.setFillColor(245, 246, 248);
+  doc.rect(14, ey, pageW - 28, 7, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.8);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Tag', 16, ey + 4.8);
+  doc.text('Equipment & Rating', 36, ey + 4.8);
+  doc.text('Room / Location', 112, ey + 4.8);
+  doc.text('Make & Model', 170, ey + 4.8);
+  doc.text('Dimensions (L×W×H)', 220, ey + 4.8);
+  doc.text('Area / Wt', 262, ey + 4.8);
+  ey += 8.5;
+
+  eng.equipmentSchedule.slice(0, 20).forEach((eq, idx) => {
+    if (idx % 2 === 1) {
+      doc.setFillColor(248, 249, 250);
+      doc.rect(14, ey - 3, pageW - 28, 7.2, 'F');
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.3);
+    doc.setTextColor(0, 40, 112);
+    doc.text(eq.assetTag, 16, ey + 1.2);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(`${eq.equipmentName.slice(0, 38)} (${eq.ratingAndRedundancy.slice(0, 22)})`, 36, ey + 1.2);
+    doc.text(eq.location.slice(0, 32), 112, ey + 1.2);
+    doc.text(`${eq.make} ${eq.model}`.slice(0, 26), 170, ey + 1.2);
+    doc.text(eq.dimensionsM.slice(0, 22), 220, ey + 1.2);
+    doc.text(`${eq.footprintSqm}m² / ${(eq.operatingWeightKg / 1000).toFixed(1)}T`, 262, ey + 1.2);
+    ey += 7.4;
+  });
+
+  // Page 4+: Commercial BOQ & 5-Year Lifecycle TCO
+  doc.addPage();
+  drawPageHeader(
+    '4. Consolidated Commercial Bill of Materials & 5-Year Lifecycle TCO',
+    `Pre-Tax: ${formatMoney(eng.totals.sellingPreTax, project.currency, standards)} • Incl. GST: ${formatMoney(eng.totals.grandTotal, project.currency, standards)} • 5-Yr TCO: ${formatMoney(eng.fiveYearTcoInr, project.currency, standards)}`,
+    4
   );
 
   let by = 30;
-  let pg = 3;
+  let pg = 4;
   const drawBoqHeader = () => {
     doc.setFillColor(245, 246, 248);
     doc.rect(14, by, pageW - 28, 7, 'F');

@@ -2,10 +2,13 @@ import { INITIAL_STANDARDS, V12_CATALOG_EXPANSIONS } from '../data/masterCatalog
 import { DEFAULT_SUPPLY_CHAIN_V13 } from '../data/supplyChainSeed';
 import type {
   ActiveRackInstance,
+  BnmAuxEngineeringSummary,
   BomLineItem,
   ContainerPod,
   CurrencyCode,
   EngineeringResult,
+  EquipmentScheduleItem,
+  RaisedFloorSummary,
   MasterStandards,
   NonItCatalogItem,
   PlaceholderSku,
@@ -289,6 +292,7 @@ export function computeEngineeringV13(
       | 'extLengthMm'
       | 'extWidthMm'
       | 'extHeightMm'
+      | 'volumeCum'
       | 'floorFootprintSqm'
       | 'reservedGrowthMm'
       | 'emptyTareKg'
@@ -358,6 +362,7 @@ export function computeEngineeringV13(
         2 * ((project.containerWidthMm / 1000) * (project.containerHeightMm / 1000)) +
         2 * ((extLenMm / 1000) * (project.containerWidthMm / 1000));
       const floorFootprintSqm = (extLenMm / 1000) * (project.containerWidthMm / 1000);
+      const volumeCum = Number(((extLenMm / 1000) * (project.containerWidthMm / 1000) * (project.containerHeightMm / 1000)).toFixed(1));
       const emptyTareKg = Math.round(shellAreaSqm * (project.wallThicknessMm * 7.85 * 1.35) + 2800);
       const rowAKw = p.rowA.reduce((s, r) => s + r.actualKw, 0);
       const rowBKw = p.rowB.reduce((s, r) => s + r.actualKw, 0);
@@ -370,6 +375,7 @@ export function computeEngineeringV13(
         extLengthMm: extLenMm,
         extWidthMm: project.containerWidthMm,
         extHeightMm: project.containerHeightMm,
+        volumeCum,
         floorFootprintSqm,
         reservedGrowthMm,
         emptyTareKg,
@@ -387,6 +393,7 @@ export function computeEngineeringV13(
   packGroup(acRacks, 'AC', maxAcKwPerPod);
 
   const dlcPods = pods.filter(p => p.kind === 'DLC');
+  const containerTotalVolumeCum = Number(pods.reduce((s, p) => s + p.volumeCum, 0).toFixed(1));
   const acPods = pods.filter(p => p.kind === 'AC');
 
   const baseWhiteSpaceSqm = pods.reduce((s, p) => s + p.floorFootprintSqm, 0);
@@ -552,15 +559,16 @@ export function computeEngineeringV13(
   registerMatch('cdu', 'Floor Liquid CDU Tower', extCduRequiredKw, 'kW', hasExtCduRacks && project.includeExtCdu);
   registerMatch('tank', 'SS316L Water Storage Tank', reqWaterKl, 'kL', hasDlcRacks && project.includeWaterTanks);
 
-  // Resolve active building blocks (preferring inline override -> placeholder -> selected master catalog)
+  // Resolve active building blocks (inline override -> Supply Chain DB match / placeholder -> master fallback)
   const resolveSelectedBlock = (group: string, selectedId: string, fallbackId: string): NonItCatalogItem => {
     const match = supplyMatches[group];
     const inline = inlineOv[group];
+    const baseFallback = catMap[selectedId] || fullCatalog.find(i => i.id === fallbackId) || fullCatalog[0];
     if (inline) {
       return {
         id: inline.skuId,
         group,
-        category: catMap[selectedId]?.category || 'Custom Deal Override',
+        category: baseFallback?.category || 'Custom Deal Override',
         label: inline.label,
         ratedCapacity: inline.ratedCapacity,
         capacityUnit: inline.capacityUnit,
@@ -588,7 +596,24 @@ export function computeEngineeringV13(
         miiPct: match.miiPct
       };
     }
-    return catMap[selectedId] || fullCatalog.find(i => i.id === fallbackId) || fullCatalog[0];
+    // V13.3: Flow matched India Supply Chain DB SKUs directly into BOQ rows!
+    if (match && !match.isPlaceholder && match.unitPriceInr > 0) {
+      return {
+        id: match.matchedSkuId,
+        group,
+        category: baseFallback?.category || 'India OEM Supply Chain',
+        label: match.label,
+        ratedCapacity: match.ratedCapacity,
+        capacityUnit: match.demandUnit,
+        footprintSqm: match.footprintSqm || baseFallback?.footprintSqm || 12,
+        unit: `per ${match.ratedCapacity}${match.demandUnit}`,
+        cost: match.unitPriceInr,
+        make: match.vendor,
+        model: match.model,
+        miiPct: match.miiPct
+      };
+    }
+    return baseFallback;
   };
 
   const selCdu = resolveSelectedBlock('cdu', project.selectedCduId, 'cdu-1350kw');
@@ -738,6 +763,114 @@ export function computeEngineeringV13(
   const outriggerGroundKpa = Math.round((unitGrossTonnes * 9.81 * 1.45) / 4.8);
   const laydownStagingSqm =
     logOv.stagingSqm !== undefined && logOv.stagingSqm !== '' ? Number(logOv.stagingSqm) : Math.max(240, trailerCount * 80);
+  const ownedServerLifts = ovQty.serverLifts !== undefined && ovQty.serverLifts !== '' ? Number(ovQty.serverLifts) : logOv.serverLifts ?? Math.max(1, Math.ceil(podCount / 4));
+  const ownedSafetyLadders = logOv.safetyLadders ?? Math.max(2, podCount);
+
+  // 7B. V13.3 RAISED ACCESS FLOORING (FALSE FLOORING — STEMS/PEDESTALS, TILES & HEAVY-RACK SUB-FRAMES)
+  const rfAreaSqm = Math.round(totalItWhiteSpaceSqm);
+  const rfHeightMm = Number(project.raisedFloorHeightMm) || Number(project.plenumHeightMm) || 700;
+  const rfTilePointLoadKn =
+    Number(project.raisedFloorTileLoadKn) ||
+    (project.raisedFloorTileType === 'SolidSteel_Ultra'
+      ? 12.0
+      : project.raisedFloorTileType === 'Cementitious_Heavy'
+        ? 8.5
+        : 10.0);
+  const rfPedestalRatingKn = Number(project.raisedFloorPedestalRatingKn) || (rfHeightMm > 600 ? 25.0 : 22.0);
+  const rfTileSpecLabel =
+    project.raisedFloorTileType === 'SolidSteel_Ultra'
+      ? '600×600×40mm Solid Steel Encapsulated Ultra-Heavy (ESD HPL)'
+      : project.raisedFloorTileType === 'Cementitious_Heavy'
+        ? '600×600×35mm Cementitious Core Heavy-Duty Steel Panel (ESD HPL)'
+        : '600×600×40mm High-Density Calcium Sulphate Encapsulated (ESD HPL)';
+  const rfTotalTiles = project.raisedFloorEnabled ? Math.ceil(rfAreaSqm * 2.78 * 1.05) : 0;
+  const rfPerfPct = Math.max(0, Math.min(60, Number(project.raisedFloorPerforatedPct) || 22));
+  const rfPerforatedTiles = project.raisedFloorEnabled ? Math.ceil((rfTotalTiles * rfPerfPct) / 100) : 0;
+  const rfPedestalStemCount = project.raisedFloorEnabled ? Math.ceil(rfAreaSqm * 3.35) : 0;
+  const rfBoltedStringersRequired = rfHeightMm > 300;
+  const rfSeismicBracingRequired =
+    rfHeightMm > 600 || project.seismicZone === 'Zone III' || project.seismicZone === 'Zone IV' || project.seismicZone === 'Zone V';
+  const rfPedestalTubeSpec =
+    rfHeightMm > 600
+      ? `32mm OD × 2.5mm GI Steel Tube + Bolted Stringers + Diagonal Seismic Bracing`
+      : `25mm OD × 2.0mm GI Steel Tube + Bolted Perimeter Stringers`;
+  const heaviestRackKg = activeRacks.reduce((mx, r) => Math.max(mx, r.totalWeightKg || 0), 0);
+  const maxRackPointLoadKn = Number((((heaviestRackKg * 9.81) / 4) / 1000).toFixed(2)); // per corner leveling foot
+  const exceedsTilePointLoad = heaviestRackKg > 1350 || maxRackPointLoadKn > rfTilePointLoadKn * 0.65;
+  const heavyRackSubFramesCount =
+    project.raisedFloorEnabled && (project.raisedFloorSubFrameForHeavyRacks || exceedsTilePointLoad)
+      ? activeRacks.filter(r => r.totalWeightKg >= 1200 || r.isDlc).length
+      : 0;
+
+  const raisedFloor: RaisedFloorSummary = {
+    enabled: Boolean(project.raisedFloorEnabled),
+    areaSqm: rfAreaSqm,
+    heightMm: rfHeightMm,
+    tileSizeMm: '600 × 600 mm',
+    tileSpecLabel: rfTileSpecLabel,
+    totalTiles: rfTotalTiles,
+    perforatedTiles: rfPerforatedTiles,
+    pedestalStemCount: rfPedestalStemCount,
+    pedestalTubeSpec: rfPedestalTubeSpec,
+    pedestalAxialRatingKn: rfPedestalRatingKn,
+    tilePointLoadKn: rfTilePointLoadKn,
+    boltedStringersRequired: rfBoltedStringersRequired,
+    seismicBracingRequired: rfSeismicBracingRequired,
+    heavyRackSubFramesCount,
+    maxRackPointLoadKn,
+    exceedsTilePointLoad
+  };
+
+  // 7C. V13.3 BnM HALL DIMENSIONS, UPPER-FLOOR FREIGHT LIFT, RACK DRESSING & AUXILIARY ROOMS
+  const bnmHallProvidedSqm = Number(((project.bnmHallLengthM || 32) * (project.bnmHallWidthM || 18)).toFixed(1));
+  const bnmHallVolumeCum = Number((bnmHallProvidedSqm * (project.bnmClearSoffitM || 5.8)).toFixed(1));
+  const hallFitStatus: 'FITS' | 'TIGHT' | 'OVERSIZE' =
+    totalItWhiteSpaceSqm <= bnmHallProvidedSqm * 0.85
+      ? 'FITS'
+      : totalItWhiteSpaceSqm <= bnmHallProvidedSqm
+        ? 'TIGHT'
+        : 'OVERSIZE';
+  const bnmFloorLevel = Math.max(0, Math.round(Number(project.bnmFloorLevel) || 0));
+  const isUpperFloor = isBnM && bnmFloorLevel > 0;
+  const heaviestEquipKg = Math.max(heaviestRackKg, 2270);
+  // Freight lift rated capacity = heaviest rack/cabinet + electric mover (550 kg) + 3 crew (270 kg) + 35% dynamic factor, rounded to 500 kg (min 4000 kg)
+  const freightLiftRequiredKg = Math.max(
+    4000,
+    Math.ceil(((heaviestEquipKg + 550 + 270) * 1.35) / 500) * 500
+  );
+  const tallestRackMm = activeRacks.reduce((mx, r) => Math.max(mx, r.heightMm || 2200), 2500);
+  const freightLiftMinDoorHeightM = Number(Math.max(2.8, (tallestRackMm + 350) / 1000).toFixed(2));
+  const freightLiftCabinSpec = `${freightLiftRequiredKg.toLocaleString()} kg Rated • Min Cabin 2.4m W × 3.2m D × ${(freightLiftMinDoorHeightM + 0.2).toFixed(1)}m H • Clear Door >= ${freightLiftMinDoorHeightM}m`;
+  const stagingDressingSqm = Number(project.bnmStagingAreaSqm) || Math.max(36, Math.round(podCount * 10));
+
+  const calcRoomSqm = (rm: ProjectDeal['bnmUpsRoom']) =>
+    rm && rm.placement !== 'outdoor_container' ? Number(((rm.lengthM || 10) * (rm.widthM || 8)).toFixed(1)) : 0;
+  const upsRoomSqm = isBnM ? calcRoomSqm(project.bnmUpsRoom) : 0;
+  const batteryRoomSqm = isBnM ? calcRoomSqm(project.bnmBatteryRoom) : 0;
+  const switchgearRoomSqm = isBnM ? calcRoomSqm(project.bnmSwitchgearRoom) : 0;
+  const upsRoomCoolingKw = Math.max(15, Math.round(upsCriticalLoadKva * 0.9 * 0.055));
+  const batteryRoomCoolingKw = Math.max(10, Math.round((batteryKwhReq || 600) * 0.015));
+  const switchgearCoolingKw = Math.max(12, Math.round(totalFacilityPeakKw * 0.018));
+  const totalAuxIndoorSqm = Number((upsRoomSqm + batteryRoomSqm + switchgearRoomSqm + (isBnM ? stagingDressingSqm : 0)).toFixed(1));
+
+  const bnmAux: BnmAuxEngineeringSummary = {
+    hallProvidedSqm: bnmHallProvidedSqm,
+    hallVolumeCum: bnmHallVolumeCum,
+    hallFitStatus,
+    floorLevel: bnmFloorLevel,
+    isUpperFloor,
+    freightLiftRequiredKg,
+    freightLiftMinDoorHeightM,
+    freightLiftCabinSpec,
+    stagingDressingSqm,
+    upsRoomSqm,
+    upsRoomCoolingKw,
+    batteryRoomSqm,
+    batteryRoomCoolingKw,
+    switchgearRoomSqm,
+    switchgearCoolingKw,
+    totalAuxIndoorSqm
+  };
 
   // 8. YARD FOOTPRINT & PLOT UTILIZATION
   const yardBreakdown = {
@@ -870,6 +1003,19 @@ export function computeEngineeringV13(
           { overrideRate: Number(project.bespokeContainerPriceInr), make: 'Bespoke Fab', model: 'SPA-H Corten Heavy', miiPct: 96 }
         )
       );
+    } else if (project.containerFabBasis === 'PerCubicMeter') {
+      const rateCum =
+        catMap['shellPerCum']?.cost || standards.defaultShellRatePerCumInr || 24000;
+      bomItems.push(
+        makeBomRow(
+          'shellPerCum',
+          Math.max(50, Math.round(containerTotalVolumeCum)),
+          `Custom Modular IT Container Fabrication (${pods.length} Pods • ${containerTotalVolumeCum} m³ Volume)`,
+          'Modular Enclosures & Civil',
+          `${project.metallurgy} • ${project.hallTopology} • Volume-based fabrication (${(pods[0].extLengthMm / 1000).toFixed(2)}m × ${(pods[0].extWidthMm / 1000).toFixed(2)}m × ${(pods[0].extHeightMm / 1000).toFixed(2)}m)`,
+          { overrideRate: rateCum, make: 'Bespoke Fab', model: 'SPA-H-VOL-M3', miiPct: 96 }
+        )
+      );
     } else {
       const netShellSqm = Math.max(40, Math.round(pods.reduce((s, p) => s + p.shellAreaSqm, 0) - sharedWallSavingsSqm));
       bomItems.push(
@@ -879,6 +1025,73 @@ export function computeEngineeringV13(
           `Custom Modular IT Enclosures (${pods.length} Pods, ${project.metallurgy})`,
           'Modular Enclosures & Civil',
           `${project.hallTopology} | ${Math.round(totalItWhiteSpaceSqm)} m² White-Space`
+        )
+      );
+    }
+
+    // V13.3 Raised Access Flooring (False Flooring — Stems, Tiles, Perforated Grilles & Heavy-Rack Sub-Frames)
+    if (raisedFloor.enabled && raisedFloor.areaSqm > 0) {
+      const tileCostFactor =
+        project.raisedFloorTileType === 'SolidSteel_Ultra'
+          ? 1.22
+          : project.raisedFloorTileType === 'Cementitious_Heavy'
+            ? 0.92
+            : 1.0;
+      const baseRfRate = Math.round((catMap['raisedFloorPerSqm']?.cost || 5400) * tileCostFactor * (rfSeismicBracingRequired ? 1.12 : 1.0));
+      bomItems.push(
+        makeBomRow(
+          'raisedFloorPerSqm',
+          raisedFloor.areaSqm,
+          `Raised Access Flooring (${rfHeightMm}mm Plinth • ${raisedFloor.pedestalStemCount.toLocaleString()} Pedestal Stems & ${raisedFloor.totalTiles.toLocaleString()} Tiles)`,
+          'Modular Enclosures & Civil',
+          `${raisedFloor.tileSpecLabel} • Stem Axial Rating ${rfPedestalRatingKn} kN • Tile Load ${rfTilePointLoadKn} kN • ${rfSeismicBracingRequired ? 'Seismic Braced + Bolted Stringers' : 'Bolted Stringers'}`,
+          { overrideRate: baseRfRate, miiPct: 92 }
+        )
+      );
+      if (raisedFloor.perforatedTiles > 0) {
+        bomItems.push(
+          makeBomRow(
+            'raisedFloorPerforatedTile',
+            raisedFloor.perforatedTiles,
+            `High-Airflow Perforated Cold-Aisle Grilles (${rfPerfPct}% Cold Aisle Allocation)`,
+            'Modular Enclosures & Civil',
+            `600×600mm 55% Free-Area Airflow Panels w/ Opposed-Blade Dampers`
+          )
+        );
+      }
+      if (raisedFloor.heavyRackSubFramesCount > 0) {
+        bomItems.push(
+          makeBomRow(
+            'raisedFloorRackSubframe',
+            raisedFloor.heavyRackSubFramesCount,
+            `Heavy-Duty Structural Steel Rack Support Sub-Frames (Direct-to-Slab Load Transfer)`,
+            'Modular Enclosures & Civil',
+            `Supports up to ${heaviestRackKg} kg/rack (${maxRackPointLoadKn} kN/foot) bypassing floor tile point-load limit`
+          )
+        );
+      }
+    }
+
+    // V13.3 BnM Auxiliary Rooms (UPS, Battery, Switchgear & Rack Dressing/Staging) + Upper-Floor Freight Lift
+    if (isBnM && bnmAux.totalAuxIndoorSqm > 0) {
+      bomItems.push(
+        makeBomRow(
+          'bnmAuxRoomFitout',
+          Math.round(bnmAux.totalAuxIndoorSqm),
+          `BnM Support Rooms Fit-Out (UPS ${upsRoomSqm}m² + Battery ${batteryRoomSqm}m² + Switchgear ${switchgearRoomSqm}m² + Rack Dressing ${stagingDressingSqm}m²)`,
+          'Modular Enclosures & Civil',
+          `2-Hr Fire Partitions, Dedicated Room Cooling (${upsRoomCoolingKw + batteryRoomCoolingKw + switchgearCoolingKw} kW) & H2/Thermal Exhaust`
+        )
+      );
+    }
+    if (isBnM && bnmAux.isUpperFloor && project.bnmFreightLiftMode === 'new_in_boq') {
+      bomItems.push(
+        makeBomRow(
+          'bnmFreightLiftUnit',
+          1,
+          `Heavy-Duty ${freightLiftRequiredKg.toLocaleString()} kg Data Center Freight Lift (Floor #${bnmFloorLevel})`,
+          'Modular Enclosures & Civil',
+          `${freightLiftCabinSpec} • Concentrated Wheel-Load Reinforced Deck`
         )
       );
     }
@@ -1043,8 +1256,35 @@ export function computeEngineeringV13(
       bomItems.push(makeBomRow('overhead-fiber-raceway', pods.length, 'Overhead Yellow LSZH Fiber Raceways & High-Density Trunk Cabling', 'Telecom, MMR & Connectivity', `${overheadFiberMeters}m segregated optical troughs + ${project.fabricType}`));
     }
     if (project.includeLogisticsRigging) {
-      bomItems.push(makeBomRow('logistics-transport-crane', pods.length, `Multi-Axle Low-Bed Trailers & ${craneTonnage}T Mobile Crane Mobilization`, 'Logistics, Heavy-Lift & Rigging', `Turning radius >= ${minTurningRadiusM}m • Outrigger bearing ${outriggerGroundKpa} kN/m²`));
-      bomItems.push(makeBomRow('onsite-rigging-kit', 1, 'Azobe Spreader Mats, 5T Forklifts, 15T Roller Skates, Toe Jacks & Shims', 'Logistics, Heavy-Lift & Rigging', `Laydown yard ${laydownStagingSqm} m² • Full on-site rigging inventory`));
+      bomItems.push(
+        makeBomRow(
+          'logistics-transport-crane',
+          pods.length,
+          `[RENTAL / MOBILIZATION] Multi-Axle Low-Bed Trailers & ${craneTonnage}T Mobile Crane`,
+          'Logistics, Heavy-Lift & Rigging',
+          `Temporary Rental • Turning radius >= ${minTurningRadiusM}m • Outrigger bearing ${outriggerGroundKpa} kN/m²`
+        )
+      );
+      bomItems.push(
+        makeBomRow(
+          'onsite-rigging-kit',
+          1,
+          '[RENTAL / MOBILIZATION] Azobe Spreader Mats, Forklifts, 15T Roller Skates, Toe Jacks & Crew',
+          'Logistics, Heavy-Lift & Rigging',
+          `Temporary Rental • Laydown yard ${laydownStagingSqm} m² • Rigging & placement mobilization`
+        )
+      );
+    }
+    if (project.includeOwnedDcTools) {
+      bomItems.push(
+        makeBomRow(
+          'ownedDcHandlingTools',
+          ownedServerLifts,
+          `[OWNED CAPEX] Inside-DC Heavy-Duty Electric Server Lift (${ownedServerLifts}×) & Rolling Safety Ladders (${ownedSafetyLadders}×)`,
+          'Logistics, Heavy-Lift & Rigging',
+          `Purchased Permanent DC Operations Gear • 450 kg server stacking lift, ESD work carts & torque/manifold tool kit`
+        )
+      );
     }
   }
 
@@ -1262,8 +1502,224 @@ export function computeEngineeringV13(
     { level: 'L5 — Integrated Systems Testing (IST)', scope: `100% heat-load bank run + ${loadDropShieldMw} MW sudden load-rejection simulation`, gate: 'Handover & SLA Start' }
   ];
 
+  // 13. V13.3 MASTER EQUIPMENT SCHEDULE (RATING, DIMENSIONS, WEIGHT & ROOM LOCATION)
+  const equipmentSchedule: EquipmentScheduleItem[] = [];
+  const pod0 = pods[0];
+  if (pods.length > 0 && pod0) {
+    equipmentSchedule.push({
+      assetTag: isBnM ? 'EQ-HALL-01' : 'EQ-POD-01',
+      category: 'White-Space Enclosure',
+      equipmentName: isBnM ? `BnM Fire-Rated AI Technical Hall (${pods.length} Bays)` : `Modular Corten-A IT Compute Pods (${pods.length} Units)`,
+      location: isBnM ? `Building Floor #${bnmFloorLevel} (Main Hall)` : 'Zone A — Raised RCC Plinth',
+      make: isBnM ? 'Turnkey Civil RCC' : 'Bespoke Fab',
+      model: isBnM ? `${project.bnmColumnGridM} Grid` : `${project.metallurgy}`,
+      ratingAndRedundancy: `${(totalDesignContKw / 1000).toFixed(2)} MW IT (${activeRacks.length} Racks)`,
+      dimensionsM: isBnM
+        ? `${project.bnmHallLengthM}m × ${project.bnmHallWidthM}m × ${project.bnmClearSoffitM}m H`
+        : `${(pod0.extLengthMm / 1000).toFixed(2)}m × ${(pod0.extWidthMm / 1000).toFixed(2)}m × ${(pod0.extHeightMm / 1000).toFixed(2)}m H`,
+      footprintSqm: Math.round(totalItWhiteSpaceSqm),
+      operatingWeightKg: Math.round(unitGrossTonnes * 1000),
+      keySpecs: `${project.containmentType} • ${raisedFloor.enabled ? `${rfHeightMm}mm Raised Floor (${rfPedestalRatingKn}kN Stems)` : 'Slab-Mounted'}`
+    });
+  }
+  if (internalCduCount > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-CDU-01',
+      category: 'Liquid Cooling (Internal)',
+      equipmentName: `${internalCduCount}× ${selCdu.label}`,
+      location: 'Zone A — White-Space Internal CDU Row',
+      make: selCdu.make,
+      model: selCdu.model,
+      ratingAndRedundancy: `${selCdu.ratedCapacity} ${selCdu.capacityUnit}/unit (${cduCalc.activeN}+${cduCalc.redundantR})`,
+      dimensionsM: '1.20m × 1.20m × 2.30m H',
+      footprintSqm: Number((internalCduCount * (selCdu.footprintSqm || 1.44)).toFixed(1)),
+      operatingWeightKg: 1100,
+      keySpecs: `Supply <= ${effectiveSupplyTempC}°C • ${Math.round(totalFlowLpm)} LPM Secondary PG25 Loop`
+    });
+  }
+  if (mandatoryPacCount > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-PAC-01',
+      category: 'White-Space Air Cooling',
+      equipmentName: `${mandatoryPacCount}× Precision Air Coolers (80 kW CW EC-Fan)`,
+      location: 'Zone A — White-Space Perimeter',
+      make: 'Stulz / Vertiv',
+      model: 'CyberAir-3-80kW',
+      ratingAndRedundancy: `80 kW/unit (${pacCalc.activeN}+${pacCalc.redundantR})`,
+      dimensionsM: '1.80m × 0.95m × 2.20m H',
+      footprintSqm: pacFootprintSqm,
+      operatingWeightKg: 750,
+      keySpecs: `24°C Room Sensible + Dew-Point Control • ${project.airflowDelivery}`
+    });
+  }
+  if (adiabaticUnits > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-CLR-01',
+      category: 'Heat Rejection (Outdoor)',
+      equipmentName: `${adiabaticUnits}× ${selCooler.label}`,
+      location: 'Zone C — Outdoor Cooling Yard',
+      make: selCooler.make,
+      model: selCooler.model,
+      ratingAndRedundancy: `${selCooler.ratedCapacity} ${selCooler.capacityUnit}/unit (${coolerCalc.activeN}+${coolerCalc.redundantR})`,
+      dimensionsM: '6.20m × 2.40m × 2.80m H',
+      footprintSqm: Math.round(adiabaticUnits * (selCooler.footprintSqm || 24)),
+      operatingWeightKg: 4800,
+      keySpecs: `${freeCoolMonths}m Free-Cool / ${adiabaticMonths}m Spray / ${trimChillerMonths}m Trim`
+    });
+  }
+  if (chillerUnitsCount > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-CHL-01',
+      category: 'Chilled Water Plant',
+      equipmentName: `${chillerUnitsCount}× Air-Cooled Magnetic-Bearing Chillers (1000 kW)`,
+      location: project.chillerPlacement === 'ContainerRoof' && !isBnM ? 'Container Roof Structural Deck' : 'Zone C — Dedicated Chiller Pad',
+      make: 'Trane / Carrier',
+      model: 'RTAF-1000-MAG',
+      ratingAndRedundancy: `1000 kW/unit (${wsChillerCalc.activeN}+${wsChillerCalc.redundantR})`,
+      dimensionsM: '7.40m × 2.25m × 2.55m H',
+      footprintSqm: chillerUnitsCount * 26,
+      operatingWeightKg: 11500,
+      keySpecs: `Serves PACs + AC Loads (${totalChillerLoadKw} kW) • Oil-Free VFD`
+    });
+  }
+  if (pumpSkidsCount > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-PMP-01',
+      category: 'Hydraulics',
+      equipmentName: `${pumpSkidsCount}× VFD Primary Coolant Pump Skids (2500 LPM)`,
+      location: 'Zone C — Hydraulic Pump Pad',
+      make: 'Grundfos / Wilo',
+      model: 'Hydro-MPC-E-VFD',
+      ratingAndRedundancy: `2500 LPM/skid (${pumpCalc.activeN}+${pumpCalc.redundantR})`,
+      dimensionsM: '3.20m × 1.80m × 2.10m H',
+      footprintSqm: pumpSkidsCount * 10,
+      operatingWeightKg: 2400,
+      keySpecs: `${Math.round(totalFlowLpm)} LPM @ ${pumpDesignHeadBar} bar TDH • ${project.pumpStagingMode}`
+    });
+  }
+  if (waterTankUnits > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-TNK-01',
+      category: 'Water Storage',
+      equipmentName: `${waterTankUnits}× ${selTank.label}`,
+      location: 'Zone C — Water Tank & ZLD Yard',
+      make: selTank.make,
+      model: selTank.model,
+      ratingAndRedundancy: `${selTank.ratedCapacity} kL/tank (${totalWaterStorageKl} kL Total)`,
+      dimensionsM: '4.00m × 3.00m × 3.20m H',
+      footprintSqm: Math.round(waterTankUnits * (selTank.footprintSqm || 12)),
+      operatingWeightKg: selTank.ratedCapacity * 1000 + 2200,
+      keySpecs: `${project.waterAutonomyDays}-Day Peak Evap Buffer + Pre-Loop RO/DM`
+    });
+  }
+  if (transformerUnits > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-TX-01',
+      category: 'Power Transformation',
+      equipmentName: `${transformerUnits}× ${selTrafo.label}`,
+      location: isBnM && project.bnmSwitchgearRoom.placement !== 'outdoor_container' ? 'BnM Switchgear / Transformer Room' : 'Zone C — HT/MV Substation Yard',
+      make: selTrafo.make,
+      model: selTrafo.model,
+      ratingAndRedundancy: `${selTrafo.ratedCapacity} ${selTrafo.capacityUnit}/unit (${trafoCalc.activeN}+${trafoCalc.redundantR})`,
+      dimensionsM: '2.80m × 1.85m × 2.55m H',
+      footprintSqm: Math.round(transformerUnits * (selTrafo.footprintSqm || 14)),
+      operatingWeightKg: Math.round(selTrafo.ratedCapacity * 2.8),
+      keySpecs: `33kV/415V K-13 Dry Cast-Resin • 200% Neutral • IS 1180 / IEC 60076`
+    });
+  }
+  if (lvSwitchgearUnits > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-SWG-01',
+      category: 'Switchgear & Distribution',
+      equipmentName: `${lvSwitchgearUnits}× Main LV Form-4B PCC / ACB Lineup + HT VCB + APFC/SPD`,
+      location: isBnM && project.bnmSwitchgearRoom.placement !== 'outdoor_container' ? `BnM Switchgear Room (${switchgearRoomSqm} m²)` : 'Zone C — Switchgear Shelter / E-House',
+      make: 'Schneider / L&T / ABB',
+      model: 'BlokSeT-3200A-F4B + UniGear-ZS1',
+      ratingAndRedundancy: `3200A 415V Form-4B (${project.uptimeTier} Dual A/B)`,
+      dimensionsM: '4.50m × 1.20m × 2.30m H',
+      footprintSqm: lvSwitchgearUnits * 8 + 10,
+      operatingWeightKg: 3200,
+      keySpecs: `Auto-Sync ATS, 500 kVAr Detuned APFC, Type 1+2 SPD & Cooling VFD MCC`
+    });
+  }
+  if (upsContainersCount > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-UPS-01',
+      category: 'Critical Power (UPS)',
+      equipmentName: `${upsContainersCount}× ${selUps.label}`,
+      location: isBnM && project.bnmUpsRoom.placement !== 'outdoor_container' ? `BnM UPS Room (${upsRoomSqm} m², ${project.bnmUpsRoom.placement === 'extended_from_hall' ? 'Extended' : 'Separate'})` : 'Zone B — Containerized UPS Yard',
+      make: selUps.make,
+      model: selUps.model,
+      ratingAndRedundancy: `${selUps.ratedCapacity} ${selUps.capacityUnit}/unit (${upsCalc.activeN}+${upsCalc.redundantR})`,
+      dimensionsM: isBnM && project.bnmUpsRoom.placement !== 'outdoor_container' ? '3.60m × 1.10m × 2.10m H (Panel)' : '12.19m × 2.44m × 2.90m H (Pod)',
+      footprintSqm: Math.round(upsContainersCount * (selUps.footprintSqm || 28)),
+      operatingWeightKg: 4200,
+      keySpecs: `IEC 62040-3 Online Double-Conversion • 97% Eff. • ${project.upsBacksUpCooling ? 'Backs Up Cooling Pumps' : 'IT Only'}`
+    });
+  }
+  if (batteryContainersCount > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-BESS-01',
+      category: 'Energy Storage (Battery)',
+      equipmentName: `${batteryContainersCount}× ${project.batteryChemistry} Battery Bank / Pod (1.2 MWh)`,
+      location: isBnM && project.bnmBatteryRoom.placement !== 'outdoor_container' ? `BnM Battery Room (${batteryRoomSqm} m², 22–25°C + Exhaust)` : 'Zone B — Containerized BESS Yard',
+      make: 'Exide / Amara Raja',
+      model: `${project.batteryChemistry}-Rack-1200kWh`,
+      ratingAndRedundancy: `${Math.round(batteryKwhReq)} kWh Req (${project.batteryRuntimeMin} min @ ${project.batteryChemistry})`,
+      dimensionsM: isBnM && project.bnmBatteryRoom.placement !== 'outdoor_container' ? '0.80m × 0.90m × 2.20m H (per Cabinet)' : '12.19m × 2.44m × 2.90m H (Pod)',
+      footprintSqm: batteryContainersCount * 36,
+      operatingWeightKg: 14500,
+      keySpecs: `BMS Cell-Level Monitoring, Thermal Runaway Gas Exhaust & UL9540A`
+    });
+  }
+  if (dgUnitsCount > 0) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-DG-01',
+      category: 'Standby Power (DG)',
+      equipmentName: `${dgUnitsCount}× ${selDg.label}`,
+      location: 'Zone C — Acoustic DG & PESO Fuel Yard',
+      make: selDg.make,
+      model: selDg.model,
+      ratingAndRedundancy: `${selDg.ratedCapacity} kVA (${effectiveDgKva} kVA derated, ${dgCalc.activeN}+${dgCalc.redundantR})`,
+      dimensionsM: '12.19m × 3.00m × 3.40m H',
+      footprintSqm: Math.round(dgUnitsCount * (selDg.footprintSqm || 36)),
+      operatingWeightKg: 18500,
+      keySpecs: `CPCB IV+ Emission • ${project.dgAutonomyHours}h PESO HSD (${totalHsdFuelLitres.toLocaleString()} L) • <= 75 dBA @ 1m`
+    });
+  }
+  if (isBnM && bnmAux.isUpperFloor) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-LIFT-01',
+      category: 'Vertical Transport (BnM)',
+      equipmentName: `Heavy-Duty Data Center Freight Lift (Floor #${bnmFloorLevel})`,
+      location: 'Building Core — Receiving to DC Staging Bay',
+      make: project.bnmFreightLiftMode === 'new_in_boq' ? 'KONE / Schindler / Otis' : 'Existing Building Asset',
+      model: `${freightLiftRequiredKg}KG-FREIGHT`,
+      ratingAndRedundancy: `${freightLiftRequiredKg.toLocaleString()} kg Rated Capacity`,
+      dimensionsM: `2.40m × 3.20m × ${(freightLiftMinDoorHeightM + 0.2).toFixed(1)}m H`,
+      footprintSqm: 12,
+      operatingWeightKg: 6500,
+      keySpecs: `Clear Door >= ${freightLiftMinDoorHeightM}m • Connects to ${stagingDressingSqm} m² Rack Undressing/Dressing Bay`
+    });
+  }
+  if (project.includeTelecomMmr) {
+    equipmentSchedule.push({
+      assetTag: 'EQ-MMR-01',
+      category: 'Telecom & Carrier MMR',
+      equipmentName: `${mmrRoomsCount}× Carrier-Neutral Meet-Me Room (${odfBaysCount}× ${project.odfCoreDensity}F ODF)`,
+      location: 'Zone A — Biometric MMR & Diverse Fiber Vaults',
+      make: 'Sterlite Tech / Panduit',
+      model: `MMR-${project.odfCoreDensity}F-DC48`,
+      ratingAndRedundancy: `${project.carrierCount} Carriers • Dual -48V DC Plant`,
+      dimensionsM: '5.50m × 4.00m × 3.20m H',
+      footprintSqm: mmrRoomsCount * 22,
+      operatingWeightKg: 2800,
+      keySpecs: `${project.diverseVaultSeparationM}m Diverse North/South Fiber Vaults • ${overheadFiberMeters}m Yellow LSZH Tray`
+    });
+  }
+
   return {
-    activeRacks, dlcRacks, acRacks, pods, dlcPods, acPods,
+    activeRacks, dlcRacks, acRacks, pods, dlcPods, acPods, containerTotalVolumeCum,
     totalNameplatePeakKw, totalDesignContKw, totalActualKw, dlcDesignKw, acDesignKw,
     totalLiquidKw, totalAirKw,
     governingMaxInletTempC, effectiveSupplyTempC, inletTempViolation,
@@ -1298,13 +1754,17 @@ export function computeEngineeringV13(
       isBnM, floodPlinthMm, unitGrossTonnes, floorPressureKpa, cornerNodeKn,
       sbc, isWeakSoil, embedmentDepthM, imposedBearingKpa, bearingSafetyFactor, foundationType
     },
+    raisedFloor,
+    bnmAux,
+    equipmentSchedule,
     gridShield: { loadDropShieldMw },
     telecom: {
       mmrRoomsCount, odfBaysCount, totalFiberStrands, overheadFiberMeters, gpuFabricLinks,
       fabricType: project.fabricType
     },
     logistics: {
-      trailerCount, minTurningRadiusM, craneTonnage, outriggerGroundKpa, laydownStagingSqm
+      trailerCount, minTurningRadiusM, craneTonnage, outriggerGroundKpa, laydownStagingSqm,
+      ownedServerLifts, ownedSafetyLadders
     },
     unitDatasheets,
     mii: { overallMiiPct, miiClassLabel },
