@@ -2,9 +2,12 @@ import React from 'react';
 import { Box, Building2, Printer, Save } from 'lucide-react';
 import { exportPerUnitDatasheetsPdf } from '../engine/csvPdfExporters';
 import type {
+  BnmRoomPlacement,
+  BnmSupportRoomSpec,
   ContainerSpec,
   EngineeringResult,
   ProjectDeal,
+  RaisedFloorTileType,
   ShellArchitecture
 } from '../types/mdc';
 
@@ -26,6 +29,37 @@ export const ContainerWhiteSpacePanel: React.FC<ContainerWhiteSpacePanelProps> =
   onInspect3D
 }) => {
   const isBnM = project.shellArchitecture === 'BnM_Hall';
+  const FT_PER_M = 3.28084;
+  const toDisp = (m: number) =>
+    project.bnmDimUnit === 'ft' ? Number((m * FT_PER_M).toFixed(1)) : Number(m.toFixed(2));
+  const fromDisp = (v: number) =>
+    project.bnmDimUnit === 'ft' ? Number((v / FT_PER_M).toFixed(2)) : Number(v.toFixed(2));
+
+  const handleBnmLayoutUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      onUpdateProject({
+        bnmLayoutDataUrl: String(ev.target?.result || ''),
+        bnmLayoutFileName: f.name
+      });
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  };
+
+  const updateAuxRoom = (
+    roomKey: 'bnmUpsRoom' | 'bnmBatteryRoom' | 'bnmSwitchgearRoom',
+    patch: Partial<BnmSupportRoomSpec>
+  ) => {
+    onUpdateProject({
+      [roomKey]: {
+        ...project[roomKey],
+        ...patch
+      }
+    });
+  };
   const pod0 = eng.pods?.[0];
 
   const applyCatalogPreset = (catalogId: string) => {
@@ -387,6 +421,19 @@ export const ContainerWhiteSpacePanel: React.FC<ContainerWhiteSpacePanelProps> =
               />
               EMI/RFI Shielding & Seismic Gussets
             </label>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-600">Fab Cost Basis:</span>
+              <select
+                value={project.containerFabBasis}
+                onChange={e =>
+                  onUpdateProject({ containerFabBasis: e.target.value as ProjectDeal['containerFabBasis'] })
+                }
+                className="border border-slate-300 rounded-lg px-2 py-1 bg-white font-bold navy-text"
+              >
+                <option value="PerCubicMeter">Per Cubic Meter (INR/m³ • {eng.containerTotalVolumeCum} m³)</option>
+                <option value="PerSqm">Per Surface Area (INR/m²)</option>
+              </select>
+            </div>
             <div className="ml-auto font-bold navy-text">
               Active Pod Spec:{' '}
               {pod0
@@ -396,6 +443,405 @@ export const ContainerWhiteSpacePanel: React.FC<ContainerWhiteSpacePanelProps> =
           </div>
         </div>
       )}
+
+      {/* V13.3 BnM HALL DIMENSIONS (FT/M), LAYOUT UPLOAD, UPPER-FLOOR LIFT & AUXILIARY ROOMS */}
+      {isBnM && (
+        <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+            <div>
+              <span className="px-2.5 py-0.5 rounded bg-amber-100 text-amber-950 font-black uppercase text-[10px]">
+                Brick-and-Mortar (BnM) Hall, Upper-Floor Access & Auxiliary Rooms
+              </span>
+              <h3 className="text-base font-bold navy-text mt-1">
+                Main Hall Dimensions ({project.bnmDimUnit}), Layout Underlay, Freight Lift & Support Rooms
+              </h3>
+            </div>
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-300">
+              <button
+                type="button"
+                onClick={() => onUpdateProject({ bnmDimUnit: 'm' })}
+                className={`px-3 py-1 rounded font-bold ${project.bnmDimUnit === 'm' ? 'navy-bg text-white' : 'text-slate-600'}`}
+              >
+                Meters (m)
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateProject({ bnmDimUnit: 'ft' })}
+                className={`px-3 py-1 rounded font-bold ${project.bnmDimUnit === 'ft' ? 'navy-bg text-white' : 'text-slate-600'}`}
+              >
+                Feet (ft)
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Hall Length ({project.bnmDimUnit})</label>
+              <input
+                type="number"
+                step={0.5}
+                value={toDisp(project.bnmHallLengthM)}
+                onChange={e => onUpdateProject({ bnmHallLengthM: Math.max(4, fromDisp(Number(e.target.value))) })}
+                className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Hall Width ({project.bnmDimUnit})</label>
+              <input
+                type="number"
+                step={0.5}
+                value={toDisp(project.bnmHallWidthM)}
+                onChange={e => onUpdateProject({ bnmHallWidthM: Math.max(4, fromDisp(Number(e.target.value))) })}
+                className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Clear Height ({project.bnmDimUnit})</label>
+              <input
+                type="number"
+                step={0.2}
+                value={toDisp(project.bnmClearSoffitM)}
+                onChange={e => onUpdateProject({ bnmClearSoffitM: Math.max(3, fromDisp(Number(e.target.value))) })}
+                className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Floor Level</label>
+              <select
+                value={project.bnmFloorLevel}
+                onChange={e => onUpdateProject({ bnmFloorLevel: Number(e.target.value) })}
+                className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold navy-text"
+              >
+                <option value={0}>Ground Floor (0)</option>
+                <option value={1}>1st Floor (Upper)</option>
+                <option value={2}>2nd Floor (Upper)</option>
+                <option value={3}>3rd Floor (Upper)</option>
+                <option value={4}>4th+ Floor</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Rack Dressing Bay (m²)</label>
+              <input
+                type="number"
+                step={5}
+                min={20}
+                value={project.bnmStagingAreaSqm}
+                onChange={e => onUpdateProject({ bnmStagingAreaSqm: Number(e.target.value) })}
+                className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+            <div>
+              <strong>Provided Main Hall Area:</strong> {eng.bnmAux.hallProvidedSqm} m² ({eng.bnmAux.hallVolumeCum} m³) vs. Required{' '}
+              <strong>{eng.totalItWhiteSpaceSqm} m²</strong> —{' '}
+              <span
+                className={`px-2 py-0.5 rounded font-black text-[10px] ${
+                  eng.bnmAux.hallFitStatus === 'FITS'
+                    ? 'bg-emerald-600 text-white'
+                    : eng.bnmAux.hallFitStatus === 'TIGHT'
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'bg-red-600 text-white'
+                }`}
+              >
+                {eng.bnmAux.hallFitStatus}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold cursor-pointer">
+                Upload Hall Floor Plan (PNG/JPG/SVG)
+                <input type="file" accept="image/*" onChange={handleBnmLayoutUpload} className="hidden" />
+              </label>
+              {project.bnmLayoutDataUrl && (
+                <button
+                  onClick={() => onUpdateProject({ bnmLayoutDataUrl: '', bnmLayoutFileName: '' })}
+                  className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-700 font-bold"
+                >
+                  Clear Underlay
+                </button>
+              )}
+            </div>
+          </div>
+
+          {project.bnmLayoutDataUrl && (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="font-bold navy-text">
+                Uploaded Floor-Plan Underlay: {project.bnmLayoutFileName || 'Custom Layout'} (Synced to CAD Sheet A-102)
+              </div>
+              <img
+                src={project.bnmLayoutDataUrl}
+                alt="BnM Hall Layout Underlay"
+                className="max-h-48 w-auto rounded border border-slate-300 bg-white object-contain"
+              />
+            </div>
+          )}
+
+          {eng.bnmAux.isUpperFloor && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+              <div>
+                <div className="font-black text-amber-950">
+                  Upper-Floor (#{eng.bnmAux.floorLevel}) Heavy Freight Lift & Rack Undressing/Dressing Protocol
+                </div>
+                <div className="text-amber-900 mt-0.5">
+                  Lift Spec: <strong>{eng.bnmAux.freightLiftCabinSpec}</strong> • Dedicated De-Crating & Dressing Bay:{' '}
+                  <strong>{eng.bnmAux.stagingDressingSqm} m²</strong>
+                </div>
+              </div>
+              <div>
+                <label className="block font-bold text-amber-950 mb-1">Freight Lift BOQ Handling</label>
+                <select
+                  value={project.bnmFreightLiftMode}
+                  onChange={e =>
+                    onUpdateProject({ bnmFreightLiftMode: e.target.value as ProjectDeal['bnmFreightLiftMode'] })
+                  }
+                  className="w-full border border-amber-400 rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                >
+                  <option value="existing_verify">Existing Building Lift (Verify Capacity & Door Height)</option>
+                  <option value="new_in_boq">Include New Heavy 5,000 kg Freight Lift in BOQ</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* BnM Auxiliary Rooms (UPS, Battery & Switchgear — Extended from Hall vs Separate Room vs Outdoor Container) */}
+          <div className="space-y-2.5">
+            <h4 className="font-bold navy-text text-sm">
+              Auxiliary Support Rooms (Extended from Main Hall, Separate Indoor Room, or Outdoor Container)
+            </h4>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              {(
+                [
+                  {
+                    key: 'bnmUpsRoom' as const,
+                    title: 'UPS Room',
+                    coolingKw: eng.bnmAux.upsRoomCoolingKw,
+                    sqm: eng.bnmAux.upsRoomSqm
+                  },
+                  {
+                    key: 'bnmBatteryRoom' as const,
+                    title: `${project.batteryChemistry} Battery Room`,
+                    coolingKw: eng.bnmAux.batteryRoomCoolingKw,
+                    sqm: eng.bnmAux.batteryRoomSqm
+                  },
+                  {
+                    key: 'bnmSwitchgearRoom' as const,
+                    title: 'Switchgear / Electrical Room',
+                    coolingKw: eng.bnmAux.switchgearCoolingKw,
+                    sqm: eng.bnmAux.switchgearRoomSqm
+                  }
+                ] as const
+              ).map(rm => {
+                const spec = project[rm.key];
+                return (
+                  <div key={rm.key} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold navy-text">{rm.title}</span>
+                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-[10px]">
+                        {rm.sqm > 0 ? `${rm.sqm} m² • ${rm.coolingKw} kW Cool` : 'Outdoor Yard'}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Room Placement</label>
+                      <select
+                        value={spec.placement}
+                        onChange={e =>
+                          updateAuxRoom(rm.key, { placement: e.target.value as BnmRoomPlacement })
+                        }
+                        className="w-full border rounded-lg px-2 py-1.5 bg-white font-bold"
+                      >
+                        <option value="extended_from_hall">Extended / Partitioned from Main Hall</option>
+                        <option value="separate_room">Separate Dedicated Indoor Room</option>
+                        <option value="outdoor_container">Outdoor Containerized (Yard)</option>
+                      </select>
+                    </div>
+                    {spec.placement !== 'outdoor_container' && (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <div>
+                          <label className="block text-[10px] text-slate-500">L ({project.bnmDimUnit})</label>
+                          <input
+                            type="number"
+                            step={0.5}
+                            value={toDisp(spec.lengthM)}
+                            onChange={e => updateAuxRoom(rm.key, { lengthM: Math.max(3, fromDisp(Number(e.target.value))) })}
+                            className="w-full border rounded px-1.5 py-1 bg-white font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-slate-500">W ({project.bnmDimUnit})</label>
+                          <input
+                            type="number"
+                            step={0.5}
+                            value={toDisp(spec.widthM)}
+                            onChange={e => updateAuxRoom(rm.key, { widthM: Math.max(3, fromDisp(Number(e.target.value))) })}
+                            className="w-full border rounded px-1.5 py-1 bg-white font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-slate-500">H ({project.bnmDimUnit})</label>
+                          <input
+                            type="number"
+                            step={0.2}
+                            value={toDisp(spec.heightM)}
+                            onChange={e => updateAuxRoom(rm.key, { heightM: Math.max(2.8, fromDisp(Number(e.target.value))) })}
+                            className="w-full border rounded px-1.5 py-1 bg-white font-bold"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="text-[11px] text-slate-600">
+                      <strong>Cooling / Exhaust:</strong> {spec.coolingMode}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* V13.3 RAISED ACCESS FLOORING (FALSE FLOORING — STEMS/PEDESTALS, TILES & HEAVY-RACK SUB-FRAMES) */}
+      <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div>
+            <span className="px-2.5 py-0.5 rounded bg-teal-100 text-teal-950 font-black uppercase text-[10px]">
+              Raised Access Flooring (False Flooring) — Pedestal Stems, Tiles & Sub-Frames
+            </span>
+            <h3 className="text-base font-bold navy-text mt-1">
+              False Floor Pedestal Stem Capacity, 600×600mm Tiles & Direct-to-Slab Heavy-Rack Frames
+            </h3>
+          </div>
+          <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-300 font-bold navy-text cursor-pointer">
+            <input
+              type="checkbox"
+              checked={project.raisedFloorEnabled}
+              onChange={e => onUpdateProject({ raisedFloorEnabled: e.target.checked })}
+              className="w-4 h-4"
+            />
+            Include Raised Access Flooring in BOQ
+          </label>
+        </div>
+
+        {project.raisedFloorEnabled && (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Finished Floor Height (mm)</label>
+                <input
+                  type="number"
+                  step={50}
+                  min={150}
+                  max={1200}
+                  value={project.raisedFloorHeightMm}
+                  onChange={e =>
+                    onUpdateProject({
+                      raisedFloorHeightMm: Number(e.target.value),
+                      plenumHeightMm: Number(e.target.value)
+                    })
+                  }
+                  className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">600×600mm Floor Tile Spec</label>
+                <select
+                  value={project.raisedFloorTileType}
+                  onChange={e =>
+                    onUpdateProject({ raisedFloorTileType: e.target.value as RaisedFloorTileType })
+                  }
+                  className="w-full border rounded-lg px-2 py-1.5 bg-white font-bold"
+                >
+                  <option value="CalciumSulphate_Heavy">Calcium Sulphate Heavy (10 kN)</option>
+                  <option value="Cementitious_Heavy">Cementitious Steel Panel (8.5 kN)</option>
+                  <option value="SolidSteel_Ultra">Solid Steel Ultra-Heavy (12 kN)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Tile Point Load (kN)</label>
+                <input
+                  type="number"
+                  step={0.5}
+                  min={4.5}
+                  max={18}
+                  value={project.raisedFloorTileLoadKn}
+                  onChange={e => onUpdateProject({ raisedFloorTileLoadKn: Number(e.target.value) })}
+                  className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Pedestal Stem Rating (kN)</label>
+                <input
+                  type="number"
+                  step={1}
+                  min={15}
+                  max={40}
+                  value={project.raisedFloorPedestalRatingKn}
+                  onChange={e => onUpdateProject({ raisedFloorPedestalRatingKn: Number(e.target.value) })}
+                  className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Perforated Cold Aisle (%)</label>
+                <input
+                  type="number"
+                  step={2}
+                  min={0}
+                  max={60}
+                  value={project.raisedFloorPerforatedPct}
+                  onChange={e => onUpdateProject({ raisedFloorPerforatedPct: Number(e.target.value) })}
+                  className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-[11px]">
+              <div className="p-3 rounded-xl bg-teal-50/70 border border-teal-200">
+                <span className="text-slate-500 block">Floor Tiles (600×600mm)</span>
+                <strong className="text-sm text-teal-950">
+                  {eng.raisedFloor.totalTiles.toLocaleString()} Tiles ({eng.raisedFloor.areaSqm} m²)
+                </strong>
+                <span className="block text-slate-600">
+                  Incl. {eng.raisedFloor.perforatedTiles} Perforated Grilles ({project.raisedFloorPerforatedPct}%)
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+                <span className="text-slate-500 block">Galvanized Pedestal Stems</span>
+                <strong className="text-sm navy-text">
+                  {eng.raisedFloor.pedestalStemCount.toLocaleString()} Stems ({eng.raisedFloor.pedestalAxialRatingKn} kN)
+                </strong>
+                <span className="block text-slate-600">{eng.raisedFloor.pedestalTubeSpec}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200">
+                <span className="text-slate-500 block">Heavy-Rack Point Load Check</span>
+                <strong className="text-sm text-amber-950">
+                  {eng.raisedFloor.maxRackPointLoadKn} kN / Rack Foot
+                </strong>
+                <span className="block text-slate-600">
+                  {eng.raisedFloor.exceedsTilePointLoad
+                    ? 'Slab Sub-Frames Mandatory (High Rack Mass)'
+                    : 'Within Tile Point-Load Limit'}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-100 border border-slate-300 flex flex-col justify-between">
+                <div>
+                  <span className="text-slate-500 block">Direct-to-Slab Rack Sub-Frames</span>
+                  <strong className="text-sm text-slate-900">
+                    {eng.raisedFloor.heavyRackSubFramesCount} Structural Steel Frames
+                  </strong>
+                </div>
+                <label className="inline-flex items-center gap-1.5 font-bold navy-text cursor-pointer mt-1">
+                  <input
+                    type="checkbox"
+                    checked={project.raisedFloorSubFrameForHeavyRacks}
+                    onChange={e => onUpdateProject({ raisedFloorSubFrameForHeavyRacks: e.target.checked })}
+                  />
+                  Anchor Heavy Racks Direct to Slab
+                </label>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* White-Space Airflow, Aisle Containment & Clearances */}
       <div className="bg-white rounded-2xl card-shadow border border-slate-200 p-5 space-y-4">

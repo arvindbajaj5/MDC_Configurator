@@ -134,7 +134,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 AI MDC Studio
               </div>
               <div className="text-[10px] text-slate-400 truncate">
-                V13.2 • Saved {lastSavedAt}
+                V13.3 • Saved {lastSavedAt}
               </div>
             </div>
           )}
@@ -256,7 +256,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             title="Stage 3: Outputs, 360° 3D, 7 CAD & PPTX"
           >
             <FileOutput className="w-4 h-4 flex-shrink-0" />
-            {!compact && <span className="truncate">8. Outputs, 3D & CAD</span>}
+            {!compact && <span className="truncate">8. Outputs, 3D & 8 CAD</span>}
           </button>
         </div>
 

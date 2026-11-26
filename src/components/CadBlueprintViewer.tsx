@@ -3,13 +3,14 @@ import { totalHsdK } from '../engine/engineeringEngine';
 import type { ColorPalette, EngineeringResult, MasterStandards, ProjectDeal } from '../types/mdc';
 import { ColorLegendBar } from './ColorLegendBar';
 
-export type CadSheetId = 'A-101' | 'A-102' | 'C-101' | 'E-201' | 'G-101' | 'R-101' | 'M-301';
+export type CadSheetId = 'A-101' | 'A-102' | 'C-101' | 'E-201' | 'E-202' | 'G-101' | 'R-101' | 'M-301';
 
 export const CAD_SHEET_MANIFEST: { id: CadSheetId; title: string; scale: string }[] = [
   { id: 'A-101', title: 'Site & Yard GA Plan', scale: '1 : 250' },
   { id: 'A-102', title: 'Pod White-Space, PAC & CDU Plan', scale: '1 : 50' },
   { id: 'C-101', title: 'Civil Plinth & 4.5m Pile Cap Section', scale: '1 : 40' },
   { id: 'E-201', title: 'Yard-to-Hall Electrical SLD', scale: 'NTS' },
+  { id: 'E-202', title: 'UPS, Battery & Switchgear Room GA', scale: '1 : 50' },
   { id: 'G-101', title: 'Earthing & Lightning Grid (NBCS 2026)', scale: '1 : 200' },
   { id: 'R-101', title: 'Cable Tray, Fiber & Roxtec Plan', scale: '1 : 50' },
   { id: 'M-301', title: 'Primary / Secondary Hydraulics P&ID', scale: 'NTS' }
@@ -20,6 +21,7 @@ interface CadBlueprintViewerProps {
   eng: EngineeringResult;
   standards: MasterStandards;
   palette: ColorPalette;
+  logoDataUrl?: string;
   onUpdatePalette: (key: keyof Omit<ColorPalette, 'label'>, hex: string) => void;
   onApplyTheme: (themeKey: string) => void;
 }
@@ -29,6 +31,7 @@ export const CadBlueprintViewer: React.FC<CadBlueprintViewerProps> = ({
   eng,
   standards,
   palette,
+  logoDataUrl,
   onUpdatePalette,
   onApplyTheme
 }) => {
@@ -74,6 +77,27 @@ export const CadBlueprintViewer: React.FC<CadBlueprintViewerProps> = ({
           {numLbl}
         </text>
       ))}
+      {logoDataUrl && (
+        <g>
+          <rect
+            x="648"
+            y="394"
+            width="92"
+            height="68"
+            fill="#FFFFFF"
+            stroke={primary}
+            strokeWidth="1.5"
+          />
+          <image
+            href={logoDataUrl}
+            x="654"
+            y="400"
+            width="80"
+            height="56"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        </g>
+      )}
       <rect
         x="740"
         y="394"
@@ -102,7 +126,7 @@ export const CadBlueprintViewer: React.FC<CadBlueprintViewerProps> = ({
         SITE: {(project.cityQuery || 'India').slice(0, 22)} • {project.seismicZone} • {project.uptimeTier}
       </text>
       <text x="973" y="453" fill="#059669" fontSize="8.5" fontWeight="bold">
-        REV: V13.1 IFC
+        REV: V13.3 IFC
       </text>
     </g>
   );
@@ -267,6 +291,17 @@ export const CadBlueprintViewer: React.FC<CadBlueprintViewerProps> = ({
               <text x="380" y="57" fill={dimCol} fontSize="9.5" fontWeight="bold" textAnchor="middle">
                 EXTERNAL LENGTH = {podLenM} m ({pod?.extLengthMm || 13500} mm)
               </text>
+              {eng.civil.isBnM && project.bnmLayoutDataUrl && (
+                <image
+                  href={project.bnmLayoutDataUrl}
+                  x="48"
+                  y="75"
+                  width="664"
+                  height="304"
+                  preserveAspectRatio="xMidYMid meet"
+                  opacity="0.28"
+                />
+              )}
               <rect x="45" y="72" width="670" height="310" fill="none" stroke={fg} strokeWidth="2.5" />
 
               <rect x="47" y="74" width="84" height="306" fill={paperMode ? '#F1F5F9' : '#1E293B'} stroke={primary} />
@@ -342,6 +377,12 @@ export const CadBlueprintViewer: React.FC<CadBlueprintViewerProps> = ({
               </text>
               <text x="745" y="210" fill={fg} fontSize="10">
                 • Growth Reserve: {project.futureGrowthReservePct}% ({Math.round(eng.futureGrowthAreaSqm)} m²)
+              </text>
+              <text x="745" y="232" fill={fg} fontSize="10">
+                • Raised Floor: {eng.raisedFloor.enabled ? `${eng.raisedFloor.heightMm}mm (${eng.raisedFloor.pedestalStemCount} stems, ${eng.raisedFloor.tilePointLoadKn}kN)` : 'Slab-Mounted'}
+              </text>
+              <text x="745" y="254" fill={fg} fontSize="10">
+                • Rack Sub-Frames: {eng.raisedFloor.heavyRackSubFramesCount} Direct-to-Slab
               </text>
               {renderEngineeringTitleBlock('A-102', 'WHITE-SPACE, PAC & CDU FLOOR PLAN', '1 : 50')}
             </g>
@@ -521,6 +562,130 @@ export const CadBlueprintViewer: React.FC<CadBlueprintViewerProps> = ({
                 {eng.activeRacks.length} Racks across {eng.pods.length} Units • Exothermic Copper Earthing (NBCS 2026)
               </text>
               {renderEngineeringTitleBlock('E-201', 'YARD-TO-HALL ELECTRICAL SLD', 'NTS')}
+            </g>
+          )}
+
+          {sheet === 'E-202' && (
+            <g>
+              <text x="32" y="42" fill={accent} fontSize="13" fontWeight="bold">
+                UPS, BATTERY & SWITCHGEAR ROOM / POD GENERAL ARRANGEMENT ({project.uptimeTier} • {eng.civil.isBnM ? 'BnM ROOMS' : 'CONTAINERIZED'})
+              </text>
+
+              {/* Zone 1: HT VCB, Transformers, Main LV PCC, APFC & MCC */}
+              <rect x="36" y="60" width="320" height="315" fill={paperMode ? '#F8FAFC' : '#0F172A'} stroke={primary} strokeWidth="2" />
+              <text x="196" y="80" fill={primary} fontSize="10.5" fontWeight="bold" textAnchor="middle">
+                1. SWITCHGEAR & SUBSTATION BAY
+              </text>
+              <text x="196" y="95" fill={dimCol} fontSize="8.5" textAnchor="middle">
+                {eng.civil.isBnM
+                  ? `${project.bnmSwitchgearRoom.placement.replace(/_/g, ' ').toUpperCase()} (${eng.bnmAux.switchgearRoomSqm} m²)`
+                  : 'Zone C E-House / Outdoor Substation Pad'}
+              </text>
+              <rect x="52" y="108" width="136" height="62" rx="3" fill={palette.transformer} />
+              <text x="120" y="135" fill="#FFFFFF" fontSize="9.5" fontWeight="bold" textAnchor="middle">
+                HT VCB (33kV)
+              </text>
+              <text x="120" y="150" fill="#E0E7FF" fontSize="8.5" textAnchor="middle">
+                Dual Utility + SPD
+              </text>
+              <rect x="202" y="108" width="138" height="62" rx="3" fill={palette.transformer} />
+              <text x="271" y="135" fill="#FFFFFF" fontSize="9.5" fontWeight="bold" textAnchor="middle">
+                {eng.transformerUnits}× K-13 TRAFOS
+              </text>
+              <text x="271" y="150" fill="#E0E7FF" fontSize="8.5" textAnchor="middle">
+                {eng.selTrafo.ratedCapacity} kVA ({eng.trafoCalc.activeN}+{eng.trafoCalc.redundantR})
+              </text>
+              <rect x="52" y="184" width="288" height="68" rx="3" fill="#1E293B" />
+              <text x="196" y="213" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">
+                MAIN 415V FORM-4B LV PCC & AUTO-SYNC ACB ({eng.lvSwitchgearUnits} LINEUPS)
+              </text>
+              <text x="196" y="230" fill="#CBD5E1" fontSize="8.5" textAnchor="middle">
+                1.8m Clear Front Drawout Aisle • Dual Bus-Coupler Interlock
+              </text>
+              <rect x="52" y="266" width="136" height="58" rx="3" fill="#0F766E" />
+              <text x="120" y="292" fill="#FFFFFF" fontSize="9" fontWeight="bold" textAnchor="middle">
+                APFC + TYPE 1+2 SPD
+              </text>
+              <text x="120" y="307" fill="#CCFBF1" fontSize="8" textAnchor="middle">
+                500 kVAr Detuned
+              </text>
+              <rect x="202" y="266" width="138" height="58" rx="3" fill="#0369A1" />
+              <text x="271" y="292" fill="#FFFFFF" fontSize="9" fontWeight="bold" textAnchor="middle">
+                COOLING VFD MCC
+              </text>
+              <text x="271" y="307" fill="#E0F2FE" fontSize="8" textAnchor="middle">
+                Pumps, Coolers & PACs
+              </text>
+              <text x="196" y="352" fill={dimCol} fontSize="8.5" fontWeight="bold" textAnchor="middle">
+                Ventilation / Cooling: {eng.bnmAux.switchgearCoolingKw} kW (28°C Max)
+              </text>
+
+              {/* Zone 2: Modular UPS Room / Pod */}
+              <rect x="372" y="60" width="320" height="315" fill={paperMode ? '#F8FAFC' : '#0F172A'} stroke={primary} strokeWidth="2" />
+              <text x="532" y="80" fill={primary} fontSize="10.5" fontWeight="bold" textAnchor="middle">
+                2. MODULAR UPS ROOM / POD
+              </text>
+              <text x="532" y="95" fill={dimCol} fontSize="8.5" textAnchor="middle">
+                {eng.civil.isBnM
+                  ? `${project.bnmUpsRoom.placement.replace(/_/g, ' ').toUpperCase()} (${eng.bnmAux.upsRoomSqm} m²)`
+                  : 'Zone B Containerized UPS Pods'}
+              </text>
+              <rect x="390" y="112" width="284" height="62" rx="3" fill={palette.upsBess} />
+              <text x="532" y="140" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">
+                UPS PATH A: {Math.ceil(eng.upsContainersCount / 2)}× {eng.selUps.ratedCapacity} kVA ({eng.selUps.make})
+              </text>
+              <text x="532" y="156" fill="#FCE7F3" fontSize="8.5" textAnchor="middle">
+                Static Bypass + Output Isolator -> IP55 Busduct A
+              </text>
+              <rect x="390" y="186" width="284" height="44" fill={paperMode ? '#FFF7ED' : '#1E293B'} stroke={accent} strokeDasharray="4,3" />
+              <text x="532" y="212" fill={accent} fontSize="9.5" fontWeight="bold" textAnchor="middle">
+                1,500mm FRONT MAINTENANCE & MODULE SWAP AISLE
+              </text>
+              <rect x="390" y="242" width="284" height="62" rx="3" fill={palette.upsBess} />
+              <text x="532" y="270" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">
+                UPS PATH B: {Math.floor(eng.upsContainersCount / 2) || 1}× {eng.selUps.ratedCapacity} kVA ({eng.upsCalc.activeN}+{eng.upsCalc.redundantR})
+              </text>
+              <text x="532" y="286" fill="#FCE7F3" fontSize="8.5" textAnchor="middle">
+                Maintenance Bypass Cabinet -> IP55 Busduct B
+              </text>
+              <text x="532" y="330" fill="#059669" fontSize="9" fontWeight="bold" textAnchor="middle">
+                Dedicated 24°C UPS Room PAC Cooling: {eng.bnmAux.upsRoomCoolingKw} kW (N+1)
+              </text>
+              <text x="532" y="352" fill={dimCol} fontSize="8.5" textAnchor="middle">
+                VESDA + Clean Agent Suppression • 2-Hr Fire Partition
+              </text>
+
+              {/* Zone 3: Battery / BESS Room / Pod */}
+              <rect x="708" y="60" width="356" height="315" fill={paperMode ? '#F8FAFC' : '#0F172A'} stroke={primary} strokeWidth="2" />
+              <text x="886" y="80" fill={primary} fontSize="10.5" fontWeight="bold" textAnchor="middle">
+                3. {project.batteryChemistry} BATTERY / BESS ROOM
+              </text>
+              <text x="886" y="95" fill={dimCol} fontSize="8.5" textAnchor="middle">
+                {eng.civil.isBnM
+                  ? `${project.bnmBatteryRoom.placement.replace(/_/g, ' ').toUpperCase()} (${eng.bnmAux.batteryRoomSqm} m²)`
+                  : 'Zone B Containerized BESS Pods'}
+              </text>
+              {[0, 1, 2].map(row => (
+                <g key={row}>
+                  <rect x="728" y={112 + row * 64} width="316" height="46" rx="3" fill={palette.dgSet} fillOpacity="0.88" />
+                  <text x="886" y={134 + row * 64} fill="#FFFFFF" fontSize="9.5" fontWeight="bold" textAnchor="middle">
+                    {project.batteryChemistry} BATTERY STRING BANK #{row + 1} ({Math.round(eng.batteryKwhReq / 3)} kWh)
+                  </text>
+                  <text x="886" y={148 + row * 64} fill="#FEE2E2" fontSize="8" textAnchor="middle">
+                    DC Breaker + Cell-Level BMS • 1,200mm Service Aisle
+                  </text>
+                </g>
+              ))}
+              <text x="886" y="318" fill="#DC2626" fontSize="9" fontWeight="bold" textAnchor="middle">
+                22–25°C Precision Thermal ({eng.bnmAux.batteryRoomCoolingKw} kW) + H2/Off-Gas Exhaust
+              </text>
+              <text x="886" y="338" fill={dimCol} fontSize="8.5" textAnchor="middle">
+                Runtime: {project.batteryRuntimeMin} min ({eng.batteryContainersCount}× 1.2 MWh • {project.upsRideThroughMode})
+              </text>
+              <text x="886" y="356" fill={dimCol} fontSize="8.5" textAnchor="middle">
+                UL 9540A Thermal Runaway Isolation + Eyewash / Spill Kit
+              </text>
+              {renderEngineeringTitleBlock('E-202', 'UPS, BATTERY & SWITCHGEAR ROOM GA', '1 : 50')}
             </g>
           )}
 

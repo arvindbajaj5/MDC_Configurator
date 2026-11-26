@@ -252,6 +252,26 @@ export const Stage1Inputs: React.FC<Stage1InputsProps> = ({
     onUpdateProject({ loadingMode: 'ActualPerRack', actualRackLoads: updated });
   };
 
+  const FT_PER_M = 3.28084;
+  const toDisplayDim = (meters: number) =>
+    project.bnmDimUnit === 'ft' ? Number((meters * FT_PER_M).toFixed(1)) : Number(meters.toFixed(2));
+  const fromDisplayDim = (val: number) =>
+    project.bnmDimUnit === 'ft' ? Number((val / FT_PER_M).toFixed(2)) : Number(val.toFixed(2));
+
+  const handleBnmLayoutUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      onUpdateProject({
+        bnmLayoutDataUrl: String(ev.target?.result || ''),
+        bnmLayoutFileName: f.name
+      });
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  };
+
   const applyContainerPreset = (catalogId: string) => {
     if (catalogId === 'custom') {
       onUpdateProject({ containerCatalogId: 'custom', bespokeContainerPriceInr: '' });
@@ -860,38 +880,147 @@ export const Stage1Inputs: React.FC<Stage1InputsProps> = ({
           </div>
 
           {project.shellArchitecture === 'BnM_Hall' ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">BnM Structural Column Grid</label>
-                <select
-                  value={project.bnmColumnGridM}
-                  onChange={e => onUpdateProject({ bnmColumnGridM: e.target.value })}
-                  className="w-full border rounded-lg px-2.5 py-2 bg-white font-bold"
-                >
-                  <option value="8m x 8m">8m × 8m Wide-Span AI Hall Grid</option>
-                  <option value="6m x 6m">6m × 6m Standard RCC Column Grid</option>
-                </select>
+            <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold navy-text">Main Data Center Hall Dimensions & Floor Level</span>
+                <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-300">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateProject({ bnmDimUnit: 'm' })}
+                    className={`px-2.5 py-0.5 rounded font-bold ${project.bnmDimUnit === 'm' ? 'navy-bg text-white' : 'text-slate-600'}`}
+                  >
+                    Meters (m)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateProject({ bnmDimUnit: 'ft' })}
+                    className={`px-2.5 py-0.5 rounded font-bold ${project.bnmDimUnit === 'ft' ? 'navy-bg text-white' : 'text-slate-600'}`}
+                  >
+                    Feet (ft)
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">RCC Slab Thickness (mm)</label>
-                <input
-                  type="number"
-                  step={25}
-                  value={project.bnmSlabThicknessMm}
-                  onChange={e => onUpdateProject({ bnmSlabThicknessMm: Number(e.target.value) })}
-                  className="w-full border rounded-lg px-2.5 py-2 bg-white font-bold"
-                />
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Hall Length ({project.bnmDimUnit})
+                  </label>
+                  <input
+                    type="number"
+                    step={0.5}
+                    min={5}
+                    value={toDisplayDim(project.bnmHallLengthM)}
+                    onChange={e => onUpdateProject({ bnmHallLengthM: Math.max(4, fromDisplayDim(Number(e.target.value))) })}
+                    className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Hall Width ({project.bnmDimUnit})
+                  </label>
+                  <input
+                    type="number"
+                    step={0.5}
+                    min={4}
+                    value={toDisplayDim(project.bnmHallWidthM)}
+                    onChange={e => onUpdateProject({ bnmHallWidthM: Math.max(4, fromDisplayDim(Number(e.target.value))) })}
+                    className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Clear Height ({project.bnmDimUnit})
+                  </label>
+                  <input
+                    type="number"
+                    step={0.2}
+                    min={3}
+                    value={toDisplayDim(project.bnmClearSoffitM)}
+                    onChange={e => onUpdateProject({ bnmClearSoffitM: Math.max(3, fromDisplayDim(Number(e.target.value))) })}
+                    className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Hall Floor Level</label>
+                  <select
+                    value={project.bnmFloorLevel}
+                    onChange={e => onUpdateProject({ bnmFloorLevel: Number(e.target.value) })}
+                    className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold navy-text"
+                  >
+                    <option value={0}>Ground Floor (Level 0)</option>
+                    <option value={1}>1st Floor (Upper Floor)</option>
+                    <option value={2}>2nd Floor (Upper Floor)</option>
+                    <option value={3}>3rd Floor (Upper Floor)</option>
+                    <option value={4}>4th+ Floor (High-Rise DC)</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Clear Slab-to-Soffit Height (m)</label>
-                <input
-                  type="number"
-                  step={0.2}
-                  value={project.bnmClearSoffitM}
-                  onChange={e => onUpdateProject({ bnmClearSoffitM: Number(e.target.value) })}
-                  className="w-full border rounded-lg px-2.5 py-2 bg-white font-bold"
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">BnM Structural Column Grid</label>
+                  <select
+                    value={project.bnmColumnGridM}
+                    onChange={e => onUpdateProject({ bnmColumnGridM: e.target.value })}
+                    className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                  >
+                    <option value="8m x 8m">8m × 8m Wide-Span AI Hall Grid</option>
+                    <option value="6m x 6m">6m × 6m Standard RCC Column Grid</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Rack Undressing / Dressing Bay (m²)</label>
+                  <input
+                    type="number"
+                    step={5}
+                    min={20}
+                    value={project.bnmStagingAreaSqm}
+                    onChange={e => onUpdateProject({ bnmStagingAreaSqm: Number(e.target.value) })}
+                    className="w-full border rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Customer Hall Floor Plan (Optional)</label>
+                  <div className="flex items-center gap-2">
+                    <label className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold cursor-pointer">
+                      Upload Layout (PNG/JPG/SVG)
+                      <input type="file" accept="image/*" onChange={handleBnmLayoutUpload} className="hidden" />
+                    </label>
+                    {project.bnmLayoutFileName && (
+                      <span className="text-[11px] font-bold text-emerald-800 truncate">{project.bnmLayoutFileName}</span>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {project.bnmFloorLevel > 0 && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+                  <div>
+                    <div className="font-bold text-amber-950">
+                      Upper Floor (#{project.bnmFloorLevel}) Heavy Freight Lift Requirement
+                    </div>
+                    <div className="text-[11px] text-amber-900">
+                      Required: <strong>{eng.bnmAux.freightLiftCabinSpec}</strong>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-amber-950 mb-1">Freight Lift Commercial Scope</label>
+                    <select
+                      value={project.bnmFreightLiftMode}
+                      onChange={e =>
+                        onUpdateProject({
+                          bnmFreightLiftMode: e.target.value as ProjectDeal['bnmFreightLiftMode']
+                        })
+                      }
+                      className="w-full border border-amber-400 rounded-lg px-2.5 py-1.5 bg-white font-bold"
+                    >
+                      <option value="existing_verify">Existing Building Lift (Verify Capacity Only)</option>
+                      <option value="new_in_boq">Include New 5,000 kg DC Freight Lift in BOQ</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -954,6 +1083,24 @@ export const Stage1Inputs: React.FC<Stage1InputsProps> = ({
                   <option value="Segregated">Segregated (1 SKU per Pod)</option>
                 </select>
               </div>
+            </div>
+          )}
+
+          {project.shellArchitecture === 'Container' && (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+              <div className="font-bold navy-text">
+                Parametric Container Fabrication Costing Basis (Total Volume: {eng.containerTotalVolumeCum} m³)
+              </div>
+              <select
+                value={project.containerFabBasis}
+                onChange={e =>
+                  onUpdateProject({ containerFabBasis: e.target.value as ProjectDeal['containerFabBasis'] })
+                }
+                className="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold"
+              >
+                <option value="PerCubicMeter">Volume-Based Fabrication (INR / m³ — Master Catalog)</option>
+                <option value="PerSqm">Surface-Area Fabrication (INR / m²)</option>
+              </select>
             </div>
           )}
 
@@ -1099,6 +1246,49 @@ export const Stage1Inputs: React.FC<Stage1InputsProps> = ({
                   </option>
                 </select>
               </div>
+            </div>
+
+            {/* Explicit Scope Opt-In Questions (Excluded by Default) */}
+            <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-300 space-y-2">
+              <div className="font-black text-amber-950 uppercase text-[10px]">
+                Optional Scope Inclusion Questions (Off by Default in BOM & Cost)
+              </div>
+              <label className="flex items-start gap-2 cursor-pointer text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={project.includeTelecomMmr}
+                  onChange={e => onUpdateProject({ includeTelecomMmr: e.target.checked })}
+                  className="w-4 h-4 mt-0.5"
+                />
+                <span>
+                  <strong>Include External Telecom / Carrier MMR in BOM & Quote?</strong>{' '}
+                  <span className="text-slate-600">(Meet-Me Room, ODF bays, diverse fiber vaults & raceways)</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={project.includeLogisticsRigging}
+                  onChange={e => onUpdateProject({ includeLogisticsRigging: e.target.checked })}
+                  className="w-4 h-4 mt-0.5"
+                />
+                <span>
+                  <strong>Include Heavy-Lift Crane, Low-Bed Truck & Rigging Rental in BOM?</strong>{' '}
+                  <span className="text-slate-600">(Temporary rental mobilization; leave unchecked if client-arranged)</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={project.includeOwnedDcTools}
+                  onChange={e => onUpdateProject({ includeOwnedDcTools: e.target.checked })}
+                  className="w-4 h-4 mt-0.5"
+                />
+                <span>
+                  <strong>Include Owned Inside-DC Handling Gear (Server Lifts & Rolling Safety Ladders)?</strong>{' '}
+                  <span className="text-slate-600">(Permanent purchased CapEx for stacking servers inside the DC hall)</span>
+                </span>
+              </label>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">

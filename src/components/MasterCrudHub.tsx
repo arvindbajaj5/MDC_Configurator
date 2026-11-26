@@ -585,6 +585,7 @@ export const MasterCrudHub: React.FC<MasterCrudHubProps> = ({
                 ['defaultContingencyPct', 'Default Contingency (%)'],
                 ['defaultGstPct', 'Default GST (%)'],
                 ['defaultAmcPctOfCapex', 'Default AMC (% CapEx/yr)'],
+                ['defaultShellRatePerCumInr', 'Container Fab Rate (₹/m³)'],
                 ['usdRate', 'USD Exchange Rate (₹)'],
                 ['eurRate', 'EUR Exchange Rate (₹)']
               ] as [keyof MasterStandards, string][]

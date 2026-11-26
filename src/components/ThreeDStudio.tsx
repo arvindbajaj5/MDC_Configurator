@@ -26,6 +26,7 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
   const [selectedPodIdx, setSelectedPodIdx] = useState(0);
   const [isLoadedMode, setIsLoadedMode] = useState(true);
   const [cameraPreset, setCameraPreset] = useState('Iso');
+  const [studioLightMode, setStudioLightMode] = useState<'daylight' | 'dark'>('daylight');
   const [layers, setLayers] = useState({
     shell: true,
     floorTransparent: true,
@@ -44,9 +45,10 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
     const width = el.clientWidth || 800;
     const height = el.clientHeight || (compact ? 380 : 480);
 
+    const isDaylight = studioLightMode === 'daylight';
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b1528);
-    scene.fog = new THREE.FogExp2(0x0b1528, 0.007);
+    scene.background = new THREE.Color(isDaylight ? 0xeef2f7 : 0x0b1528);
+    scene.fog = new THREE.FogExp2(isDaylight ? 0xeef2f7 : 0x0b1528, isDaylight ? 0.0032 : 0.0065);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 300);
     camera.position.set(18, 15, 22);
@@ -64,12 +66,41 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
     controls.maxPolarAngle = Math.PI * 0.49;
     controlsRef.current = controls;
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.92);
-    dir.position.set(22, 32, 18);
-    scene.add(dir);
+    // Bright architectural studio lighting (Hemisphere + Key Directional + Fill Light)
+    scene.add(new THREE.HemisphereLight(0xffffff, isDaylight ? 0xcbd5e1 : 0x1e293b, isDaylight ? 1.25 : 0.85));
+    const keyLight = new THREE.DirectionalLight(0xffffff, isDaylight ? 1.15 : 0.95);
+    keyLight.position.set(24, 36, 20);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xe0f2fe, isDaylight ? 0.55 : 0.35);
+    fillLight.position.set(-22, 18, -16);
+    scene.add(fillLight);
 
-    scene.add(new THREE.GridHelper(90, 90, 0x1e3a8a, 0x172554));
+    if (isDaylight) {
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(140, 140),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.92, metalness: 0.0 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -0.02;
+      scene.add(ground);
+    }
+
+    scene.add(
+      new THREE.GridHelper(
+        90,
+        90,
+        isDaylight ? 0x94a3b8 : 0x1e3a8a,
+        isDaylight ? 0xcbd5e1 : 0x172554
+      )
+    );
+
+    const addCrispEdges = (mesh: THREE.Mesh, hex = 0x1e293b, opacity = 0.45) => {
+      const edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(mesh.geometry),
+        new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity })
+      );
+      mesh.add(edges);
+    };
 
     const podsToRender =
       viewScope === 'SinglePod' ? [eng.pods[selectedPodIdx] || eng.pods[0]].filter(Boolean) : eng.pods;
@@ -87,11 +118,11 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
           : palette.itPod || '#0F172A';
 
     const matWall = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(activeShellColor),
-      roughness: isBnM ? 0.8 : 0.45,
-      metalness: isBnM ? 0.1 : 0.65,
+      color: new THREE.Color(isDaylight && activeShellColor === '#0F172A' ? '#CBD5E1' : activeShellColor),
+      roughness: isBnM ? 0.78 : 0.35,
+      metalness: isBnM ? 0.08 : 0.25,
       transparent: true,
-      opacity: 0.28,
+      opacity: isDaylight ? 0.22 : 0.30,
       side: THREE.DoubleSide
     });
     const matFrame = new THREE.MeshStandardMaterial({
@@ -99,9 +130,9 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
       roughness: 0.4,
       metalness: 0.5
     });
-    const matPlinth = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+    const matPlinth = new THREE.MeshStandardMaterial({ color: isDaylight ? 0x94a3b8 : 0x334155, roughness: 0.82 });
     const matFloor = new THREE.MeshStandardMaterial({
-      color: 0x475569,
+      color: isDaylight ? 0xcbd5e1 : 0x475569,
       roughness: 0.5,
       metalness: 0.2,
       transparent: layers.floorTransparent,
@@ -224,6 +255,7 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
               new THREE.MeshStandardMaterial({ color: new THREE.Color(rackCol), roughness: 0.35, metalness: 0.45 })
             );
             cabinet.position.set(rx, plinthH + plenumH + 0.08 + rH / 2, rz);
+            addCrispEdges(cabinet, isDaylight ? 0x0f172a : 0xffffff, 0.5);
             podGroup.add(cabinet);
 
             if (rk.isDlc) {
@@ -276,6 +308,7 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
           new THREE.MeshStandardMaterial({ color: new THREE.Color(hexCol), roughness: 0.4, metalness: 0.35 })
         );
         m.position.set(x, h / 2 + 0.25, z);
+        addCrispEdges(m, isDaylight ? 0x0f172a : 0xffffff, 0.4);
         scene.add(m);
       };
       if (project.includeAdminModule || project.includeStagingModule) {
@@ -307,7 +340,7 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
       cancelAnimationFrame(animId);
       renderer.dispose();
     };
-  }, [project, eng, viewScope, selectedPodIdx, isLoadedMode, layers, palette, compact]);
+  }, [project, eng, viewScope, selectedPodIdx, isLoadedMode, layers, palette, compact, studioLightMode]);
 
   const applyPreset = (preset: string) => {
     setCameraPreset(preset);
@@ -367,6 +400,20 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
               ))}
             </select>
           )}
+          <div className="bg-slate-900/60 p-1 rounded-lg flex">
+            <button
+              onClick={() => setStudioLightMode('daylight')}
+              className={`px-2.5 py-1 rounded text-xs font-bold ${studioLightMode === 'daylight' ? 'bg-white text-slate-950' : 'text-slate-300'}`}
+            >
+              Daylight
+            </button>
+            <button
+              onClick={() => setStudioLightMode('dark')}
+              className={`px-2.5 py-1 rounded text-xs font-bold ${studioLightMode === 'dark' ? 'bg-slate-700 text-white' : 'text-slate-300'}`}
+            >
+              Dark
+            </button>
+          </div>
           <div className="bg-slate-900/60 p-1 rounded-lg flex">
             <button
               onClick={() => setIsLoadedMode(false)}
@@ -437,7 +484,7 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
       ) : (
         <div
           ref={mountRef}
-          className={`w-full ${compact ? 'h-[370px]' : 'h-[460px]'} bg-slate-950 cursor-grab active:cursor-grabbing`}
+          className={`w-full ${compact ? 'h-[370px]' : 'h-[460px]'} ${studioLightMode === 'daylight' ? 'bg-[#EEF2F7]' : 'bg-slate-950'} cursor-grab active:cursor-grabbing`}
         />
       )}
     </div>
