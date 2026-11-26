@@ -635,7 +635,7 @@ export const CadBlueprintViewer: React.FC<CadBlueprintViewerProps> = ({
                 UPS PATH A: {Math.ceil(eng.upsContainersCount / 2)}× {eng.selUps.ratedCapacity} kVA ({eng.selUps.make})
               </text>
               <text x="532" y="156" fill="#FCE7F3" fontSize="8.5" textAnchor="middle">
-                Static Bypass + Output Isolator -> IP55 Busduct A
+                Static Bypass + Output Isolator → IP55 Busduct A
               </text>
               <rect x="390" y="186" width="284" height="44" fill={paperMode ? '#FFF7ED' : '#1E293B'} stroke={accent} strokeDasharray="4,3" />
               <text x="532" y="212" fill={accent} fontSize="9.5" fontWeight="bold" textAnchor="middle">
@@ -646,7 +646,7 @@ export const CadBlueprintViewer: React.FC<CadBlueprintViewerProps> = ({
                 UPS PATH B: {Math.floor(eng.upsContainersCount / 2) || 1}× {eng.selUps.ratedCapacity} kVA ({eng.upsCalc.activeN}+{eng.upsCalc.redundantR})
               </text>
               <text x="532" y="286" fill="#FCE7F3" fontSize="8.5" textAnchor="middle">
-                Maintenance Bypass Cabinet -> IP55 Busduct B
+                Maintenance Bypass Cabinet → IP55 Busduct B
               </text>
               <text x="532" y="330" fill="#059669" fontSize="9" fontWeight="bold" textAnchor="middle">
                 Dedicated 24°C UPS Room PAC Cooling: {eng.bnmAux.upsRoomCoolingKw} kW (N+1)
