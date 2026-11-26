@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  BarChart3
   Building2,
   ChevronLeft,
   ChevronRight,
