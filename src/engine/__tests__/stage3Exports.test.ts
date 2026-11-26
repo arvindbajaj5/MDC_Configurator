@@ -4,6 +4,7 @@ import { INITIAL_NON_IT_CATALOG, INITIAL_SKUS, INITIAL_STANDARDS } from '../../d
 import { DEFAULT_SUPPLY_CHAIN_V13 } from '../../data/supplyChainSeed';
 import { build15PointSummaryRows } from '../csvPdfExporters';
 import { buildFirstDraftPatch, computeEngineeringV13 } from '../engineeringEngine';
+import { analyzeCostPerMwDeviation, buildPortfolioBenchmarks } from '../portfolioAnalyzer';
 import {
   exportStrictNativePptxDeck,
   PPTX_BODY_FONT,
@@ -71,5 +72,16 @@ describe('MDC Configurator V13.3 Stage 3 Outputs, 8 CAD Sheets & Sample-Slide PP
     const eng = computeEngineeringV13(base, INITIAL_SKUS, INITIAL_NON_IT_CATALOG, INITIAL_STANDARDS);
     expect(typeof exportStrictNativePptxDeck).toBe('function');
     expect(eng.bomItems.length).toBeGreaterThan(0);
+
+    const bench = buildPortfolioBenchmarks(
+      [base, { ...base, id: 'p2', name: 'BnM Twin', shellArchitecture: 'BnM_Hall' as const, uptimeTier: 'Tier IV' as const }],
+      INITIAL_SKUS,
+      INITIAL_NON_IT_CATALOG,
+      INITIAL_STANDARDS,
+      DEFAULT_SUPPLY_CHAIN_V13.items
+    );
+    expect(bench).toHaveLength(2);
+    const variance = analyzeCostPerMwDeviation(bench[0], bench[1], INITIAL_STANDARDS);
+    expect(variance.items.length).toBe(5);
   });
 });
