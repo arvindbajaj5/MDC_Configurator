@@ -347,7 +347,6 @@ export interface ProjectDeal {
   setbackMeters: number;
   hallRotationDeg: number;
   dealOverrides: Record<string, DealPriceOverride>;
-  // White-space, Civil, Hardening, Telecom, Logistics & Branding
   airflowDelivery: 'UnderfloorPlenumUpward' | 'FrontToRearContainment';
   containmentType: 'ColdAisleContainment' | 'HotAisleContainment';
   frontServiceClearanceMm: number;
@@ -358,19 +357,17 @@ export interface ProjectDeal {
   bnmColumnGridM: string;
   bnmSlabThicknessMm: number;
   bnmClearSoffitM: number;
-  // V13.3 BnM Hall Dimensions (ft/m), Layout Upload, Upper Floor Lift & Auxiliary Rooms
   bnmDimUnit: 'm' | 'ft';
   bnmHallLengthM: number;
   bnmHallWidthM: number;
   bnmLayoutDataUrl: string;
   bnmLayoutFileName: string;
-  bnmFloorLevel: number; // 0 = Ground Floor, 1+ = Upper Floor
+  bnmFloorLevel: number;
   bnmFreightLiftMode: 'existing_verify' | 'new_in_boq' | 'not_applicable';
   bnmStagingAreaSqm: number;
   bnmUpsRoom: BnmSupportRoomSpec;
   bnmBatteryRoom: BnmSupportRoomSpec;
   bnmSwitchgearRoom: BnmSupportRoomSpec;
-  // V13.3 Raised Access Flooring (False Flooring — Stems, Tiles & Sub-Frames)
   raisedFloorEnabled: boolean;
   raisedFloorHeightMm: number;
   raisedFloorTileType: RaisedFloorTileType;
@@ -378,7 +375,6 @@ export interface ProjectDeal {
   raisedFloorPedestalRatingKn: number;
   raisedFloorPerforatedPct: number;
   raisedFloorSubFrameForHeavyRacks: boolean;
-  // Hardening & Optional Scope Opt-Ins
   includeMonsoonCanopy: boolean;
   includeRadiantHeatBarrier: boolean;
   includeGasScrubber: boolean;
@@ -406,7 +402,6 @@ export interface ProjectDeal {
   interiorRalLabel: string;
   rackBezelFinish: string;
   clientLogoDataUrl: string;
-  // Deal-local overrides, placeholders & SOFT validation waivers
   inlineSkuOverrides?: Record<string, InlineSkuOverride>;
   validationWaivers?: Record<string, ValidationWaiver>;
   firstDraftGeneratedAt?: string;
@@ -760,4 +755,42 @@ export interface EngineeringResult {
   commissioningSchedule: { level: string; scope: string; gate: string }[];
   supplyMatches: Record<string, SupplySynthesisMatch>;
   dealPlaceholders: PlaceholderSku[];
+}
+
+export interface CostPerMwDrivers {
+  enclosureCivilPerMw: number;
+  powerRedundancyPerMw: number;
+  thermalCoolingPerMw: number;
+  optionalScopePerMw: number;
+  commercialOverheadPerMw: number;
+  totalPreTaxPerMw: number;
+}
+
+export interface ProjectBenchmarkRow {
+  project: ProjectDeal;
+  eng: EngineeringResult;
+  mwContinuous: number;
+  totalAreaSqm: number;
+  preTaxCapexInr: number;
+  grandTotalInclGstInr: number;
+  costPerMwInr: number;
+  tco5YrPerMwInr: number;
+  drivers: CostPerMwDrivers;
+}
+
+export interface CostVarianceDriverItem {
+  driver: string;
+  deltaPerMwInr: number;
+  pctOfTotalDelta: number;
+  explanation: string;
+}
+
+export interface CostVarianceAnalysis {
+  baseProjectName: string;
+  targetProjectName: string;
+  baseCostPerMwInr: number;
+  targetCostPerMwInr: number;
+  deltaPerMwInr: number;
+  items: CostVarianceDriverItem[];
+  headlineSummary: string;
 }
