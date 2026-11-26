@@ -12,7 +12,12 @@ import {
   exportFullProposalWorkbookXlsx,
   exportPartnerRfqXlsx
 } from '../engine/excelExporter';
-import { exportStrictNativePptxDeck } from '../engine/pptxExporter';
+import {
+  exportStrictNativePptxDeck,
+  polishConsultingNarrativeWithByokGemini,
+  type ConsultingNarrativeOverride
+} from '../engine/pptxExporter';
+import type { StoredPptxTemplate } from '../engine/templateStorage';
 import type { ColorPalette, EngineeringResult, MasterStandards, ProjectDeal } from '../types/mdc';
 import { CadBlueprintViewer } from './CadBlueprintViewer';
 import { ThreeDStudio } from './ThreeDStudio';
@@ -23,6 +28,8 @@ interface Stage3OutputsProps {
   standards: MasterStandards;
   palette: ColorPalette;
   logoDataUrl?: string;
+  corporateTemplate?: StoredPptxTemplate | null;
+  onOpenEmailModal?: () => void;
   onUpdatePalette: (key: keyof Omit<ColorPalette, 'label'>, hex: string) => void;
   onApplyTheme: (themeKey: string) => void;
   onBackToDesign: () => void;
@@ -42,12 +49,18 @@ export const Stage3Outputs: React.FC<Stage3OutputsProps> = ({
   standards,
   palette,
   logoDataUrl,
+  corporateTemplate,
+  onOpenEmailModal,
   onUpdatePalette,
   onApplyTheme,
   onBackToDesign
 }) => {
   const [subView, setSubView] = useState<OutputSubView>('summary_ashrae');
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [byokKey, setByokKey] = useState('');
+  const [polishingAi, setPolishingAi] = useState(false);
+  const [narrativeOverride, setNarrativeOverride] = useState<ConsultingNarrativeOverride | undefined>(undefined);
+  const [narrativeMsg, setNarrativeMsg] = useState('');
   const summaryRows = build15PointSummaryRows(project, eng);
 
   const runXlsx = async (fn: () => Promise<void>) => {
@@ -102,11 +115,21 @@ export const Stage3Outputs: React.FC<Stage3OutputsProps> = ({
         {/* Branded Native Export Buttons (.PPTX, .PDF, Styled .XLSX) */}
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => exportStrictNativePptxDeck(project, eng, standards)}
+            onClick={() =>
+              exportStrictNativePptxDeck(project, eng, standards, narrativeOverride, corporateTemplate)
+            }
             className="px-4 py-2 rounded-xl coral-bg hover:opacity-95 text-white font-black shadow"
           >
-            Export Engineering Deck (.PPTX)
+            Export Consulting Deck (.PPTX)
           </button>
+          {onOpenEmailModal && (
+            <button
+              onClick={onOpenEmailModal}
+              className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black shadow"
+            >
+              ✉ Email Proposal Pack
+            </button>
+          )}
           <button
             disabled={exportingXlsx}
             onClick={() =>
@@ -158,6 +181,47 @@ export const Stage3Outputs: React.FC<Stage3OutputsProps> = ({
           >
             Partner RFQ (.XLSX) ({eng.dealPlaceholders.length})
           </button>
+        </div>
+
+        {/* Optional BYOK AI Narrative Polisher for Consulting PPTX */}
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold navy-text">AI Narrative Polisher (BYOK):</span>
+            <input
+              type="password"
+              value={byokKey}
+              onChange={e => setByokKey(e.target.value)}
+              placeholder="Gemini API Key (AIzaSy...)"
+              className="border border-slate-300 rounded-lg px-2.5 py-1 bg-white font-mono w-52"
+            />
+            <button
+              type="button"
+              disabled={polishingAi}
+              onClick={async () => {
+                setPolishingAi(true);
+                setNarrativeMsg('');
+                try {
+                  const ov = await polishConsultingNarrativeWithByokGemini(byokKey, project, eng, standards);
+                  setNarrativeOverride(ov);
+                  setNarrativeMsg('✓ Polished consulting narratives applied to next .PPTX export.');
+                } catch (err: unknown) {
+                  setNarrativeMsg(`⚠ ${(err as Error)?.message || 'AI polish failed.'}`);
+                } finally {
+                  setPolishingAi(false);
+                }
+              }}
+              className="px-3 py-1 rounded-lg navy-bg text-white font-bold"
+            >
+              {polishingAi ? 'Polishing...' : '✨ Polish Storyline with AI'}
+            </button>
+          </div>
+          <div className="text-[11px] text-slate-600">
+            {narrativeMsg
+              ? <strong>{narrativeMsg}</strong>
+              : corporateTemplate
+                ? `Corporate Template Active: ${corporateTemplate.name}`
+                : 'Using Sample 2-Header Consulting Spec (Upload Corporate .PPTX in Master Catalogs anytime)'}
+          </div>
         </div>
 
         {/* Stage 3 Sub-View Switcher */}

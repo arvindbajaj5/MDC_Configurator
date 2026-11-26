@@ -20,10 +20,11 @@ import {
   X,
   Zap
 } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { formatMoney } from '../engine/engineeringEngine';
 import type { EngineeringResult, MasterStandards, ProjectDeal } from '../types/mdc';
 
-export type TopPillar = 'deal_hub' | 'deal_studio' | 'supply_chain' | 'master_crud';
+export type TopPillar = 'deal_hub' | 'portfolio' | 'deal_studio' | 'supply_chain' | 'master_crud';
 export type DesignSubTab =
   | 'container_ws'
   | 'civil_plinth'
@@ -57,6 +58,7 @@ interface AppShellProps {
   onNavigatePillar: (pillar: TopPillar) => void;
   onNavigateStudio: (stage: 1 | 2 | 3, subTab?: DesignSubTab) => void;
   onOpenSaveModal: (mode: 'save' | 'open') => void;
+  onOpenEmailModal: () => void;
   onGoogleSignIn: () => void;
   onToggleWhatIf: () => void;
   onDismissToast: (id: string) => void;
@@ -82,6 +84,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   onNavigatePillar,
   onNavigateStudio,
   onOpenSaveModal,
+  onOpenEmailModal,
   onGoogleSignIn,
   onToggleWhatIf,
   onDismissToast,
@@ -134,7 +137,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 AI MDC Studio
               </div>
               <div className="text-[10px] text-slate-400 truncate">
-                V13.3 • Saved {lastSavedAt}
+                V13.4 • Saved {lastSavedAt}
               </div>
             </div>
           )}
@@ -165,6 +168,14 @@ export const AppShell: React.FC<AppShellProps> = ({
           >
             <FolderKanban className="w-4 h-4 flex-shrink-0" />
             {!compact && <span className="truncate">Deal Hub ({projects.length})</span>}
+          </button>
+          <button
+            onClick={() => handleNavClick(() => onNavigatePillar('portfolio'))}
+            className={navItemClass(pillar === 'portfolio')}
+            title="Portfolio & Cost/MW Analyzer"
+          >
+            <BarChart3 className="w-4 h-4 flex-shrink-0" />
+            {!compact && <span className="truncate">Portfolio Cost/MW</span>}
           </button>
         </div>
 
@@ -387,6 +398,15 @@ export const AppShell: React.FC<AppShellProps> = ({
                   <span className="hidden sm:inline">{whatIfOpen ? 'Hide What-If' : 'What-If'}</span>
                 </button>
               )}
+
+              <button
+                onClick={onOpenEmailModal}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-orange-300 bg-orange-50 hover:bg-orange-100 font-bold text-orange-950"
+                title="Email Proposal Pack (Outlook Desktop / Outlook Web / Gmail)"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Email</span>
+              </button>
 
               <button
                 onClick={() => onOpenSaveModal('open')}

@@ -1,4 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import {
+  clearCorporatePptxTemplate,
+  loadCorporatePptxTemplate,
+  saveCorporatePptxTemplate,
+  type StoredPptxTemplate
+} from '../engine/templateStorage';
 import type {
   ContainerSpec,
   MasterStandards,
@@ -20,6 +26,76 @@ interface MasterCrudHubProps {
   onExportMasterJson: () => void;
   onImportMasterJson: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
+
+const TemplateUploaderWidget: React.FC = () => {
+  const [tpl, setTpl] = useState<StoredPptxTemplate | null>(null);
+  const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    loadCorporatePptxTemplate().then(setTpl).catch(() => {});
+  }, []);
+
+  const onPickPptx = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const dataUrl = String(ev.target?.result || '');
+      const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      const item: StoredPptxTemplate = {
+        id: `tpl-${Date.now()}`,
+        name: f.name,
+        sizeBytes: f.size,
+        base64Data: b64,
+        coverLayoutHint: 'Cover Slide',
+        contentLayoutHint: '2-Header Content (Tosh A Black 24B / 22)',
+        qaLayoutHint: 'Closing Q&A Slide',
+        updatedAt: new Date().toISOString().slice(0, 10)
+      };
+      await saveCorporatePptxTemplate(item);
+      setTpl(item);
+      setStatus(`✓ Saved "${f.name}" locally for Cover, 2-Header Content & Q&A slides.`);
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  };
+
+  return (
+    <>
+      <div>
+        <div className="font-bold navy-text">
+          Corporate PowerPoint Template (.PPTX) — Cover, 2-Header Content & Q&A Layouts
+        </div>
+        <div className="text-slate-600">
+          {tpl
+            ? `Active: ${tpl.name} (${Math.round(tpl.sizeBytes / 1024)} KB, updated ${tpl.updatedAt})`
+            : 'No custom .pptx template uploaded — using built-in Sample slide.pptx 2-header consulting spec.'}
+          {status && <span className="ml-2 font-bold text-emerald-800">{status}</span>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="px-3 py-1.5 rounded-lg navy-bg text-white font-bold cursor-pointer">
+          Upload Corporate .PPTX
+          <input type="file" accept=".pptx" onChange={onPickPptx} className="hidden" />
+        </label>
+        {tpl && (
+          <button
+            type="button"
+            onClick={async () => {
+              await clearCorporatePptxTemplate();
+              setTpl(null);
+              setStatus('Cleared custom template.');
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-700 font-bold"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </>
+  );
+};
+
 
 export const MasterCrudHub: React.FC<MasterCrudHubProps> = ({
   skus,
@@ -173,6 +249,11 @@ export const MasterCrudHub: React.FC<MasterCrudHubProps> = ({
               </button>
             )}
           </div>
+        </div>
+
+        {/* Corporate .PPTX Template Upload (Cover, 2-Header Content & Closing Q&A) */}
+        <div className="p-3.5 rounded-xl bg-orange-50/50 border border-orange-200 flex flex-wrap items-center justify-between gap-3">
+          <TemplateUploaderWidget />
         </div>
 
         {/* CRUD Navigation Tabs */}

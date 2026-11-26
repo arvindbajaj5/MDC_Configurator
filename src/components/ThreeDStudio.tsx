@@ -108,13 +108,13 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
     const isBnM = project.shellArchitecture === 'BnM_Hall';
     const isGanged = viewScope === 'Hall' && project.hallTopology !== 'Isolated';
     const isUShaped = viewScope === 'Hall' && project.hallTopology === 'GangedUShaped';
-    const spacing = isBnM ? 0.04 : isGanged ? 0.08 : 2.6;
+    const spacing = isGanged ? 0.08 : 2.6;
 
     const activeShellColor =
       project.brandingMode && project.brandingMode !== 'standard' && project.exteriorColorHex
         ? project.exteriorColorHex
         : isBnM
-          ? '#475569'
+          ? '#64748B'
           : palette.itPod || '#0F172A';
 
     const matWall = new THREE.MeshStandardMaterial({
@@ -126,9 +126,9 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
       side: THREE.DoubleSide
     });
     const matFrame = new THREE.MeshStandardMaterial({
-      color: isBnM ? 0x94a3b8 : 0xff5539,
-      roughness: 0.4,
-      metalness: 0.5
+      color: isBnM ? 0x475569 : 0xff5539,
+      roughness: 0.45,
+      metalness: 0.35
     });
     const matPlinth = new THREE.MeshStandardMaterial({ color: isDaylight ? 0x94a3b8 : 0x334155, roughness: 0.82 });
     const matFloor = new THREE.MeshStandardMaterial({
@@ -147,160 +147,324 @@ export const ThreeDStudio: React.FC<ThreeDStudioProps> = ({
     const totalSpanW = podsToRender.reduce((acc, p) => acc + p.extWidthMm / 1000 + spacing, -spacing);
     let cursorX = -totalSpanW / 2;
 
-    podsToRender.forEach((pod, pIdx) => {
-      const L = pod.extLengthMm / 1000;
-      const W = pod.extWidthMm / 1000;
-      const H = (isBnM ? (project.bnmClearSoffitM || 5.8) * 1000 : pod.extHeightMm) / 1000;
-      const plenumH = project.plenumHeightMm / 1000;
+    if (isBnM) {
+      // V13.4 TRUE UNIFIED BnM HALL + RCC COLUMN GRID + RAISED FLOOR + AUXILIARY ROOMS + LIFT SHAFT
+      const hallW = Math.max(10, Number(project.bnmHallWidthM) || 18);
+      const hallL = Math.max(12, Number(project.bnmHallLengthM) || 32);
+      const hallH = Math.max(3.6, Number(project.bnmClearSoffitM) || 5.8);
+      const plenumH = (project.raisedFloorEnabled ? project.raisedFloorHeightMm : project.plenumHeightMm || 700) / 1000;
       const plinthH = 0.45;
+      const hallZCenter = -2;
 
-      const podGroup = new THREE.Group();
-      if (isUShaped && podsToRender.length >= 3) {
-        if (pIdx === 0) podGroup.position.set(-L * 0.65, 0, -3);
-        else if (pIdx === podsToRender.length - 1) podGroup.position.set(L * 0.65, 0, -3);
-        else {
-          podGroup.rotation.y = Math.PI / 2;
-          podGroup.position.set((pIdx - 1) * (W + 0.1), 0, -L * 0.75 - 3);
-        }
-      } else {
-        podGroup.position.set(cursorX + W / 2, 0, -3);
-        cursorX += W + spacing;
+      const hallGroup = new THREE.Group();
+      hallGroup.position.set(0, 0, hallZCenter);
+
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(hallW + 0.4, plinthH, hallL + 0.4), matPlinth);
+      slab.position.y = plinthH / 2;
+      hallGroup.add(slab);
+
+      if (project.raisedFloorEnabled) {
+        const falseFloor = new THREE.Mesh(new THREE.BoxGeometry(hallW - 0.3, 0.06, hallL - 0.3), matFloor);
+        falseFloor.position.y = plinthH + plenumH;
+        hallGroup.add(falseFloor);
       }
 
-      const plinth = new THREE.Mesh(new THREE.BoxGeometry(W + 0.3, plinthH, L + 0.3), matPlinth);
-      plinth.position.y = plinthH / 2;
-      podGroup.add(plinth);
-
-      const floorDeck = new THREE.Mesh(new THREE.BoxGeometry(W - 0.15, 0.06, L - 0.15), matFloor);
-      floorDeck.position.y = plinthH + plenumH;
-      podGroup.add(floorDeck);
-
       if (layers.shell) {
-        const skipLeftWall = (isGanged || isBnM) && pIdx > 0 && !isUShaped;
-        const skipRightWall = (isGanged || isBnM) && pIdx < podsToRender.length - 1 && !isUShaped;
-        if (!skipLeftWall) {
-          const leftW = new THREE.Mesh(new THREE.BoxGeometry(isBnM ? 0.22 : 0.08, H, L), matWall);
-          leftW.position.set(-W / 2, plinthH + H / 2, 0);
-          podGroup.add(leftW);
-        }
-        if (!skipRightWall) {
-          const rightW = new THREE.Mesh(new THREE.BoxGeometry(isBnM ? 0.22 : 0.08, H, L), matWall);
-          rightW.position.set(W / 2, plinthH + H / 2, 0);
-          podGroup.add(rightW);
-        }
-        const frontW = new THREE.Mesh(new THREE.BoxGeometry(W, H, isBnM ? 0.22 : 0.08), matWall);
-        frontW.position.set(0, plinthH + H / 2, L / 2);
-        podGroup.add(frontW);
+        const wThick = 0.24;
+        const leftW = new THREE.Mesh(new THREE.BoxGeometry(wThick, hallH, hallL), matWall);
+        leftW.position.set(-hallW / 2, plinthH + hallH / 2, 0);
+        hallGroup.add(leftW);
 
-        const backW = new THREE.Mesh(new THREE.BoxGeometry(W, H, isBnM ? 0.22 : 0.08), matWall);
-        backW.position.set(0, plinthH + H / 2, -L / 2);
-        podGroup.add(backW);
+        const rightW = new THREE.Mesh(new THREE.BoxGeometry(wThick, hallH, hallL), matWall);
+        rightW.position.set(hallW / 2, plinthH + hallH / 2, 0);
+        hallGroup.add(rightW);
 
-        [
-          [-W / 2, -L / 2],
-          [W / 2, -L / 2],
-          [-W / 2, L / 2],
-          [W / 2, L / 2]
-        ].forEach(([cx, cz]) => {
-          const post = new THREE.Mesh(new THREE.BoxGeometry(isBnM ? 0.45 : 0.16, H, isBnM ? 0.45 : 0.16), matFrame);
-          post.position.set(cx, plinthH + H / 2, cz);
-          podGroup.add(post);
-        });
+        const frontW = new THREE.Mesh(new THREE.BoxGeometry(hallW, hallH, wThick), matWall);
+        frontW.position.set(0, plinthH + hallH / 2, hallL / 2);
+        hallGroup.add(frontW);
+
+        const backW = new THREE.Mesh(new THREE.BoxGeometry(hallW, hallH, wThick), matWall);
+        backW.position.set(0, plinthH + hallH / 2, -hallL / 2);
+        hallGroup.add(backW);
+
+        // Structural RCC Column Grid (8m or 6m grid)
+        const gridStep = project.bnmColumnGridM?.startsWith('6m') ? 6 : 8;
+        const xCols = [-hallW / 2 + 0.4, 0, hallW / 2 - 0.4];
+        for (let z = -hallL / 2 + 0.4; z <= hallL / 2 - 0.2; z += gridStep) {
+          for (const xc of xCols) {
+            const colMesh = new THREE.Mesh(new THREE.BoxGeometry(0.42, hallH, 0.42), matFrame);
+            colMesh.position.set(xc, plinthH + hallH / 2, z);
+            addCrispEdges(colMesh, 0x0f172a, 0.45);
+            hallGroup.add(colMesh);
+          }
+        }
       }
 
       if (layers.plumbing) {
-        [-W * 0.26, W * 0.26].forEach(rx => {
-          const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, L - 0.4, 14), matSupplyPipe);
+        [-hallW * 0.22, hallW * 0.22].forEach(rx => {
+          const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, hallL - 1.2, 14), matSupplyPipe);
           sup.rotation.x = Math.PI / 2;
-          sup.position.set(rx - 0.1, plinthH + plenumH * 0.45, 0);
-          podGroup.add(sup);
+          sup.position.set(rx - 0.12, plinthH + plenumH * 0.45, 0);
+          hallGroup.add(sup);
 
-          const ret = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, L - 0.4, 14), matReturnPipe);
+          const ret = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, hallL - 1.2, 14), matReturnPipe);
           ret.rotation.x = Math.PI / 2;
-          ret.position.set(rx + 0.1, plinthH + plenumH * 0.65, 0);
-          podGroup.add(ret);
+          ret.position.set(rx + 0.12, plinthH + plenumH * 0.65, 0);
+          hallGroup.add(ret);
         });
       }
 
       if (layers.buswaysData) {
-        const busY = plinthH + H - 0.35;
-        [-W * 0.28, W * 0.28].forEach(rx => {
-          const busA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, L - 0.5), matBusA);
-          busA.position.set(rx - 0.14, busY, 0);
-          podGroup.add(busA);
-
-          const busB = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, L - 0.5), matBusB);
-          busB.position.set(rx + 0.14, busY, 0);
-          podGroup.add(busB);
-
-          const fiber = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, L - 0.5), matFiberTray);
+        const busY = plinthH + hallH - 0.4;
+        [-hallW * 0.22, hallW * 0.22].forEach(rx => {
+          const busA = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, hallL - 1.2), matBusA);
+          busA.position.set(rx - 0.16, busY, 0);
+          hallGroup.add(busA);
+          const busB = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, hallL - 1.2), matBusB);
+          busB.position.set(rx + 0.16, busY, 0);
+          hallGroup.add(busB);
+          const fiber = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.06, hallL - 1.2), matFiberTray);
           fiber.position.set(rx, busY - 0.22, 0);
-          podGroup.add(fiber);
+          hallGroup.add(fiber);
         });
       }
 
       if (isLoadedMode && layers.racks) {
-        const renderRow = (rowRacks: typeof pod.rowA, sideSign: number) => {
-          let zCursor = -L / 2 + 1.2;
-          rowRacks.forEach(rk => {
+        const deckY = plinthH + (project.raisedFloorEnabled ? plenumH + 0.06 : 0.06);
+        const allRacks = eng.activeRacks || [];
+        const half = Math.ceil(allRacks.length / 2);
+        const placeHallRow = (list: typeof allRacks, xPos: number) => {
+          let zPos = -hallL / 2 + 2.2;
+          const maxZ = hallL / 2 - 2.4;
+          list.forEach(rk => {
+            if (zPos + rk.widthMm / 1000 > maxZ) return;
             const rW = rk.widthMm / 1000;
             const rH = rk.heightMm / 1000;
             const rD = rk.depthMm / 1000;
-            const rx = sideSign * (W * 0.27);
-            const rz = zCursor + rW / 2;
-            const rackCol = rk.isDlc ? palette.dlcRack : palette.acRack;
-
-            const cabinet = new THREE.Mesh(
+            const cab = new THREE.Mesh(
               new THREE.BoxGeometry(rD, rH, rW),
-              new THREE.MeshStandardMaterial({ color: new THREE.Color(rackCol), roughness: 0.35, metalness: 0.45 })
+              new THREE.MeshStandardMaterial({ color: new THREE.Color(rk.isDlc ? palette.dlcRack : palette.acRack), roughness: 0.35, metalness: 0.45 })
             );
-            cabinet.position.set(rx, plinthH + plenumH + 0.08 + rH / 2, rz);
-            addCrispEdges(cabinet, isDaylight ? 0x0f172a : 0xffffff, 0.5);
-            podGroup.add(cabinet);
-
-            if (rk.isDlc) {
-              const pipeY = rk.plumbingEntry === 'Top' ? plinthH + H - 0.5 : plinthH + plenumH * 0.55;
-              const pipeH = rk.plumbingEntry === 'Top' ? 0.6 : plenumH + 0.25;
-              const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, pipeH, 10), matSupplyPipe);
-              drop.position.set(rx, pipeY, rz);
-              podGroup.add(drop);
-            }
-            zCursor += rW + 0.08;
+            cab.position.set(xPos, deckY + rH / 2, zPos + rW / 2);
+            addCrispEdges(cab, isDaylight ? 0x0f172a : 0xffffff, 0.5);
+            hallGroup.add(cab);
+            zPos += rW + 0.12;
           });
         };
-        renderRow(pod.rowA || [], -1);
-        renderRow(pod.rowB || [], 1);
-
-        // Internal White-Space PAC, Internal CDU Tower & Internal LV Switchboard
-        const baseY = plinthH + plenumH + 0.08;
-        const pacMesh = new THREE.Mesh(
-          new THREE.BoxGeometry(0.95, 2.2, 1.1),
-          new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.coolerTank || '#059669'), roughness: 0.35 })
-        );
-        pacMesh.position.set(-W * 0.28, baseY + 1.1, L / 2 - 1.1);
-        podGroup.add(pacMesh);
-
-        if (eng.whiteSpace.internalCduCount > 0) {
-          const cduMesh = new THREE.Mesh(
-            new THREE.BoxGeometry(0.85, 2.2, 1.1),
-            new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.cduPump || '#0284C7'), roughness: 0.35 })
-          );
-          cduMesh.position.set(W * 0.28, baseY + 1.1, L / 2 - 1.1);
-          podGroup.add(cduMesh);
-        }
-
-        const swgMesh = new THREE.Mesh(
-          new THREE.BoxGeometry(0.65, 2.1, 0.9),
-          new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.transformer || '#7C3AED'), roughness: 0.35 })
-        );
-        swgMesh.position.set(-W * 0.28, baseY + 1.05, -L / 2 + 0.85);
-        podGroup.add(swgMesh);
+        placeHallRow(allRacks.slice(0, half), -hallW * 0.22);
+        placeHallRow(allRacks.slice(half), hallW * 0.22);
       }
 
-      scene.add(podGroup);
-    });
+      scene.add(hallGroup);
 
-    if (viewScope === 'Hall' && layers.yardEquipment) {
+      // Render BnM Auxiliary Rooms (UPS Room, Battery Room, Switchgear Room, Rack Dressing Bay & Upper-Floor Freight Lift)
+      if (layers.yardEquipment) {
+        const addAuxRoom3D = (
+          x: number,
+          z: number,
+          w: number,
+          d: number,
+          h: number,
+          colorHex: string,
+          isOutdoorPod = false
+        ) => {
+          const rmMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(w, h, d),
+            new THREE.MeshStandardMaterial({
+              color: new THREE.Color(colorHex),
+              roughness: isOutdoorPod ? 0.4 : 0.6,
+              metalness: isOutdoorPod ? 0.35 : 0.15,
+              transparent: !isOutdoorPod,
+              opacity: isOutdoorPod ? 0.92 : 0.42
+            })
+          );
+          rmMesh.position.set(x, plinthH + h / 2, z);
+          addCrispEdges(rmMesh, isDaylight ? 0x0f172a : 0xffffff, 0.55);
+          scene.add(rmMesh);
+        };
+
+        const sideX = hallW / 2 + 4.5;
+        if (project.bnmUpsRoom.placement !== 'outdoor_container') {
+          addAuxRoom3D(sideX, hallZCenter - 6, Math.min(8, project.bnmUpsRoom.widthM * 0.6), Math.min(9, project.bnmUpsRoom.lengthM * 0.6), Math.min(4.5, project.bnmUpsRoom.heightM), palette.upsBess, false);
+        } else {
+          addAuxRoom3D(sideX, hallZCenter - 6, 3.2, 8.5, 3.0, palette.upsBess, true);
+        }
+
+        if (project.bnmBatteryRoom.placement !== 'outdoor_container') {
+          addAuxRoom3D(sideX, hallZCenter + 4, Math.min(8, project.bnmBatteryRoom.widthM * 0.6), Math.min(8, project.bnmBatteryRoom.lengthM * 0.6), Math.min(4.2, project.bnmBatteryRoom.heightM), palette.dgSet, false);
+        } else {
+          addAuxRoom3D(sideX, hallZCenter + 4, 3.2, 8.5, 3.0, palette.dgSet, true);
+        }
+
+        if (project.bnmSwitchgearRoom.placement !== 'outdoor_container') {
+          addAuxRoom3D(-hallW / 2 - 4.5, hallZCenter - 4, Math.min(8, project.bnmSwitchgearRoom.widthM * 0.6), Math.min(10, project.bnmSwitchgearRoom.lengthM * 0.6), Math.min(4.8, project.bnmSwitchgearRoom.heightM), palette.transformer, false);
+        } else {
+          addAuxRoom3D(-hallW / 2 - 4.5, hallZCenter - 4, 3.6, 7.5, 2.8, palette.transformer, true);
+        }
+
+        // Rack Undressing / Dressing Staging Bay
+        addAuxRoom3D(-hallW / 2 - 4.5, hallZCenter + 6.5, 4.5, 6.5, 3.4, palette.adminStage, false);
+
+        // Upper-Floor Heavy Freight Lift Core
+        if (eng.bnmAux.isUpperFloor) {
+          addAuxRoom3D(0, hallZCenter + hallL / 2 + 2.8, 3.2, 3.6, hallH + 1.2, '#FF5539', false);
+        }
+      }
+    } else {
+      podsToRender.forEach((pod, pIdx) => {
+        const L = pod.extLengthMm / 1000;
+        const W = pod.extWidthMm / 1000;
+        const H = pod.extHeightMm / 1000;
+        const plenumH = project.plenumHeightMm / 1000;
+        const plinthH = 0.45;
+
+        const podGroup = new THREE.Group();
+        if (isUShaped && podsToRender.length >= 3) {
+          if (pIdx === 0) podGroup.position.set(-L * 0.65, 0, -3);
+          else if (pIdx === podsToRender.length - 1) podGroup.position.set(L * 0.65, 0, -3);
+          else {
+            podGroup.rotation.y = Math.PI / 2;
+            podGroup.position.set((pIdx - 1) * (W + 0.1), 0, -L * 0.75 - 3);
+          }
+        } else {
+          podGroup.position.set(cursorX + W / 2, 0, -3);
+          cursorX += W + spacing;
+        }
+
+        const plinth = new THREE.Mesh(new THREE.BoxGeometry(W + 0.3, plinthH, L + 0.3), matPlinth);
+        plinth.position.y = plinthH / 2;
+        podGroup.add(plinth);
+
+        const floorDeck = new THREE.Mesh(new THREE.BoxGeometry(W - 0.15, 0.06, L - 0.15), matFloor);
+        floorDeck.position.y = plinthH + plenumH;
+        podGroup.add(floorDeck);
+
+        if (layers.shell) {
+          const skipLeftWall = isGanged && pIdx > 0 && !isUShaped;
+          const skipRightWall = isGanged && pIdx < podsToRender.length - 1 && !isUShaped;
+          if (!skipLeftWall) {
+            const leftW = new THREE.Mesh(new THREE.BoxGeometry(0.08, H, L), matWall);
+            leftW.position.set(-W / 2, plinthH + H / 2, 0);
+            podGroup.add(leftW);
+          }
+          if (!skipRightWall) {
+            const rightW = new THREE.Mesh(new THREE.BoxGeometry(0.08, H, L), matWall);
+            rightW.position.set(W / 2, plinthH + H / 2, 0);
+            podGroup.add(rightW);
+          }
+          const frontW = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.08), matWall);
+          frontW.position.set(0, plinthH + H / 2, L / 2);
+          podGroup.add(frontW);
+
+          const backW = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.08), matWall);
+          backW.position.set(0, plinthH + H / 2, -L / 2);
+          podGroup.add(backW);
+
+          [
+            [-W / 2, -L / 2],
+            [W / 2, -L / 2],
+            [-W / 2, L / 2],
+            [W / 2, L / 2]
+          ].forEach(([cx, cz]) => {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, H, 0.16), matFrame);
+            post.position.set(cx, plinthH + H / 2, cz);
+            podGroup.add(post);
+          });
+        }
+
+        if (layers.plumbing) {
+          [-W * 0.26, W * 0.26].forEach(rx => {
+            const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, L - 0.4, 14), matSupplyPipe);
+            sup.rotation.x = Math.PI / 2;
+            sup.position.set(rx - 0.1, plinthH + plenumH * 0.45, 0);
+            podGroup.add(sup);
+
+            const ret = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, L - 0.4, 14), matReturnPipe);
+            ret.rotation.x = Math.PI / 2;
+            ret.position.set(rx + 0.1, plinthH + plenumH * 0.65, 0);
+            podGroup.add(ret);
+          });
+        }
+
+        if (layers.buswaysData) {
+          const busY = plinthH + H - 0.35;
+          [-W * 0.28, W * 0.28].forEach(rx => {
+            const busA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, L - 0.5), matBusA);
+            busA.position.set(rx - 0.14, busY, 0);
+            podGroup.add(busA);
+
+            const busB = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, L - 0.5), matBusB);
+            busB.position.set(rx + 0.14, busY, 0);
+            podGroup.add(busB);
+
+            const fiber = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, L - 0.5), matFiberTray);
+            fiber.position.set(rx, busY - 0.22, 0);
+            podGroup.add(fiber);
+          });
+        }
+
+        if (isLoadedMode && layers.racks) {
+          const renderRow = (rowRacks: typeof pod.rowA, sideSign: number) => {
+            let zCursor = -L / 2 + 1.2;
+            rowRacks.forEach(rk => {
+              const rW = rk.widthMm / 1000;
+              const rH = rk.heightMm / 1000;
+              const rD = rk.depthMm / 1000;
+              const rx = sideSign * (W * 0.27);
+              const rz = zCursor + rW / 2;
+              const rackCol = rk.isDlc ? palette.dlcRack : palette.acRack;
+
+              const cabinet = new THREE.Mesh(
+                new THREE.BoxGeometry(rD, rH, rW),
+                new THREE.MeshStandardMaterial({ color: new THREE.Color(rackCol), roughness: 0.35, metalness: 0.45 })
+              );
+              cabinet.position.set(rx, plinthH + plenumH + 0.08 + rH / 2, rz);
+              addCrispEdges(cabinet, isDaylight ? 0x0f172a : 0xffffff, 0.5);
+              podGroup.add(cabinet);
+
+              if (rk.isDlc) {
+                const pipeY = rk.plumbingEntry === 'Top' ? plinthH + H - 0.5 : plinthH + plenumH * 0.55;
+                const pipeH = rk.plumbingEntry === 'Top' ? 0.6 : plenumH + 0.25;
+                const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, pipeH, 10), matSupplyPipe);
+                drop.position.set(rx, pipeY, rz);
+                podGroup.add(drop);
+              }
+              zCursor += rW + 0.08;
+            });
+          };
+          renderRow(pod.rowA || [], -1);
+          renderRow(pod.rowB || [], 1);
+
+          const baseY = plinthH + plenumH + 0.08;
+          const pacMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.95, 2.2, 1.1),
+            new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.coolerTank || '#059669'), roughness: 0.35 })
+          );
+          pacMesh.position.set(-W * 0.28, baseY + 1.1, L / 2 - 1.1);
+          podGroup.add(pacMesh);
+
+          if (eng.whiteSpace.internalCduCount > 0) {
+            const cduMesh = new THREE.Mesh(
+              new THREE.BoxGeometry(0.85, 2.2, 1.1),
+              new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.cduPump || '#0284C7'), roughness: 0.35 })
+            );
+            cduMesh.position.set(W * 0.28, baseY + 1.1, L / 2 - 1.1);
+            podGroup.add(cduMesh);
+          }
+
+          const swgMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.65, 2.1, 0.9),
+            new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.transformer || '#7C3AED'), roughness: 0.35 })
+          );
+          swgMesh.position.set(-W * 0.28, baseY + 1.05, -L / 2 + 0.85);
+          podGroup.add(swgMesh);
+        }
+
+        scene.add(podGroup);
+      });
+    }
+
+    if (viewScope === 'Hall' && layers.yardEquipment && !isBnM) {
       const basePodLen = (podsToRender[0]?.extLengthMm || 12000) / 1000;
       const addYardBlock = (x: number, z: number, w: number, h: number, l: number, hexCol: string) => {
         const m = new THREE.Mesh(
