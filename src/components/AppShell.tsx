@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
-  BarChart3
+  BarChart3,
+  Box,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -10,6 +11,7 @@ import {
   FolderKanban,
   FolderOpen,
   HardHat,
+  Mail,
   Menu,
   Network,
   Save,
@@ -17,11 +19,9 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Truck,
-  Box,
   X,
   Zap
 } from 'lucide-react';
-import { Mail } from 'lucide-react';
 import { formatMoney } from '../engine/engineeringEngine';
 import type { EngineeringResult, MasterStandards, ProjectDeal } from '../types/mdc';
 
@@ -115,7 +115,6 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   const renderRailContents = (compact: boolean) => (
     <div className="flex flex-col h-full">
-      {/* Brand Header */}
       <div className="px-3.5 py-3.5 border-b border-white/10 flex items-center justify-between gap-2">
         <button
           onClick={() => handleNavClick(() => onNavigatePillar('deal_hub'))}
@@ -153,9 +152,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         </button>
       </div>
 
-      {/* Grouped Navigation */}
       <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4">
-        {/* Workspace */}
         <div className="space-y-1">
           {!compact && (
             <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -180,7 +177,6 @@ export const AppShell: React.FC<AppShellProps> = ({
           </button>
         </div>
 
-        {/* Deal Studio & Engineering Modules */}
         <div className="space-y-1">
           {!compact && (
             <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -272,7 +268,6 @@ export const AppShell: React.FC<AppShellProps> = ({
           </button>
         </div>
 
-        {/* Libraries */}
         <div className="space-y-1">
           {!compact && (
             <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -299,7 +294,6 @@ export const AppShell: React.FC<AppShellProps> = ({
         </div>
       </div>
 
-      {/* Bottom Cloud Status */}
       <div className="p-2.5 border-t border-white/10 space-y-1.5">
         <button
           onClick={onGoogleSignIn}
@@ -324,7 +318,6 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   return (
     <div className="min-h-[100dvh] flex bg-[#F4F6FA] text-slate-900">
-      {/* Desktop Collapsible Left Navigation Rail */}
       <aside
         className={`hidden lg:flex flex-col bg-[#001F54] text-white flex-shrink-0 sticky top-0 h-[100dvh] transition-all duration-200 border-r border-slate-800 ${
           railCollapsed ? 'w-[68px]' : 'w-[244px]'
@@ -333,7 +326,6 @@ export const AppShell: React.FC<AppShellProps> = ({
         {renderRailContents(railCollapsed)}
       </aside>
 
-      {/* Mobile / Foldable Slide-Over Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div className="w-[270px] max-w-[82vw] bg-[#001F54] text-white h-full shadow-2xl flex flex-col">
@@ -355,9 +347,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         </div>
       )}
 
-      {/* Right Main Column */}
       <div className="flex-1 min-w-0 flex flex-col min-h-[100dvh]">
-        {/* Minimal Calm Top Bar */}
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-3 sm:px-5 py-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 min-w-0">
@@ -427,7 +417,6 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </div>
 
-          {/* Persistent Live Telemetry Ribbon inside Deal Studio */}
           {pillar === 'deal_studio' && (
             <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-2 sm:gap-4 overflow-x-auto whitespace-nowrap text-[11px]">
               <div className="flex items-center gap-1.5">
@@ -474,12 +463,10 @@ export const AppShell: React.FC<AppShellProps> = ({
           )}
         </header>
 
-        {/* Main Scrollable Content */}
         <main className="flex-1 p-3 sm:p-5 pb-20 lg:pb-6 max-w-[1600px] w-full mx-auto">
           {children}
         </main>
 
-        {/* Compact Mobile / Fold Narrow Bottom Bar */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 px-2 py-1.5 grid grid-cols-5 gap-1 text-[10px] font-bold">
           <button
             onClick={() => onNavigatePillar('deal_hub')}
@@ -527,7 +514,6 @@ export const AppShell: React.FC<AppShellProps> = ({
         </nav>
       </div>
 
-      {/* Non-Blocking Toast Notifications */}
       {toasts.length > 0 && (
         <div className="fixed bottom-16 lg:bottom-5 right-4 z-50 space-y-2 max-w-sm w-[calc(100vw-2rem)]">
           {toasts.map(t => (
