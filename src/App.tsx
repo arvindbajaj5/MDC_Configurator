@@ -9,6 +9,7 @@ import { WorkspaceSaveOpenModal } from './components/WorkspaceSaveOpenModal';
 import { COLOR_THEMES } from './data/masterCatalog';
 import { DEFAULT_GOOGLE_CLIENT_ID, requestDriveAccessToken } from './engine/drivePicker';
 import { buildFirstDraftPatch, computeEngineeringV13 } from './engine/engineeringEngine';
+import { mergeSupplyChainWithDedup } from './engine/supplyMatcher';
 import {
   loadWorkspaceWithMigration,
   makeBlankProject,
@@ -66,6 +67,31 @@ export default function App() {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 4200);
   };
+
+  // V13.3 Auto-sync monthly GitHub Actions public/mdc_supply_intel.json on startup
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`./mdc_supply_intel.json?t=${Date.now()}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (cancelled || !data || !Array.isArray(data.items) || data.items.length === 0) return;
+        setSupplyIntel(prev => {
+          const mergedRes = mergeSupplyChainWithDedup(prev.items || [], data.items);
+          return {
+            ...prev,
+            lastRefreshed: data.lastRefreshed || prev.lastRefreshed,
+            refreshSource: data.refreshSource || prev.refreshSource,
+            items: mergedRes.merged
+          };
+        });
+      })
+      .catch(() => {
+        // Offline or local dev without public file; keep cached/seeded DB
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const res = saveWorkspaceState({
@@ -367,6 +393,7 @@ export default function App() {
                 eng={eng}
                 standards={standards}
                 palette={palette}
+                logoDataUrl={logoDataUrl}
                 onUpdatePalette={(k, hex) => setPalette(prev => ({ ...prev, [k]: hex }))}
                 onApplyTheme={thKey => {
                   if (COLOR_THEMES[thKey]) setPalette({ ...COLOR_THEMES[thKey] });
