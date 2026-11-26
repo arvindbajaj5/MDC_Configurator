@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AppShell, type DesignSubTab, type ToastNotice, type TopPillar } from './components/AppShell';
 import { DealHub } from './components/DealHub';
+import { EmailProposalModal } from './components/EmailProposalModal';
+import { PortfolioDashboard } from './components/PortfolioDashboard';
 import { DealStudio } from './components/DealStudio';
 import { MasterCrudHub } from './components/MasterCrudHub';
 import { Stage3Outputs } from './components/Stage3Outputs';
@@ -10,6 +12,7 @@ import { COLOR_THEMES } from './data/masterCatalog';
 import { DEFAULT_GOOGLE_CLIENT_ID, requestDriveAccessToken } from './engine/drivePicker';
 import { buildFirstDraftPatch, computeEngineeringV13 } from './engine/engineeringEngine';
 import { mergeSupplyChainWithDedup } from './engine/supplyMatcher';
+import { loadCorporatePptxTemplate, type StoredPptxTemplate } from './engine/templateStorage';
 import {
   loadWorkspaceWithMigration,
   makeBlankProject,
@@ -58,6 +61,12 @@ export default function App() {
     open: false,
     mode: 'save'
   });
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [corporateTemplate, setCorporateTemplate] = useState<StoredPptxTemplate | null>(null);
+
+  useEffect(() => {
+    loadCorporatePptxTemplate().then(setCorporateTemplate).catch(() => {});
+  }, [pillar]);
   const [toasts, setToasts] = useState<ToastNotice[]>([]);
 
   const pushToast = (message: string, tone: ToastNotice['tone'] = 'success') => {
@@ -334,10 +343,28 @@ export default function App() {
         onNavigatePillar={setPillar}
         onNavigateStudio={handleNavigateStudio}
         onOpenSaveModal={mode => setSaveOpenModal({ open: true, mode })}
+        onOpenEmailModal={() => setEmailModalOpen(true)}
         onGoogleSignIn={handleGoogleSignIn}
         onToggleWhatIf={() => setWhatIfOpen(prev => !prev)}
         onDismissToast={id => setToasts(prev => prev.filter(t => t.id !== id))}
       >
+        {pillar === 'portfolio' && (
+          <PortfolioDashboard
+            projects={projects}
+            editingId={editingId}
+            skus={skus}
+            nonItCatalog={nonItCatalog}
+            standards={standards}
+            supplyItems={supplyIntel.items}
+            logoDataUrl={logoDataUrl}
+            onSelectDeal={(id, st) => {
+              setEditingId(id);
+              if (st) setStudioStage(st);
+              setPillar('deal_studio');
+            }}
+          />
+        )}
+
         {pillar === 'deal_hub' && (
           <DealHub
             projects={projects}
@@ -357,6 +384,7 @@ export default function App() {
             onCloneDeal={handleCloneDeal}
             onDeleteDeal={handleDeleteDeal}
             onOpenSaveModal={mode => setSaveOpenModal({ open: true, mode })}
+        onOpenEmailModal={() => setEmailModalOpen(true)}
             onImportLocalFile={handleImportLocalFile}
             onGoogleSignIn={handleGoogleSignIn}
           />
@@ -394,6 +422,8 @@ export default function App() {
                 standards={standards}
                 palette={palette}
                 logoDataUrl={logoDataUrl}
+                corporateTemplate={corporateTemplate}
+                onOpenEmailModal={() => setEmailModalOpen(true)}
                 onUpdatePalette={(k, hex) => setPalette(prev => ({ ...prev, [k]: hex }))}
                 onApplyTheme={thKey => {
                   if (COLOR_THEMES[thKey]) setPalette({ ...COLOR_THEMES[thKey] });
@@ -455,6 +485,18 @@ export default function App() {
           />
         )}
       </AppShell>
+
+      <EmailProposalModal
+        isOpen={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        project={currentProject}
+        eng={eng}
+        standards={standards}
+        clientId={clientId}
+        driveToken={driveToken}
+        logoDataUrl={logoDataUrl}
+        onStatusNotice={(msg, tone) => pushToast(msg, tone || 'success')}
+      />
 
       <WorkspaceSaveOpenModal
         isOpen={saveOpenModal.open}
