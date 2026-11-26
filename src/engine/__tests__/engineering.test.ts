@@ -124,4 +124,37 @@ describe('MDC Configurator V13.1 Core Engines & Backward Compatibility', () => {
     expect(isProtectedMasterFile('mdc_supply_intel_2026.json')).toBe(true);
     expect(isProtectedMasterFile('Sovereign_AI_15MW_Deal.json')).toBe(false);
   });
+
+  it('excludes Telecom/MMR & Logistics Rental by default while including Owned Inside-DC Handling Gear', () => {
+    const deal = makeSampleProject(INITIAL_STANDARDS);
+    expect(deal.includeTelecomMmr).toBe(false);
+    expect(deal.includeLogisticsRigging).toBe(false);
+    expect(deal.includeOwnedDcTools).toBe(true);
+    const eng = computeEngineeringV13(deal, INITIAL_SKUS, INITIAL_NON_IT_CATALOG, INITIAL_STANDARDS);
+    expect(eng.bomItems.some(i => i.key === 'telecom-mmr-room')).toBe(false);
+    expect(eng.bomItems.some(i => i.key === 'logistics-transport-crane')).toBe(false);
+    expect(eng.bomItems.some(i => i.key === 'ownedDcHandlingTools')).toBe(true);
+  });
+
+  it('prices containers per cubic meter (INR/m³), sizes Raised Access Flooring stems/tiles, and wires BnM upper-floor lift', () => {
+    const base = makeSampleProject(INITIAL_STANDARDS);
+    const engCont = computeEngineeringV13(base, INITIAL_SKUS, INITIAL_NON_IT_CATALOG, INITIAL_STANDARDS);
+    expect(engCont.containerTotalVolumeCum).toBeGreaterThan(0);
+    expect(engCont.bomItems.some(i => i.key === 'shellPerCum')).toBe(true);
+    expect(engCont.raisedFloor.pedestalStemCount).toBeGreaterThan(0);
+    expect(engCont.raisedFloor.totalTiles).toBeGreaterThan(0);
+    expect(engCont.bomItems.some(i => i.key === 'raisedFloorPerSqm')).toBe(true);
+
+    const bnmUpper = {
+      ...base,
+      shellArchitecture: 'BnM_Hall' as const,
+      bnmFloorLevel: 2,
+      bnmFreightLiftMode: 'new_in_boq' as const
+    };
+    const engBnm = computeEngineeringV13(bnmUpper, INITIAL_SKUS, INITIAL_NON_IT_CATALOG, INITIAL_STANDARDS);
+    expect(engBnm.bnmAux.isUpperFloor).toBe(true);
+    expect(engBnm.bnmAux.freightLiftRequiredKg).toBeGreaterThanOrEqual(4000);
+    expect(engBnm.bomItems.some(i => i.key === 'bnmFreightLiftUnit')).toBe(true);
+    expect(engBnm.bomItems.some(i => i.key === 'bnmAuxRoomFitout')).toBe(true);
+  });
 });
