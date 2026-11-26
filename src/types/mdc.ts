@@ -11,6 +11,20 @@ export type TrustSource =
   | 'GeminiSearchRefresh'
   | 'SeedCatalog';
 
+export type BnmRoomPlacement = 'extended_from_hall' | 'separate_room' | 'outdoor_container';
+export type RaisedFloorTileType =
+  | 'CalciumSulphate_Heavy'
+  | 'Cementitious_Heavy'
+  | 'SolidSteel_Ultra';
+
+export interface BnmSupportRoomSpec {
+  placement: BnmRoomPlacement;
+  lengthM: number;
+  widthM: number;
+  heightM: number;
+  coolingMode: string;
+}
+
 export interface RackSku {
   id: string;
   name: string;
@@ -92,6 +106,7 @@ export interface MasterStandards {
   defaultMarginPct: number;
   defaultContingencyPct: number;
   defaultGstPct: number;
+  defaultShellRatePerCumInr: number;
   usdRate: number;
   eurRate: number;
 }
@@ -222,6 +237,8 @@ export interface LogisticsOverrides {
   forklifts?: number;
   skates?: number;
   jacks?: number;
+  serverLifts?: number;
+  safetyLadders?: number;
 }
 
 export interface ProjectDeal {
@@ -256,6 +273,7 @@ export interface ProjectDeal {
   futureGrowthReservePct: number;
   containerCatalogId: string;
   containerLengthMode: 'CustomOptimum' | 'ISO20' | 'ISO40' | 'AllInOne';
+  containerFabBasis: 'PerCubicMeter' | 'PerSqm';
   maxCustomLengthMm: number;
   containerHeightMm: number;
   containerWidthMm: number;
@@ -329,7 +347,7 @@ export interface ProjectDeal {
   setbackMeters: number;
   hallRotationDeg: number;
   dealOverrides: Record<string, DealPriceOverride>;
-  // V12 White-space, Civil, Hardening, Telecom, Logistics & Branding
+  // White-space, Civil, Hardening, Telecom, Logistics & Branding
   airflowDelivery: 'UnderfloorPlenumUpward' | 'FrontToRearContainment';
   containmentType: 'ColdAisleContainment' | 'HotAisleContainment';
   frontServiceClearanceMm: number;
@@ -340,6 +358,27 @@ export interface ProjectDeal {
   bnmColumnGridM: string;
   bnmSlabThicknessMm: number;
   bnmClearSoffitM: number;
+  // V13.3 BnM Hall Dimensions (ft/m), Layout Upload, Upper Floor Lift & Auxiliary Rooms
+  bnmDimUnit: 'm' | 'ft';
+  bnmHallLengthM: number;
+  bnmHallWidthM: number;
+  bnmLayoutDataUrl: string;
+  bnmLayoutFileName: string;
+  bnmFloorLevel: number; // 0 = Ground Floor, 1+ = Upper Floor
+  bnmFreightLiftMode: 'existing_verify' | 'new_in_boq' | 'not_applicable';
+  bnmStagingAreaSqm: number;
+  bnmUpsRoom: BnmSupportRoomSpec;
+  bnmBatteryRoom: BnmSupportRoomSpec;
+  bnmSwitchgearRoom: BnmSupportRoomSpec;
+  // V13.3 Raised Access Flooring (False Flooring — Stems, Tiles & Sub-Frames)
+  raisedFloorEnabled: boolean;
+  raisedFloorHeightMm: number;
+  raisedFloorTileType: RaisedFloorTileType;
+  raisedFloorTileLoadKn: number;
+  raisedFloorPedestalRatingKn: number;
+  raisedFloorPerforatedPct: number;
+  raisedFloorSubFrameForHeavyRacks: boolean;
+  // Hardening & Optional Scope Opt-Ins
   includeMonsoonCanopy: boolean;
   includeRadiantHeatBarrier: boolean;
   includeGasScrubber: boolean;
@@ -349,6 +388,7 @@ export interface ProjectDeal {
   includeGridLoadShield: boolean;
   includeTelecomMmr: boolean;
   includeLogisticsRigging: boolean;
+  includeOwnedDcTools: boolean;
   costValidityDays: number;
   carrierCount: number;
   odfCoreDensity: number;
@@ -366,7 +406,7 @@ export interface ProjectDeal {
   interiorRalLabel: string;
   rackBezelFinish: string;
   clientLogoDataUrl: string;
-  // V13.1 Deal-local overrides, placeholders & SOFT validation waivers
+  // Deal-local overrides, placeholders & SOFT validation waivers
   inlineSkuOverrides?: Record<string, InlineSkuOverride>;
   validationWaivers?: Record<string, ValidationWaiver>;
   firstDraftGeneratedAt?: string;
@@ -400,6 +440,7 @@ export interface ContainerPod {
   extLengthMm: number;
   extWidthMm: number;
   extHeightMm: number;
+  volumeCum: number;
   floorFootprintSqm: number;
   reservedGrowthMm: number;
   emptyTareKg: number;
@@ -492,6 +533,58 @@ export interface CivilEngineeringSummary {
   foundationType: string;
 }
 
+export interface RaisedFloorSummary {
+  enabled: boolean;
+  areaSqm: number;
+  heightMm: number;
+  tileSizeMm: string;
+  tileSpecLabel: string;
+  totalTiles: number;
+  perforatedTiles: number;
+  pedestalStemCount: number;
+  pedestalTubeSpec: string;
+  pedestalAxialRatingKn: number;
+  tilePointLoadKn: number;
+  boltedStringersRequired: boolean;
+  seismicBracingRequired: boolean;
+  heavyRackSubFramesCount: number;
+  maxRackPointLoadKn: number;
+  exceedsTilePointLoad: boolean;
+}
+
+export interface BnmAuxEngineeringSummary {
+  hallProvidedSqm: number;
+  hallVolumeCum: number;
+  hallFitStatus: 'FITS' | 'TIGHT' | 'OVERSIZE';
+  floorLevel: number;
+  isUpperFloor: boolean;
+  freightLiftRequiredKg: number;
+  freightLiftMinDoorHeightM: number;
+  freightLiftCabinSpec: string;
+  stagingDressingSqm: number;
+  upsRoomSqm: number;
+  upsRoomCoolingKw: number;
+  batteryRoomSqm: number;
+  batteryRoomCoolingKw: number;
+  switchgearRoomSqm: number;
+  switchgearCoolingKw: number;
+  totalAuxIndoorSqm: number;
+}
+
+export interface EquipmentScheduleItem {
+  assetTag: string;
+  category: string;
+  equipmentName: string;
+  location: string;
+  make: string;
+  model: string;
+  ratingAndRedundancy: string;
+  dimensionsM: string;
+  footprintSqm: number;
+  operatingWeightKg: number;
+  keySpecs: string;
+}
+
 export interface SupplySynthesisMatch {
   group: string;
   demand: number;
@@ -521,6 +614,7 @@ export interface EngineeringResult {
   pods: ContainerPod[];
   dlcPods: ContainerPod[];
   acPods: ContainerPod[];
+  containerTotalVolumeCum: number;
   totalNameplatePeakKw: number;
   totalDesignContKw: number;
   totalActualKw: number;
@@ -640,6 +734,9 @@ export interface EngineeringResult {
     whiteSpaceSupportSqm: number;
   };
   civil: CivilEngineeringSummary;
+  raisedFloor: RaisedFloorSummary;
+  bnmAux: BnmAuxEngineeringSummary;
+  equipmentSchedule: EquipmentScheduleItem[];
   gridShield: { loadDropShieldMw: number };
   telecom: {
     mmrRoomsCount: number;
@@ -655,6 +752,8 @@ export interface EngineeringResult {
     craneTonnage: number;
     outriggerGroundKpa: number;
     laydownStagingSqm: number;
+    ownedServerLifts: number;
+    ownedSafetyLadders: number;
   };
   unitDatasheets: UnitDatasheet[];
   mii: { overallMiiPct: number; miiClassLabel: string };
