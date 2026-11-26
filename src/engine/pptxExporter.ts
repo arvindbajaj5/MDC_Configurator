@@ -825,13 +825,13 @@ export function exportStrictNativePptxDeck(
   // MASTER EQUIPMENT SCHEDULE (RATINGS, DIMENSIONS, WEIGHTS & ROOMS)
   // =========================================================================
   const eqPerPage = 4;
-  const scheduleEqPages = Math.max(1, Math.ceil(eng.equipmentSchedule.length / eqPerPage));
-  for (let p = 0; p < scheduleEqPages; p++) {
+  const eqSchedulePages = Math.max(1, Math.ceil(eng.equipmentSchedule.length / eqPerPage));
+  for (let p = 0; p < eqSchedulePages; p++) {
     const sEq = pptx.addSlide();
     nextSlideNum();
     initSlide(
       sEq,
-      `Master Equipment Schedule (${p + 1} of ${scheduleEqPages})`,
+      `Master Equipment Schedule (${p + 1} of ${eqSchedulePages})`,
       'Equipment Ratings, Redundancy, Physical Dimensions (L×W×H), Footprint, Weight & Room Location'
     );
     const slice = eng.equipmentSchedule.slice(p * eqPerPage, (p + 1) * eqPerPage);
